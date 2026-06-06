@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRM Cabana | Moveis Planejados</title>
+    <link rel="stylesheet" href="styles.css?v=9" />
+  </head>
+  <body>
+    <section class="auth-screen" id="authScreen" hidden>
+      <form class="auth-card" id="authForm">
+        <div class="brand auth-brand">
+          <div class="brand-mark">C</div>
+          <div>
+            <strong>CRM Cabana</strong>
+            <span>Moveis Planejados</span>
+          </div>
+        </div>
+        <div>
+          <h1 id="authTitle">Entrar</h1>
+          <p id="authSubtitle">Acesse sua area para ver apenas seus clientes.</p>
+        </div>
+        <label>E-mail<input id="authEmail" type="email" autocomplete="email" required /></label>
+        <label>Senha<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required /></label>
+        <p class="auth-message" id="authMessage" role="status"></p>
+        <button class="button primary" id="authSubmit" type="submit">Entrar</button>
+        <button class="link-button auth-toggle" id="authToggle" type="button">Criar nova conta</button>
+      </form>
+    </section>
+
+    <div class="crm-shell" id="crmShell" hidden>
+      <aside class="sidebar" aria-label="Navegacao principal">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div>
+            <strong>CRM Cabana</strong>
+            <span>Moveis Planejados</span>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <button class="nav-item active" type="button" data-view="dashboard">
+            <span class="nav-icon">#</span>
+            Dashboard
+          </button>
+          <button class="nav-item" type="button" data-view="clients">
+            <span class="nav-icon">@</span>
+            Clientes
+          </button>
+          <button class="nav-item" type="button" data-view="projects">
+            <span class="nav-icon">[]</span>
+            Projetos
+          </button>
+        </nav>
+
+        <div class="user-chip">
+          <div class="avatar">U</div>
+          <div>
+            <strong id="userName">Usuario</strong>
+            <span id="userEmail">Administrador</span>
+          </div>
+        </div>
+        <button class="logout-button" id="logoutBtn" type="button">Sair</button>
+      </aside>
+
+      <main class="content">
+        <section class="view active" id="dashboardView">
+          <header class="page-header">
+            <div>
+              <h1>Ola, bem-vindo</h1>
+              <p>Resumo do seu CRM.</p>
+            </div>
+            <button class="button secondary" type="button" data-export>
+              <span class="button-icon">XLS</span>
+              Exportar Excel
+            </button>
+          </header>
+
+          <section class="filters-card" aria-label="Filtros do dashboard">
+            <div>
+              <span class="filter-title">Status</span>
+              <div class="status-filters" data-filter-group="dashboard"></div>
+            </div>
+            <div class="date-filter">
+              <span class="filter-title">Data de cadastro</span>
+              <label>
+                <input id="startDate" type="date" />
+              </label>
+              <span>ate</span>
+              <label>
+                <input id="endDate" type="date" />
+              </label>
+            </div>
+          </section>
+
+          <section class="stats-grid" aria-label="Indicadores principais">
+            <article class="stat-card">
+              <span class="stat-icon brown">@</span>
+              <div><span>Clientes</span><strong id="totalClients">0</strong></div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon orange">up</span>
+              <div><span>Em Negociacao</span><strong id="totalNegotiating">0</strong></div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon green">ok</span>
+              <div><span>Fechados</span><strong id="totalClosed">0</strong></div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon brown">$</span>
+              <div><span>Faturamento Total</span><strong id="totalRevenue">R$ 0,00</strong></div>
+            </article>
+            <article class="stat-card wide">
+              <span class="stat-icon rose">$</span>
+              <div><span>Custo Total (Fabrica + Montagem)</span><strong id="totalCost">R$ 0,00</strong></div>
+            </article>
+            <article class="stat-card wide">
+              <span class="stat-icon teal">up</span>
+              <div><span>Lucro Total</span><strong id="totalProfit">R$ 0,00</strong></div>
+            </article>
+          </section>
+
+          <section class="chart-card">
+            <h2>Faturamento e Lucro por Status</h2>
+            <canvas id="statusChart" aria-label="Grafico de faturamento e lucro por status"></canvas>
+            <div class="legend">
+              <span><i class="revenue"></i> Faturamento</span>
+              <span><i class="profit"></i> Lucro</span>
+            </div>
+          </section>
+
+          <section class="recent-card">
+            <div class="recent-heading">
+              <h2>Clientes Recentes</h2>
+              <button class="link-button" type="button" id="seeAllClients">Ver todos</button>
+            </div>
+            <div id="recentClients"></div>
+          </section>
+        </section>
+
+        <section class="view" id="clientsView">
+          <header class="page-header">
+            <div>
+              <h1>Clientes</h1>
+              <p><span id="clientCount">0</span> clientes cadastrados</p>
+            </div>
+            <div class="header-actions">
+              <button class="button secondary" type="button" data-export>
+                <span class="button-icon">XLS</span>
+                Exportar Excel
+              </button>
+              <button class="button primary" id="newClientBtn" type="button">
+                <span class="button-icon">+</span>
+                Novo Cliente
+              </button>
+            </div>
+          </header>
+
+          <section class="client-toolbar">
+            <label class="search-box">
+              <span>Buscar</span>
+              <input id="clientSearch" type="search" placeholder="Buscar por nome, e-mail ou telefone..." />
+            </label>
+            <div class="status-filters" data-filter-group="clients"></div>
+          </section>
+
+          <section class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Telefone</th>
+                  <th>Cidade</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="clientRows"></tbody>
+            </table>
+          </section>
+        </section>
+
+        <section class="view" id="projectsView">
+          <header class="page-header">
+            <div>
+              <h1>Projetos</h1>
+              <p>Ambientes, custos e prazos por cliente.</p>
+            </div>
+            <button class="button primary" id="projectClientBtn" type="button">+ Novo Projeto</button>
+          </header>
+
+          <section class="projects-grid" id="projectCards"></section>
+        </section>
+
+        <section class="view detail-view" id="detailView">
+          <div class="detail-shell">
+            <button class="back-button" id="backToClients" type="button">&lt;</button>
+            <div class="detail-content">
+              <header class="detail-header">
+                <div>
+                  <h1 id="detailName">Cliente</h1>
+                  <p><span class="badge" id="detailStatus">Lead</span><span id="detailOwner"></span></p>
+                </div>
+                <button class="button primary" id="editClientBtn" type="button">Editar</button>
+              </header>
+
+              <section class="info-card">
+                <h2>Dados Pessoais</h2>
+                <div class="info-grid three">
+                  <div><span>CPF</span><strong id="detailCpf"></strong></div>
+                  <div><span>Telefone</span><strong id="detailPhone"></strong></div>
+                  <div><span>E-mail</span><strong id="detailEmail"></strong></div>
+                </div>
+              </section>
+
+              <section class="info-card">
+                <h2>Endereco</h2>
+                <div class="info-grid three">
+                  <div><span>CEP</span><strong id="detailCep"></strong></div>
+                  <div><span>Logradouro</span><strong id="detailStreet"></strong></div>
+                  <div><span>Numero</span><strong id="detailNumber"></strong></div>
+                  <div><span>Complemento</span><strong id="detailComplement"></strong></div>
+                  <div><span>Bairro</span><strong id="detailDistrict"></strong></div>
+                  <div><span>Cidade / Estado</span><strong id="detailCityState"></strong></div>
+                </div>
+              </section>
+
+              <section class="info-card">
+                <h2>Projeto</h2>
+                <div class="info-grid three">
+                  <div><span>Estilo</span><strong id="detailStyle"></strong></div>
+                  <div><span>Prazo</span><strong id="detailDeadline"></strong></div>
+                  <div><span>Data de cadastro</span><strong id="detailCreated"></strong></div>
+                </div>
+                <div class="environments-title">Ambientes</div>
+                <div class="table-wrap">
+                  <table class="project-table">
+                    <thead>
+                      <tr>
+                        <th>Ambiente</th>
+                        <th>Orcamento</th>
+                        <th>Fabrica</th>
+                        <th>Montagem</th>
+                        <th>Valor Final</th>
+                      </tr>
+                    </thead>
+                    <tbody id="detailEnvironments"></tbody>
+                  </table>
+                </div>
+                <div class="notes">
+                  <span>Observacoes</span>
+                  <p id="detailNotes"></p>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="clientDialog">
+      <form method="dialog" id="clientForm" class="dialog-card">
+        <header>
+          <h2 id="dialogTitle">Novo Cliente</h2>
+          <button type="button" id="closeDialog">x</button>
+        </header>
+        <div class="dialog-grid">
+          <label>Nome<input id="formName" required /></label>
+          <label>E-mail<input id="formEmail" type="email" /></label>
+          <label>Telefone<input id="formPhone" /></label>
+          <label>Cidade<input id="formCity" /></label>
+          <label>Status
+            <select id="formStatus">
+              <option>Lead</option>
+              <option>Em negociacao</option>
+              <option>Fechado</option>
+              <option>Cancelado</option>
+            </select>
+          </label>
+          <label>Valor final<input id="formRevenue" type="number" min="0" step="100" value="12000" /></label>
+        </div>
+        <footer>
+          <button class="button secondary" type="button" id="cancelDialog">Cancelar</button>
+          <button class="button primary" value="default" type="submit">Salvar</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="projectDialog" class="wide-dialog">
+      <form method="dialog" id="projectForm" class="dialog-card">
+        <header>
+          <h2>Editar Cadastro</h2>
+          <button type="button" id="closeProjectDialog">x</button>
+        </header>
+        <section class="form-section">
+          <h3>Dados Pessoais</h3>
+          <div class="dialog-grid">
+            <label>Nome completo<input id="editName" required /></label>
+            <label>CPF<input id="editCpf" /></label>
+            <label>Telefone<input id="editPhone" /></label>
+            <label>E-mail<input id="editEmail" type="email" /></label>
+            <label>Status
+              <select id="editStatus">
+                <option>Lead</option>
+                <option>Em negociacao</option>
+                <option>Fechado</option>
+                <option>Cancelado</option>
+              </select>
+            </label>
+            <label>Vendedor responsavel<input id="editOwner" /></label>
+          </div>
+        </section>
+        <section class="form-section">
+          <h3>Endereco</h3>
+          <div class="dialog-grid">
+            <label>CEP<input id="editCep" /></label>
+            <label>Estado<input id="editState" /></label>
+            <label class="span-2">Logradouro<input id="editStreet" /></label>
+            <label>Numero<input id="editNumber" /></label>
+            <label>Complemento<input id="editComplement" /></label>
+            <label>Bairro<input id="editDistrict" /></label>
+            <label>Cidade<input id="editCity" /></label>
+          </div>
+        </section>
+        <section class="form-section">
+          <h3>Projeto</h3>
+        <div class="dialog-grid">
+          <label>Estilo<input id="projectStyle" /></label>
+          <label>Prazo<input id="projectDeadline" placeholder="dd/mm/aaaa" /></label>
+          <label>Data de cadastro<input id="projectCreated" placeholder="dd/mm/aaaa" /></label>
+        </div>
+        <div class="project-editor">
+          <div class="editor-heading">
+            <span>Ambientes</span>
+            <button class="link-button" id="addEnvironmentBtn" type="button">+ Adicionar ambiente</button>
+          </div>
+          <div class="table-wrap">
+            <table class="project-edit-table">
+              <thead>
+                <tr>
+                  <th>Ambiente</th>
+                  <th>Orcamento</th>
+                  <th>Fabrica</th>
+                  <th>Montagem</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="projectEnvironmentRows"></tbody>
+            </table>
+          </div>
+        </div>
+        <label class="notes-field">Observacoes<textarea id="projectNotes" rows="4"></textarea></label>
+        <datalist id="environmentOptions"></datalist>
+        </section>
+        <footer>
+          <button class="button secondary" type="button" id="cancelProjectDialog">Cancelar</button>
+          <button class="button primary" value="default" type="submit">Salvar</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=13"></script>
+  </body>
+</html>
