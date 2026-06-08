@@ -229,9 +229,10 @@
               <section class="info-card">
                 <h2>Projeto</h2>
                 <div class="info-grid three">
-                  <div><span>Estilo</span><strong id="detailStyle"></strong></div>
-                  <div><span>Prazo</span><strong id="detailDeadline"></strong></div>
+                  <div><span>Usuario do cadastro</span><strong id="detailCreatedBy"></strong></div>
+                  <div><span>Vendedor responsavel</span><strong id="detailSeller"></strong></div>
                   <div><span>Data de cadastro</span><strong id="detailCreated"></strong></div>
+                  <div><span>Prazo de entrega</span><strong id="detailDeadline"></strong></div>
                 </div>
                 <div class="environments-title">Ambientes</div>
                 <div class="table-wrap">
@@ -278,6 +279,8 @@
               <option>Cancelado</option>
             </select>
           </label>
+          <label>Data de cadastro<input id="formCreated" readonly /></label>
+          <label>Usuario do cadastro<input id="formCreatedBy" readonly /></label>
         </div>
         <footer>
           <button class="button secondary" type="button" id="cancelDialog">Cancelar</button>
@@ -325,9 +328,9 @@
         <section class="form-section">
           <h3>Projeto</h3>
         <div class="dialog-grid">
-          <label>Estilo<input id="projectStyle" /></label>
-          <label>Prazo<input id="projectDeadline" placeholder="dd/mm/aaaa" /></label>
-          <label>Data de cadastro<input id="projectCreated" placeholder="dd/mm/aaaa" /></label>
+          <label>Usuario do cadastro<input id="projectCreatedBy" readonly /></label>
+          <label>Data de cadastro<input id="projectCreated" readonly /></label>
+          <label>Prazo de entrega<input id="projectDeadline" placeholder="dd/mm/aaaa" /></label>
         </div>
         <div class="project-editor">
           <div class="editor-heading">

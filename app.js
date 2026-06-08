@@ -161,8 +161,31 @@ function showAuthenticatedApp() {
   elements.authScreen.hidden = true;
   elements.crmShell.hidden = false;
   const email = state.session?.user?.email || "Usuario";
-  elements.userName.textContent = email.split("@")[0] || "Usuario";
+  elements.userName.textContent = currentUserName();
   elements.userEmail.textContent = email;
+}
+
+function currentUserName() {
+  const email = state.session?.user?.email || "";
+  return email.split("@")[0] || "Usuario";
+}
+
+function registrationDateTime() {
+  return new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function registeredBy(client) {
+  return client.createdBy || currentUserName();
+}
+
+function responsibleSeller(client) {
+  return !client.owner || client.owner === "Usuario" ? currentUserName() : client.owner;
 }
 
 function showAuthScreen(message = "") {
@@ -718,12 +741,14 @@ function renderProjects() {
     const editButton = document.createElement("button");
 
     card.className = "project-card";
-    title.textContent = client.project.style || "A definir";
-    subtitle.textContent = client.name;
+    title.textContent = client.name;
+    subtitle.textContent = client.project.created ? `Cadastro: ${client.project.created}` : "Projeto";
 
     [
       ["Status", client.status],
-      ["Prazo", client.project.deadline || "A definir"],
+      ["Usuario do cadastro", registeredBy(client)],
+      ["Vendedor responsavel", responsibleSeller(client)],
+      ["Prazo de entrega", client.project.deadline || "A definir"],
       ["Valor", BRL.format(totals.revenue)],
       ["Lucro", BRL.format(totals.profit)],
     ].forEach(([label, value]) => {
@@ -757,7 +782,6 @@ function renderDetail() {
   document.querySelector("#detailName").textContent = client.name;
   document.querySelector("#detailStatus").textContent = client.status;
   document.querySelector("#detailStatus").className = `badge ${statusClass(client.status)}`;
-  document.querySelector("#detailOwner").textContent = `· ${client.owner}`;
   document.querySelector("#detailCpf").textContent = client.cpf || "—";
   document.querySelector("#detailPhone").textContent = client.phone || "—";
   document.querySelector("#detailEmail").textContent = client.email || "—";
@@ -767,7 +791,9 @@ function renderDetail() {
   document.querySelector("#detailComplement").textContent = client.address.complement || "—";
   document.querySelector("#detailDistrict").textContent = client.address.district || "—";
   document.querySelector("#detailCityState").textContent = client.city ? `${client.city} - ${client.state}` : "—";
-  document.querySelector("#detailStyle").textContent = client.project.style || "A definir";
+  document.querySelector("#detailOwner").textContent = `- ${registeredBy(client)}`;
+  document.querySelector("#detailCreatedBy").textContent = registeredBy(client);
+  document.querySelector("#detailSeller").textContent = responsibleSeller(client);
   document.querySelector("#detailDeadline").textContent = client.project.deadline || "A definir";
   document.querySelector("#detailCreated").textContent = client.project.created || "—";
   document.querySelector("#detailNotes").textContent = client.project.notes || "—";
@@ -804,6 +830,8 @@ function openClientDialog(client) {
   document.querySelector("#formPhone").value = client ? client.phone : "";
   document.querySelector("#formCity").value = client ? client.city : "";
   document.querySelector("#formStatus").value = client ? client.status : "Lead";
+  document.querySelector("#formCreated").value = client ? client.project.created || "" : registrationDateTime();
+  document.querySelector("#formCreatedBy").value = client ? registeredBy(client) : currentUserName();
   elements.dialog.showModal();
 }
 
@@ -935,8 +963,8 @@ function openProjectDialog() {
   document.querySelector("#editComplement").value = client.address.complement || "";
   document.querySelector("#editDistrict").value = client.address.district || "";
   document.querySelector("#editCity").value = client.city || "";
-  document.querySelector("#projectStyle").value = client.project.style || "";
   document.querySelector("#projectDeadline").value = client.project.deadline || "";
+  document.querySelector("#projectCreatedBy").value = registeredBy(client);
   document.querySelector("#projectCreated").value = client.project.created || "";
   document.querySelector("#projectNotes").value = client.project.notes || "";
 
@@ -956,9 +984,11 @@ function readProjectEnvironmentRows() {
       const select = row.querySelector('[data-field="name"]');
       const customInput = row.querySelector(".environment-custom-input");
       const rawName = select.value === "__new__" ? customInput.value : select.value;
-      const name = registerEnvironmentName(rawName) || "AMBIENTE";
-      addEnvironmentOptionToSelect(select, name);
-      select.value = name;
+      const name = registerEnvironmentName(rawName);
+      if (name) {
+        addEnvironmentOptionToSelect(select, name);
+        select.value = name;
+      }
       customInput.hidden = true;
       return {
         name,
@@ -989,7 +1019,8 @@ async function saveProjectFromDialog(event) {
       phone: document.querySelector("#editPhone").value.trim(),
       email: document.querySelector("#editEmail").value.trim(),
       status: document.querySelector("#editStatus").value,
-      owner: document.querySelector("#editOwner").value.trim() || "Usuario",
+      owner: document.querySelector("#editOwner").value.trim() || currentUserName(),
+      createdBy: item.createdBy || registeredBy(item),
       city: document.querySelector("#editCity").value.trim(),
       state: document.querySelector("#editState").value.trim(),
       address: {
@@ -1001,7 +1032,6 @@ async function saveProjectFromDialog(event) {
       },
       project: {
         ...item.project,
-        style: document.querySelector("#projectStyle").value.trim(),
         deadline: document.querySelector("#projectDeadline").value.trim(),
         created: document.querySelector("#projectCreated").value.trim(),
         notes: document.querySelector("#projectNotes").value.trim(),
@@ -1032,6 +1062,11 @@ async function saveClientFromDialog(event) {
         phone: document.querySelector("#formPhone").value.trim(),
         city: document.querySelector("#formCity").value.trim(),
         status: document.querySelector("#formStatus").value,
+        createdBy: client.createdBy || document.querySelector("#formCreatedBy").value.trim() || currentUserName(),
+        project: {
+          ...client.project,
+          created: client.project.created || document.querySelector("#formCreated").value.trim() || registrationDateTime(),
+        },
       };
     });
     await saveClients();
@@ -1048,13 +1083,13 @@ async function saveClientFromDialog(event) {
     city: document.querySelector("#formCity").value.trim(),
     state: "",
     status: document.querySelector("#formStatus").value,
-    owner: "Usuario",
+    createdBy: document.querySelector("#formCreatedBy").value.trim() || currentUserName(),
+    owner: currentUserName(),
     cpf: "",
     address: { cep: "", street: "", number: "", complement: "", district: "" },
     project: {
-      style: "",
       deadline: "",
-      created: new Date().toLocaleDateString("pt-BR"),
+      created: document.querySelector("#formCreated").value.trim() || registrationDateTime(),
       notes: "",
       environments: [],
     },
