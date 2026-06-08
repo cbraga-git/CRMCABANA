@@ -300,6 +300,11 @@ function createEnvironmentSelect(selectedName = "") {
   const select = document.createElement("select");
   select.dataset.field = "name";
 
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = "Selecione";
+  select.appendChild(placeholderOption);
+
   state.environments.forEach((environment) => {
     const option = document.createElement("option");
     option.value = environment;
@@ -311,7 +316,7 @@ function createEnvironmentSelect(selectedName = "") {
   customOption.value = "__new__";
   customOption.textContent = "+ Novo ambiente";
   select.appendChild(customOption);
-  select.value = normalizedSelected || "AMBIENTE";
+  select.value = normalizedSelected;
 
   return select;
 }
@@ -713,12 +718,12 @@ function renderProjects() {
     const editButton = document.createElement("button");
 
     card.className = "project-card";
-    title.textContent = client.project.style;
+    title.textContent = client.project.style || "A definir";
     subtitle.textContent = client.name;
 
     [
       ["Status", client.status],
-      ["Prazo", client.project.deadline],
+      ["Prazo", client.project.deadline || "A definir"],
       ["Valor", BRL.format(totals.revenue)],
       ["Lucro", BRL.format(totals.profit)],
     ].forEach(([label, value]) => {
@@ -762,10 +767,10 @@ function renderDetail() {
   document.querySelector("#detailComplement").textContent = client.address.complement || "—";
   document.querySelector("#detailDistrict").textContent = client.address.district || "—";
   document.querySelector("#detailCityState").textContent = client.city ? `${client.city} - ${client.state}` : "—";
-  document.querySelector("#detailStyle").textContent = client.project.style;
-  document.querySelector("#detailDeadline").textContent = client.project.deadline;
+  document.querySelector("#detailStyle").textContent = client.project.style || "A definir";
+  document.querySelector("#detailDeadline").textContent = client.project.deadline || "A definir";
   document.querySelector("#detailCreated").textContent = client.project.created || "—";
-  document.querySelector("#detailNotes").textContent = client.project.notes;
+  document.querySelector("#detailNotes").textContent = client.project.notes || "—";
 
   const tbody = document.querySelector("#detailEnvironments");
   tbody.innerHTML = "";
@@ -799,7 +804,6 @@ function openClientDialog(client) {
   document.querySelector("#formPhone").value = client ? client.phone : "";
   document.querySelector("#formCity").value = client ? client.city : "";
   document.querySelector("#formStatus").value = client ? client.status : "Lead";
-  document.querySelector("#formRevenue").value = client ? clientTotals(client).revenue : "12000";
   elements.dialog.showModal();
 }
 
@@ -939,7 +943,7 @@ function openProjectDialog() {
   elements.projectRows.innerHTML = "";
   const environments = client.project.environments.length
     ? client.project.environments
-    : [{ name: "AMBIENTE", budget: 0, factory: 0, assembly: 0 }];
+    : [{ name: "", budget: 0, factory: 0, assembly: 0 }];
   environments.forEach((environment) => elements.projectRows.appendChild(createEnvironmentRow(environment)));
 
   elements.projectDialog.showModal();
@@ -997,11 +1001,11 @@ async function saveProjectFromDialog(event) {
       },
       project: {
         ...item.project,
-        style: document.querySelector("#projectStyle").value.trim() || "A definir",
-        deadline: document.querySelector("#projectDeadline").value.trim() || "A definir",
+        style: document.querySelector("#projectStyle").value.trim(),
+        deadline: document.querySelector("#projectDeadline").value.trim(),
         created: document.querySelector("#projectCreated").value.trim(),
         notes: document.querySelector("#projectNotes").value.trim(),
-        environments: environments.length ? environments : [{ name: "AMBIENTE", budget: 0, factory: 0, assembly: 0 }],
+        environments,
       },
     };
   });
@@ -1014,9 +1018,6 @@ async function saveProjectFromDialog(event) {
 
 async function saveClientFromDialog(event) {
   event.preventDefault();
-  const revenue = Number(document.querySelector("#formRevenue").value) || 0;
-  const factory = Math.round(revenue * 0.58);
-  const assembly = Math.round(revenue * 0.14);
   const name = document.querySelector("#formName").value.trim();
 
   if (!name) return;
@@ -1031,10 +1032,6 @@ async function saveClientFromDialog(event) {
         phone: document.querySelector("#formPhone").value.trim(),
         city: document.querySelector("#formCity").value.trim(),
         status: document.querySelector("#formStatus").value,
-        project: {
-          ...client.project,
-          environments: [{ ...client.project.environments[0], budget: revenue, factory, assembly }],
-        },
       };
     });
     await saveClients();
@@ -1055,11 +1052,11 @@ async function saveClientFromDialog(event) {
     cpf: "",
     address: { cep: "", street: "", number: "", complement: "", district: "" },
     project: {
-      style: "Moderno",
-      deadline: "A definir",
+      style: "",
+      deadline: "",
       created: new Date().toLocaleDateString("pt-BR"),
-      notes: "Novo atendimento cadastrado.",
-      environments: [{ name: "AMBIENTE", budget: revenue, factory, assembly }],
+      notes: "",
+      environments: [],
     },
   };
 
@@ -1143,7 +1140,7 @@ document.querySelector("#editClientBtn").addEventListener("click", () => {
   openProjectDialog();
 });
 document.querySelector("#addEnvironmentBtn").addEventListener("click", () => {
-  elements.projectRows.appendChild(createEnvironmentRow({ name: "AMBIENTE", budget: 0, factory: 0, assembly: 0 }));
+  elements.projectRows.appendChild(createEnvironmentRow({ name: "", budget: 0, factory: 0, assembly: 0 }));
 });
 document.querySelector("#closeDialog").addEventListener("click", () => {
   state.editingId = null;
