@@ -6,7 +6,15 @@ const BRL = new Intl.NumberFormat("pt-BR", {
 const STORAGE_KEY = "movelcrm-clients";
 const SESSION_KEY = "movelcrm-session";
 const ENVIRONMENT_STORAGE_KEY = "movelcrm-environments";
-const STATUS = ["Todos", "Lead", "Em negociacao", "Fechado", "Cancelado"];
+const STATUS = ["Todos", "Novo", "Contato Realizado", "Visita Agendada", "Projeto", "Orçamento", "Negociação", "Fechado Ganho", "Fechado Perdido"];
+const DEFAULT_STATUS = "Novo";
+const STATUS_MIGRATION = {
+  Lead: "Novo",
+  "Em negociacao": "Negociação",
+  "Em negociação": "Negociação",
+  Fechado: "Fechado Ganho",
+  Cancelado: "Fechado Perdido",
+};
 const DEFAULT_ENVIRONMENTS = [
   "AMBIENTE",
   "COZINHA",
@@ -29,8 +37,11 @@ const state = {
   dashboardStatus: "Todos",
   clientStatus: "Todos",
   search: "",
+  projectSearch: "",
   selectedId: null,
   editingId: null,
+  projectAction: "stay",
+  projectReturnView: "clients",
   returnView: "clients",
   clients: [],
   environments: [],
@@ -57,6 +68,8 @@ const elements = {
   clientRows: document.querySelector("#clientRows"),
   recentClients: document.querySelector("#recentClients"),
   projectCards: document.querySelector("#projectCards"),
+  projectListRows: document.querySelector("#projectListRows"),
+  projectSearch: document.querySelector("#projectSearch"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
   dialog: document.querySelector("#clientDialog"),
@@ -188,6 +201,21 @@ function responsibleSeller(client) {
   return !client.owner || client.owner === "Usuario" ? currentUserName() : client.owner;
 }
 
+function normalizeLeadStatus(status) {
+  return STATUS_MIGRATION[status] || (STATUS.includes(status) ? status : DEFAULT_STATUS);
+}
+
+function normalizeClientStatus(client) {
+  return {
+    ...client,
+    status: normalizeLeadStatus(client.status),
+  };
+}
+
+function normalizeClients(clients) {
+  return clients.map(normalizeClientStatus);
+}
+
 function showAuthScreen(message = "") {
   elements.crmShell.hidden = true;
   elements.authScreen.hidden = false;
@@ -204,7 +232,7 @@ function defaultClients() {
       phone: "(11) 98244-0709",
       city: "Sao Paulo",
       state: "SP",
-      status: "Fechado",
+      status: "Fechado Ganho",
       owner: "Daniela Moreira",
       cpf: "135.569.258-00",
       address: {
@@ -232,7 +260,7 @@ function defaultClients() {
       phone: "",
       city: "",
       state: "",
-      status: "Lead",
+      status: DEFAULT_STATUS,
       owner: "Usuario",
       cpf: "",
       address: { cep: "", street: "", number: "", complement: "", district: "" },
@@ -251,7 +279,7 @@ function defaultClients() {
       phone: "",
       city: "",
       state: "",
-      status: "Lead",
+      status: DEFAULT_STATUS,
       owner: "Usuario",
       cpf: "",
       address: { cep: "", street: "", number: "", complement: "", district: "" },
@@ -381,7 +409,7 @@ function loadLocalClients() {
     try {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.every((client) => client.project && client.address)) {
-        return parsed;
+        return normalizeClients(parsed);
       }
       localStorage.removeItem(userStorageKey());
     } catch {
@@ -389,7 +417,7 @@ function loadLocalClients() {
     }
   }
 
-  return defaultClients();
+  return normalizeClients(defaultClients());
 }
 
 async function signIn(email, password) {
@@ -446,7 +474,7 @@ async function loadRemoteClients() {
     throw new Error(message);
   }
   const rows = await response.json();
-  return rows.map((row) => row.data).filter((client) => client && client.project && client.address);
+  return normalizeClients(rows.map((row) => row.data).filter((client) => client && client.project && client.address));
 }
 
 async function loadClients() {
@@ -515,12 +543,19 @@ function clientTotals(client) {
 }
 
 function statusClass(status) {
-  return `status-${status.toLowerCase().replace(" ", "-").replace("em-negociacao", "negociacao")}`;
+  const normalized = normalizeLeadStatus(status)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `status-${normalized}`;
 }
 
 function showView(view, selectedId) {
   const previousView = state.view;
   state.view = view;
+  document.body.dataset.view = view;
   state.selectedId = selectedId || state.selectedId;
   if (view === "detail" && previousView !== "detail") {
     state.returnView = previousView;
@@ -550,7 +585,7 @@ function filteredClients(group) {
     const matchesStatus = status === "Todos" || client.status === status;
     const matchesSearch =
       !search ||
-      [client.name, client.email, client.phone].some((value) => value.toLowerCase().includes(search));
+      [client.name, client.email, client.phone, client.cpf, client.mobile].some((value) => String(value || "").toLowerCase().includes(search));
 
     return matchesStatus && (group === "clients" ? matchesSearch : true);
   });
@@ -583,8 +618,8 @@ function renderDashboard() {
   );
 
   document.querySelector("#totalClients").textContent = clients.length;
-  document.querySelector("#totalNegotiating").textContent = clients.filter((client) => client.status === "Em negociacao").length;
-  document.querySelector("#totalClosed").textContent = clients.filter((client) => client.status === "Fechado").length;
+  document.querySelector("#totalNegotiating").textContent = clients.filter((client) => client.status === "Negociação").length;
+  document.querySelector("#totalClosed").textContent = clients.filter((client) => client.status === "Fechado Ganho").length;
   document.querySelector("#totalRevenue").textContent = BRL.format(totals.revenue);
   document.querySelector("#totalCost").textContent = BRL.format(totals.cost);
   document.querySelector("#totalProfit").textContent = BRL.format(totals.profit);
@@ -636,7 +671,7 @@ function renderChart(clients) {
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   const width = displayWidth;
   const height = displayHeight;
-  const padding = { top: 22, right: 24, bottom: 48, left: 72 };
+  const padding = { top: 22, right: 24, bottom: 70, left: 72 };
   const statuses = STATUS.slice(1);
   const values = statuses.map((status) => {
     const statusClients = clients.filter((client) => client.status === status);
@@ -655,7 +690,7 @@ function renderChart(clients) {
   const chartWidth = width - padding.left - padding.right;
 
   context.clearRect(0, 0, width, height);
-  context.strokeStyle = "#b7aaa2";
+  context.strokeStyle = "#d9c779";
   context.lineWidth = 1;
   context.beginPath();
   context.moveTo(padding.left, padding.top);
@@ -665,7 +700,7 @@ function renderChart(clients) {
 
   [0, 35000, 70000, 105000, 140000].forEach((tick) => {
     const y = height - padding.bottom - (tick / maxValue) * chartHeight;
-    context.fillStyle = "#68564d";
+    context.fillStyle = "#6e6135";
     context.font = "13px Arial";
     context.textAlign = "right";
     context.fillText(`R$${Math.round(tick / 1000)}k`, padding.left - 8, y + 4);
@@ -681,13 +716,16 @@ function renderChart(clients) {
     const profitWidth = Math.min(64, Math.max(34, groupWidth * 0.13));
     const gap = Math.min(14, groupWidth * 0.04);
 
-    context.fillStyle = "#9a5b37";
+    context.fillStyle = "#aa8e34";
     context.fillRect(x - revenueWidth - gap / 2, baseY - revenueHeight, revenueWidth, revenueHeight);
-    context.fillStyle = "#2da35c";
+    context.fillStyle = "#2e8b45";
     context.fillRect(x + gap / 2, baseY - profitHeight, profitWidth, profitHeight);
-    context.fillStyle = "#68564d";
+    context.fillStyle = "#6e6135";
     context.textAlign = "center";
-    context.fillText(status, x - revenueWidth / 4, baseY + 24);
+    context.font = "11px Arial";
+    status.split(" ").forEach((word, lineIndex) => {
+      context.fillText(word, x - revenueWidth / 4, baseY + 18 + lineIndex * 12);
+    });
   });
 }
 
@@ -729,48 +767,121 @@ function renderClients() {
   });
 }
 
-function renderProjects() {
-  elements.projectCards.innerHTML = "";
+function renderClients() {
+  const clients = filteredClients("clients");
+  document.querySelector("#clientCount").textContent = state.clients.length;
+  elements.clientRows.innerHTML = "";
 
-  state.clients.forEach((client) => {
-    const totals = clientTotals(client);
-    const card = document.createElement("article");
-    const title = document.createElement("h3");
-    const subtitle = document.createElement("p");
-    const list = document.createElement("dl");
-    const editButton = document.createElement("button");
+  if (!clients.length) {
+    elements.clientRows.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum cliente encontrado</td></tr>';
+    return;
+  }
 
-    card.className = "project-card";
-    title.textContent = client.name;
-    subtitle.textContent = client.project.created ? `Cadastro: ${client.project.created}` : "Projeto";
+  clients.forEach((client) => {
+    const row = document.createElement("tr");
+    const folderCell = document.createElement("td");
+    const folderButton = document.createElement("button");
+    folderCell.className = "folder-column";
+    folderButton.className = "folder-button";
+    folderButton.type = "button";
+    folderButton.title = "Abrir cadastro";
+    folderButton.textContent = "▰";
+    folderButton.addEventListener("click", () => showView("detail", client.id));
+    folderCell.appendChild(folderButton);
+    row.appendChild(folderCell);
 
-    [
-      ["Status", client.status],
-      ["Usuario do cadastro", registeredBy(client)],
-      ["Vendedor responsavel", responsibleSeller(client)],
-      ["Prazo de entrega", client.project.deadline || "A definir"],
-      ["Valor", BRL.format(totals.revenue)],
-      ["Lucro", BRL.format(totals.profit)],
-    ].forEach(([label, value]) => {
-      const group = document.createElement("div");
-      const term = document.createElement("dt");
-      const description = document.createElement("dd");
-      term.textContent = label;
-      description.textContent = value;
-      group.append(term, description);
-      list.appendChild(group);
+    [client.id, client.name, client.cpf || "-", client.phone || "-", client.mobile || "-"].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
     });
 
-    editButton.className = "link-button project-edit-button";
-    editButton.type = "button";
-    editButton.textContent = "Editar Projeto";
-    editButton.addEventListener("click", () => {
+    const activeCell = document.createElement("td");
+    const activeBadge = document.createElement("span");
+    activeBadge.className = "active-badge";
+    activeBadge.textContent = client.status === "Fechado Perdido" ? "Não" : "Sim";
+    activeCell.appendChild(activeBadge);
+    row.appendChild(activeCell);
+
+    row.addEventListener("dblclick", () => {
       state.selectedId = client.id;
       openProjectDialog();
     });
 
-    card.append(title, subtitle, list, editButton);
-    elements.projectCards.appendChild(card);
+    elements.clientRows.appendChild(row);
+  });
+}
+
+function renderProjects() {
+  const rows = elements.projectListRows;
+  if (!rows) return;
+
+  const search = state.projectSearch.toLowerCase();
+  const projects = state.clients.filter((client) => {
+    const environmentNames = (client.project.environments || []).map((environment) => environment.name).join(" ");
+    return (
+      !search ||
+      [client.id, client.name, client.status, responsibleSeller(client), client.project.deadline, environmentNames].some((value) =>
+        String(value || "").toLowerCase().includes(search)
+      )
+    );
+  });
+
+  document.querySelector("#projectCount").textContent = projects.length;
+  rows.innerHTML = "";
+
+  if (!projects.length) {
+    rows.innerHTML = '<tr><td colspan="9" class="empty-state">Nenhum projeto encontrado</td></tr>';
+    return;
+  }
+
+  projects.forEach((client) => {
+    const totals = clientTotals(client);
+    const row = document.createElement("tr");
+    const folderCell = document.createElement("td");
+    const folderButton = document.createElement("button");
+    const environments = client.project.environments || [];
+    const environmentSummary = environments.length ? environments.map((environment) => environment.name).join(", ") : "-";
+
+    folderCell.className = "folder-column";
+    folderButton.className = "folder-button";
+    folderButton.type = "button";
+    folderButton.title = "Abrir projeto";
+    folderButton.textContent = "▰";
+    folderButton.addEventListener("click", () => {
+      state.selectedId = client.id;
+      openProjectDialog();
+    });
+    folderCell.appendChild(folderButton);
+    row.appendChild(folderCell);
+
+    [
+      client.id,
+      client.name,
+      environmentSummary,
+      responsibleSeller(client),
+      client.project.deadline || "A definir",
+      BRL.format(totals.revenue),
+      BRL.format(totals.profit),
+    ].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+
+    const statusCell = document.createElement("td");
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `project-status-badge ${statusClass(client.status)}`;
+    statusBadge.textContent = client.status;
+    statusCell.appendChild(statusBadge);
+    row.appendChild(statusCell);
+
+    row.addEventListener("dblclick", () => {
+      state.selectedId = client.id;
+      openProjectDialog();
+    });
+
+    rows.appendChild(row);
   });
 }
 
@@ -829,7 +940,7 @@ function openClientDialog(client) {
   document.querySelector("#formEmail").value = client ? client.email : "";
   document.querySelector("#formPhone").value = client ? client.phone : "";
   document.querySelector("#formCity").value = client ? client.city : "";
-  document.querySelector("#formStatus").value = client ? client.status : "Lead";
+  document.querySelector("#formStatus").value = client ? normalizeLeadStatus(client.status) : DEFAULT_STATUS;
   document.querySelector("#formCreated").value = client ? client.project.created || "" : registrationDateTime();
   document.querySelector("#formCreatedBy").value = client ? registeredBy(client) : currentUserName();
   elements.dialog.showModal();
@@ -954,7 +1065,7 @@ function openProjectDialog() {
   document.querySelector("#editCpf").value = client.cpf || "";
   document.querySelector("#editPhone").value = client.phone || "";
   document.querySelector("#editEmail").value = client.email || "";
-  document.querySelector("#editStatus").value = client.status || "Lead";
+  document.querySelector("#editStatus").value = normalizeLeadStatus(client.status || DEFAULT_STATUS);
   document.querySelector("#editOwner").value = client.owner || "";
   document.querySelector("#editCep").value = client.address.cep || "";
   document.querySelector("#editState").value = client.state || "";
@@ -971,6 +1082,74 @@ function openProjectDialog() {
   elements.projectRows.innerHTML = "";
   const environments = client.project.environments.length
     ? client.project.environments
+    : [{ name: "", budget: 0, factory: 0, assembly: 0 }];
+  environments.forEach((environment) => elements.projectRows.appendChild(createEnvironmentRow(environment)));
+
+  elements.projectDialog.showModal();
+}
+
+function blankClient() {
+  return {
+    id: createId(),
+    name: "",
+    email: "",
+    phone: "",
+    mobile: "",
+    contact: "",
+    personType: "Física",
+    city: "",
+    state: "",
+    status: DEFAULT_STATUS,
+    createdBy: currentUserName(),
+    owner: currentUserName(),
+    cpf: "",
+    address: { cep: "", street: "", number: "", complement: "", district: "" },
+    project: {
+      deadline: "",
+      created: registrationDateTime(),
+      notes: "",
+      environments: [],
+    },
+  };
+}
+
+function openProjectDialog(client = selectedClient()) {
+  const isNew = !client;
+  const editableClient = client || blankClient();
+  const editingProject = state.view === "projects";
+  state.selectedId = client ? client.id : null;
+  state.projectAction = "stay";
+  state.projectReturnView = state.view === "projects" ? "projects" : "clients";
+
+  document.querySelector("#projectForm").reset();
+  document.querySelector("#projectDialog h2").textContent = isNew
+    ? editingProject ? "Novo Projeto" : "Novo Cliente"
+    : editingProject ? "Cadastro Projeto" : "Cadastro Cliente";
+  document.querySelector("#deleteProjectBtn").hidden = isNew;
+  document.querySelector("#editName").value = editableClient.name || "";
+  document.querySelector("#editPersonType").value = editableClient.personType || "Física";
+  document.querySelector("#editCpf").value = editableClient.cpf || "";
+  document.querySelector("#editContact").value = editableClient.contact || "";
+  document.querySelector("#editPhone").value = editableClient.phone || "";
+  document.querySelector("#editMobile").value = editableClient.mobile || "";
+  document.querySelector("#editEmail").value = editableClient.email || "";
+  document.querySelector("#editStatus").value = normalizeLeadStatus(editableClient.status || DEFAULT_STATUS);
+  document.querySelector("#editOwner").value = editableClient.owner || "";
+  document.querySelector("#editCep").value = editableClient.address.cep || "";
+  document.querySelector("#editState").value = editableClient.state || "";
+  document.querySelector("#editStreet").value = editableClient.address.street || "";
+  document.querySelector("#editNumber").value = editableClient.address.number || "";
+  document.querySelector("#editComplement").value = editableClient.address.complement || "";
+  document.querySelector("#editDistrict").value = editableClient.address.district || "";
+  document.querySelector("#editCity").value = editableClient.city || "";
+  document.querySelector("#projectDeadline").value = editableClient.project.deadline || "";
+  document.querySelector("#projectCreatedBy").value = registeredBy(editableClient);
+  document.querySelector("#projectCreated").value = editableClient.project.created || registrationDateTime();
+  document.querySelector("#projectNotes").value = editableClient.project.notes || "";
+
+  elements.projectRows.innerHTML = "";
+  const environments = editableClient.project.environments.length
+    ? editableClient.project.environments
     : [{ name: "", budget: 0, factory: 0, assembly: 0 }];
   environments.forEach((environment) => elements.projectRows.appendChild(createEnvironmentRow(environment)));
 
@@ -1044,6 +1223,74 @@ async function saveProjectFromDialog(event) {
   refreshEnvironmentCatalog(environments.map((environment) => environment.name));
   elements.projectDialog.close();
   render();
+}
+
+async function saveProjectFromDialog(event) {
+  event.preventDefault();
+  const client = selectedClient();
+  const isNew = !client;
+  const baseClient = client || blankClient();
+  const name = document.querySelector("#editName").value.trim();
+  if (!name) return;
+
+  const environments = readProjectEnvironmentRows();
+  const savedClient = {
+    ...baseClient,
+    name,
+    personType: document.querySelector("#editPersonType").value,
+    contact: document.querySelector("#editContact").value.trim(),
+    cpf: document.querySelector("#editCpf").value.trim(),
+    phone: document.querySelector("#editPhone").value.trim(),
+    mobile: document.querySelector("#editMobile").value.trim(),
+    email: document.querySelector("#editEmail").value.trim(),
+    status: document.querySelector("#editStatus").value,
+    owner: document.querySelector("#editOwner").value.trim() || currentUserName(),
+    createdBy: baseClient.createdBy || registeredBy(baseClient),
+    city: document.querySelector("#editCity").value.trim(),
+    state: document.querySelector("#editState").value.trim(),
+    address: {
+      cep: document.querySelector("#editCep").value.trim(),
+      street: document.querySelector("#editStreet").value.trim(),
+      number: document.querySelector("#editNumber").value.trim(),
+      complement: document.querySelector("#editComplement").value.trim(),
+      district: document.querySelector("#editDistrict").value.trim(),
+    },
+    project: {
+      ...baseClient.project,
+      deadline: document.querySelector("#projectDeadline").value.trim(),
+      created: document.querySelector("#projectCreated").value.trim() || registrationDateTime(),
+      notes: document.querySelector("#projectNotes").value.trim(),
+      environments,
+    },
+  };
+
+  if (isNew) {
+    state.clients.unshift(savedClient);
+  } else {
+    state.clients = state.clients.map((item) => (item.id === savedClient.id ? savedClient : item));
+  }
+
+  state.selectedId = savedClient.id;
+  await saveClients();
+  refreshEnvironmentCatalog(environments.map((environment) => environment.name));
+  render();
+
+  if (isNew) {
+    document.querySelector("#projectDialog h2").textContent = state.projectReturnView === "projects" ? "Cadastro Projeto" : "Cadastro Cliente";
+    document.querySelector("#deleteProjectBtn").hidden = false;
+  }
+
+  if (state.projectAction === "new") {
+    openProjectDialog(null);
+    return;
+  }
+
+  if (state.projectAction === "close") {
+    elements.projectDialog.close();
+    showView(state.projectReturnView || "clients");
+  }
+
+  state.projectAction = "stay";
 }
 
 async function saveClientFromDialog(event) {
@@ -1133,6 +1380,13 @@ elements.authToggle.addEventListener("click", () => {
   renderAuthMode();
 });
 
+document.querySelector("#togglePassword").addEventListener("click", () => {
+  const showingPassword = elements.authPassword.type === "text";
+  elements.authPassword.type = showingPassword ? "password" : "text";
+  document.querySelector("#togglePassword").textContent = showingPassword ? "Mostrar" : "Ocultar";
+  document.querySelector("#togglePassword").setAttribute("aria-label", showingPassword ? "Mostrar senha" : "Ocultar senha");
+});
+
 elements.authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const email = elements.authEmail.value.trim();
@@ -1167,8 +1421,13 @@ elements.clientSearch.addEventListener("input", (event) => {
   renderClients();
 });
 
-document.querySelector("#newClientBtn").addEventListener("click", () => openClientDialog());
-document.querySelector("#projectClientBtn").addEventListener("click", () => openClientDialog());
+elements.projectSearch.addEventListener("input", (event) => {
+  state.projectSearch = event.target.value;
+  renderProjects();
+});
+
+document.querySelector("#newClientBtn").addEventListener("click", () => openProjectDialog(null));
+document.querySelector("#projectClientBtn").addEventListener("click", () => openProjectDialog(null));
 document.querySelector("#backToClients").addEventListener("click", () => showView(state.returnView || "clients"));
 document.querySelector("#seeAllClients").addEventListener("click", () => showView("clients"));
 document.querySelector("#editClientBtn").addEventListener("click", () => {
@@ -1187,7 +1446,35 @@ document.querySelector("#cancelDialog").addEventListener("click", () => {
 });
 document.querySelector("#closeProjectDialog").addEventListener("click", () => elements.projectDialog.close());
 document.querySelector("#cancelProjectDialog").addEventListener("click", () => elements.projectDialog.close());
+document.querySelector("#topCloseProjectBtn").addEventListener("click", () => elements.projectDialog.close());
+document.querySelector("#saveProjectBtn").addEventListener("click", () => {
+  state.projectAction = "stay";
+});
+document.querySelector("#saveCloseProjectBtn").addEventListener("click", () => {
+  state.projectAction = "close";
+  elements.projectForm.requestSubmit();
+});
+document.querySelector("#saveNewProjectBtn").addEventListener("click", () => {
+  state.projectAction = "new";
+  elements.projectForm.requestSubmit();
+});
+document.querySelector("#deleteProjectBtn").addEventListener("click", async () => {
+  const client = selectedClient();
+  if (!client) return;
+  state.clients = state.clients.filter((item) => item.id !== client.id);
+  state.selectedId = state.clients[0]?.id || null;
+  await saveClients();
+  elements.projectDialog.close();
+  showView(state.projectReturnView || "clients");
+  render();
+});
 document.querySelectorAll("[data-export]").forEach((button) => button.addEventListener("click", exportCsv));
+document.querySelectorAll("[data-return-dashboard]").forEach((button) => {
+  button.addEventListener("click", () => showView("dashboard"));
+});
+document.querySelectorAll("[data-legacy-logout]").forEach((button) => {
+  button.addEventListener("click", signOut);
+});
 elements.form.addEventListener("submit", saveClientFromDialog);
 elements.projectForm.addEventListener("submit", saveProjectFromDialog);
 window.addEventListener("resize", () => {

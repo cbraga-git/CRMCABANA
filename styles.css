@@ -1,19 +1,20 @@
 :root {
-  --bg: #f7f2ee;
-  --sidebar: #3a241a;
-  --sidebar-line: #4a3025;
-  --accent: #deaa78;
-  --accent-dark: #9a5b37;
-  --text: #160c08;
-  --muted: #956f5c;
-  --card: #fffdfb;
-  --line: #e2d2c5;
+  --bg: #f5efd8;
+  --sidebar: #050505;
+  --sidebar-line: #d9c779;
+  --accent: #d9c779;
+  --accent-dark: #aa8e34;
+  --accent-soft: #efe3aa;
+  --text: #1b1606;
+  --muted: #6e6135;
+  --card: #fffaf0;
+  --line: #d9c779;
   --green: #22a657;
   --teal: #0e9b78;
   --orange: #f59b05;
   --rose: #f43f68;
   --blue: #2563eb;
-  --shadow: 0 2px 7px rgba(65, 38, 23, 0.08);
+  --shadow: 0 2px 10px rgba(5, 5, 5, 0.12);
 }
 
 * {
@@ -24,7 +25,11 @@ body {
   margin: 0;
   min-width: 320px;
   color: var(--text);
-  background: var(--bg);
+  background:
+    linear-gradient(135deg, rgba(245, 239, 216, 0.96), rgba(255, 250, 240, 0.92)),
+    url("assets/cozinha-planejada.svg");
+  background-position: center;
+  background-size: cover;
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -48,26 +53,36 @@ button {
   place-items: center;
   padding: 20px;
   background:
-    linear-gradient(135deg, rgba(58, 36, 26, 0.9), rgba(154, 91, 55, 0.76)),
-    url("assets/cozinha-planejada.svg");
+    linear-gradient(135deg, rgba(0, 0, 0, 0.96), rgba(30, 25, 8, 0.88)),
+    url("assets/cabana-logo.png");
   background-position: center;
-  background-size: cover;
+  background-size: 420px auto;
+  background-repeat: no-repeat;
 }
 
 .auth-card {
   display: grid;
   width: min(420px, 100%);
   gap: 16px;
-  border: 1px solid rgba(255, 253, 251, 0.5);
-  border-radius: 14px;
-  background: rgba(255, 253, 251, 0.96);
-  box-shadow: 0 22px 70px rgba(35, 20, 13, 0.24);
+  border: 1px solid rgba(217, 199, 121, 0.72);
+  border-radius: 8px;
+  background: rgba(255, 250, 240, 0.97);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
   padding: 28px;
 }
 
 .auth-brand {
-  padding: 0;
+  min-height: auto;
+  justify-content: center;
+  border-bottom: 1px solid rgba(170, 142, 52, 0.55);
+  padding: 0 0 16px;
   color: var(--text);
+}
+
+.auth-brand .brand-logo {
+  width: min(260px, 100%);
+  height: 148px;
+  flex-basis: auto;
 }
 
 .auth-brand span,
@@ -80,6 +95,27 @@ button {
   display: grid;
   gap: 6px;
   font-size: 13px;
+  font-weight: 800;
+}
+
+.password-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+.password-field input {
+  border-radius: 10px 0 0 10px;
+}
+
+.password-field button {
+  min-width: 78px;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  background: #0a0a0a;
+  color: var(--accent);
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -96,7 +132,7 @@ button {
 .crm-shell {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: 266px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -106,14 +142,26 @@ button {
   height: 100vh;
   flex-direction: column;
   background: var(--sidebar);
-  color: #fff8f1;
+  color: #fffaf0;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 18px 24px;
+  justify-content: center;
+  min-height: 132px;
+  border-bottom: 1px solid var(--accent);
+  padding: 16px 12px 18px;
+}
+
+.brand-logo {
+  display: block;
+  width: 100%;
+  max-width: 214px;
+  height: 112px;
+  flex: 0 1 auto;
+  object-fit: contain;
+  background: #000;
 }
 
 .brand-mark,
@@ -130,20 +178,26 @@ button {
 
 .brand strong {
   display: block;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  font-size: 20px;
+  line-height: 1.05;
 }
 
 .brand span,
 .user-chip span {
-  color: #c9aa98;
-  font-size: 13px;
+  color: #efe3aa;
+  font-size: 15px;
+  line-height: 1.25;
 }
 
 .nav-list {
   display: grid;
   gap: 6px;
   padding: 16px 6px;
-  border-top: 1px solid var(--sidebar-line);
+  border-top: 0;
 }
 
 .nav-item {
@@ -156,7 +210,7 @@ button {
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #d7beae;
+  color: #efe3aa;
   padding: 0 14px;
   text-align: left;
   font-weight: 700;
@@ -164,7 +218,7 @@ button {
 
 .nav-item.active {
   background: var(--accent);
-  color: #160c08;
+  color: #050505;
 }
 
 .nav-icon {
@@ -194,6 +248,27 @@ button {
 
 .content {
   padding: 24px clamp(20px, 3vw, 40px) 40px;
+}
+
+body[data-view="clients"] .crm-shell,
+body[data-view="projects"] .crm-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body[data-view="clients"] .sidebar,
+body[data-view="projects"] .sidebar {
+  display: none;
+}
+
+body[data-view="clients"] .content,
+body[data-view="projects"] .content {
+  min-height: 100vh;
+  padding: 4px 4px 22px;
+  background:
+    linear-gradient(120deg, rgba(255, 250, 240, 0.95), rgba(245, 239, 216, 0.84)),
+    url("assets/cozinha-planejada.svg");
+  background-position: center;
+  background-size: cover;
 }
 
 .view {
@@ -262,7 +337,7 @@ h2 {
 }
 
 .button.secondary {
-  background: #fffdfa;
+  background: #fffaf0;
   color: var(--text);
   box-shadow: var(--shadow);
 }
@@ -313,7 +388,7 @@ h2 {
   min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fffdfa;
+  background: #fffaf0;
   color: var(--muted);
   padding: 0 14px;
   font-size: 13px;
@@ -340,7 +415,7 @@ textarea {
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fffdfa;
+  background: #fffaf0;
   color: var(--text);
   padding: 0 12px;
 }
@@ -355,7 +430,7 @@ input:focus,
 select:focus,
 textarea:focus,
 button:focus-visible {
-  outline: 3px solid rgba(154, 91, 55, 0.18);
+  outline: 3px solid rgba(217, 199, 121, 0.38);
   outline-offset: 2px;
 }
 
@@ -452,7 +527,7 @@ button:focus-visible {
 }
 
 .legend .profit {
-  background: #2da35c;
+  background: #2e8b45;
 }
 
 .recent-card {
@@ -516,6 +591,186 @@ button:focus-visible {
   margin-bottom: 24px;
 }
 
+.legacy-view {
+  max-width: none;
+}
+
+.legacy-view .page-header {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.legacy-view .page-header h1 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  border-radius: 2px;
+  border-left: 8px solid var(--accent);
+  background: #050505;
+  box-shadow: 3px 3px 4px rgba(0, 0, 0, 0.22);
+  color: var(--accent);
+  padding: 0 14px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.legacy-view .page-header p {
+  margin-top: 8px;
+}
+
+.legacy-view .header-actions .button.secondary[data-export] {
+  display: none;
+}
+
+.legacy-view .header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.legacy-view .button.secondary {
+  min-height: 38px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.legacy-view .legacy-return {
+  border-color: #050505;
+  background: #050505;
+  color: var(--accent);
+}
+
+.legacy-view .legacy-logout {
+  border-color: var(--accent-dark);
+  background: #fffaf0;
+  color: #333;
+}
+
+.legacy-view .button.primary {
+  min-height: 38px;
+  border-color: var(--accent-dark);
+  border-radius: 4px;
+  background: var(--accent-dark);
+}
+
+.legacy-view .client-toolbar {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.legacy-view .status-filters {
+  display: none;
+}
+
+.legacy-view .search-box {
+  width: min(480px, 100%);
+  margin-left: auto;
+  border-radius: 4px;
+  background: #fffaf0;
+  padding-right: 0;
+}
+
+.legacy-view .search-box span {
+  display: none;
+}
+
+.legacy-view .search-box::after {
+  content: "⌕";
+  display: grid;
+  width: 42px;
+  height: 36px;
+  place-items: center;
+  align-self: stretch;
+  background: #050505;
+  color: var(--accent);
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.legacy-view .table-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.legacy-view table {
+  min-width: 980px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.legacy-view th,
+.legacy-view td {
+  height: 38px;
+  border: 1px solid rgba(170, 142, 52, 0.35);
+  padding: 7px 10px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.legacy-view th {
+  background: #050505;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.legacy-view th:not(.folder-column)::after {
+  content: " ♦";
+  float: right;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.legacy-view tbody tr:nth-child(odd) {
+  background: #f5efd8;
+}
+
+.legacy-view tbody tr:nth-child(even) {
+  background: #fffaf0;
+}
+
+.folder-column {
+  width: 48px;
+  text-align: center;
+}
+
+.folder-button {
+  width: 28px;
+  height: 20px;
+  border: 0;
+  border-radius: 2px;
+  background: linear-gradient(#efe3aa, #aa8e34);
+  color: transparent;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.active-badge {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border-radius: 4px;
+  background: #4cb962;
+  color: #fff;
+  padding: 0 9px;
+  font-weight: 800;
+}
+
+.project-status-badge {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border-radius: 4px;
+  padding: 0 9px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.project-status-badge[class*="status-"] {
+  color: #fff;
+}
+
 .search-box {
   display: flex;
   align-items: center;
@@ -524,7 +779,7 @@ button:focus-visible {
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fffdfa;
+  background: #fffaf0;
   padding: 0 12px;
   color: var(--muted);
 }
@@ -561,7 +816,7 @@ td {
 
 th {
   color: var(--muted);
-  background: rgba(226, 210, 197, 0.25);
+  background: rgba(217, 199, 121, 0.22);
   font-size: 14px;
 }
 
@@ -593,24 +848,87 @@ button.status-badge:hover {
   filter: brightness(0.96);
 }
 
-.status-lead {
-  color: #1653db;
+.status-novo {
+  color: #0f3f8c;
   background: #dbeafe;
 }
 
-.status-negociacao {
-  color: #895008;
-  background: #fff2cc;
+.project-status-badge.status-novo {
+  background: #2563eb;
 }
 
-.status-fechado {
-  color: #05723c;
+.status-contato-realizado {
+  color: #075985;
+  background: #e0f2fe;
+}
+
+.project-status-badge.status-contato-realizado {
+  background: #0284c7;
+}
+
+.status-visita-agendada {
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
+.project-status-badge.status-visita-agendada {
+  background: #0f766e;
+}
+
+.status-projeto {
+  color: #6d28d9;
+  background: #ede9fe;
+}
+
+.project-status-badge.status-projeto {
+  background: #7c3aed;
+}
+
+.status-orcamento {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.project-status-badge.status-orcamento {
+  background: #d97706;
+}
+
+.status-negociacao {
+  color: #854d0e;
+  background: #fef9c3;
+}
+
+.project-status-badge.status-negociacao {
+  background: #ca8a04;
+}
+
+.status-fechado-ganho {
+  color: #166534;
   background: #dcfce7;
 }
 
-.status-cancelado {
-  color: #a42121;
+.project-status-badge.status-fechado-ganho {
+  background: #16a34a;
+}
+
+.status-fechado-perdido {
+  color: #991b1b;
   background: #fee2e2;
+}
+
+.project-status-badge.status-fechado-perdido {
+  background: #dc2626;
+}
+
+.project-status-badge.status-novo,
+.project-status-badge.status-contato-realizado,
+.project-status-badge.status-visita-agendada,
+.project-status-badge.status-projeto,
+.project-status-badge.status-orcamento,
+.project-status-badge.status-negociacao,
+.project-status-badge.status-fechado-ganho,
+.project-status-badge.status-fechado-perdido {
+  color: #fff;
 }
 
 .link-button {
@@ -761,7 +1079,7 @@ button.status-badge:hover {
 
 .project-table tfoot,
 .total-row {
-  background: rgba(226, 210, 197, 0.18);
+  background: rgba(217, 199, 121, 0.18);
   font-weight: 900;
 }
 
@@ -783,7 +1101,7 @@ dialog {
 }
 
 dialog.wide-dialog {
-  width: min(980px, calc(100% - 28px));
+  width: min(1100px, calc(100% - 20px));
 }
 
 dialog::backdrop {
@@ -800,6 +1118,80 @@ dialog::backdrop {
   padding: 22px;
 }
 
+.wide-dialog .dialog-card {
+  border-radius: 0;
+  background: #fffaf0;
+  padding: 0 9px 16px;
+}
+
+.wide-dialog .dialog-card > header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 28px;
+  margin: 0 -9px;
+  background: #050505;
+  color: var(--accent);
+  padding: 0 10px 0 16px;
+}
+
+.wide-dialog .dialog-card > header h2 {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.wide-dialog .dialog-card > header button {
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--accent-soft);
+  color: #050505;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.wide-dialog .dialog-card > footer {
+  display: none;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 12px 0 16px;
+}
+
+.dialog-actions .button {
+  min-height: 39px;
+  border-radius: 4px;
+  padding: 0 14px;
+  border: 0;
+  color: #fff;
+  font-weight: 700;
+}
+
+.dialog-actions .save {
+  background: #2e8b45;
+}
+
+.dialog-actions .save-new {
+  background: #6e6135;
+}
+
+.dialog-actions .save-close {
+  background: var(--accent-dark);
+}
+
+.dialog-actions .delete {
+  background: #9b3d35;
+}
+
+.dialog-actions .close {
+  background: #050505;
+  color: var(--accent);
+}
+
 .dialog-card header,
 .dialog-card footer {
   display: flex;
@@ -813,7 +1205,7 @@ dialog::backdrop {
   height: 34px;
   border: 0;
   border-radius: 10px;
-  background: #f1e5dc;
+  background: var(--accent-soft);
   font-size: 22px;
 }
 
@@ -837,14 +1229,70 @@ dialog::backdrop {
 }
 
 .form-section {
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
+  padding: 14px 0;
+  border-top: 0;
 }
 
 .form-section h3 {
-  margin-bottom: 14px;
-  font-family: Georgia, "Times New Roman", serif;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--accent-dark);
+  color: #050505;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 29px;
+  font-weight: 400;
+}
+
+.legacy-form-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 260px) minmax(180px, 1fr) minmax(180px, 260px) minmax(160px, 260px);
+  gap: 7px 24px;
+}
+
+.legacy-form-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
   font-size: 16px;
+  font-weight: 800;
+}
+
+.legacy-form-grid input,
+.legacy-form-grid select {
+  min-height: 38px;
+  border-color: rgba(170, 142, 52, 0.46);
+  border-radius: 4px;
+  background: #fffaf0;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+.legacy-form-grid .span-3 {
+  grid-column: span 3;
+}
+
+.legacy-form-grid .span-4 {
+  grid-column: span 4;
+}
+
+.hint {
+  font-weight: 400;
+}
+
+.cep-field {
+  display: grid;
+  grid-template-columns: 1fr 43px;
+}
+
+.cep-field input {
+  border-radius: 4px 0 0 4px;
+}
+
+.cep-field button {
+  border: 0;
+  border-radius: 0 4px 4px 0;
+  background: #050505;
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 800;
 }
 
 .project-editor {
@@ -980,5 +1428,14 @@ dialog::backdrop {
 
   .detail-shell {
     grid-template-columns: 1fr;
+  }
+
+  .legacy-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .legacy-form-grid .span-3,
+  .legacy-form-grid .span-4 {
+    grid-column: auto;
   }
 }

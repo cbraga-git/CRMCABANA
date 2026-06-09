@@ -4,24 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=9" />
+    <link rel="stylesheet" href="styles.css?v=21" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
       <form class="auth-card" id="authForm">
         <div class="brand auth-brand">
-          <div class="brand-mark">C</div>
-          <div>
-            <strong>CRM Cabana</strong>
-            <span>Moveis Planejados</span>
-          </div>
+          <img class="brand-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
         </div>
         <div>
           <h1 id="authTitle">Entrar</h1>
           <p id="authSubtitle">Acesse sua area para ver apenas seus clientes.</p>
         </div>
         <label>E-mail<input id="authEmail" type="email" autocomplete="email" required /></label>
-        <label>Senha<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required /></label>
+        <label>Senha
+          <span class="password-field">
+            <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required />
+            <button id="togglePassword" type="button" aria-label="Mostrar senha">Mostrar</button>
+          </span>
+        </label>
         <p class="auth-message" id="authMessage" role="status"></p>
         <button class="button primary" id="authSubmit" type="submit">Entrar</button>
         <button class="link-button auth-toggle" id="authToggle" type="button">Criar nova conta</button>
@@ -31,11 +32,7 @@
     <div class="crm-shell" id="crmShell" hidden>
       <aside class="sidebar" aria-label="Navegacao principal">
         <div class="brand">
-          <div class="brand-mark">C</div>
-          <div>
-            <strong>CRM Cabana</strong>
-            <span>Moveis Planejados</span>
-          </div>
+          <img class="brand-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
         </div>
 
         <nav class="nav-list">
@@ -100,11 +97,11 @@
             </article>
             <article class="stat-card">
               <span class="stat-icon orange">up</span>
-              <div><span>Em Negociacao</span><strong id="totalNegotiating">0</strong></div>
+              <div><span>Negociação</span><strong id="totalNegotiating">0</strong></div>
             </article>
             <article class="stat-card">
               <span class="stat-icon green">ok</span>
-              <div><span>Fechados</span><strong id="totalClosed">0</strong></div>
+              <div><span>Fechado Ganho</span><strong id="totalClosed">0</strong></div>
             </article>
             <article class="stat-card">
               <span class="stat-icon brown">$</span>
@@ -138,10 +135,10 @@
           </section>
         </section>
 
-        <section class="view" id="clientsView">
+        <section class="view legacy-view" id="clientsView">
           <header class="page-header">
             <div>
-              <h1>Clientes</h1>
+              <h1><span class="list-icon">▦</span> Cadastro Cliente</h1>
               <p><span id="clientCount">0</span> clientes cadastrados</p>
             </div>
             <div class="header-actions">
@@ -149,9 +146,10 @@
                 <span class="button-icon">XLS</span>
                 Exportar Excel
               </button>
+              <button class="button secondary legacy-return" type="button" data-return-dashboard>Tela principal</button>
               <button class="button primary" id="newClientBtn" type="button">
                 <span class="button-icon">+</span>
-                Novo Cliente
+                Criar novo
               </button>
             </div>
           </header>
@@ -168,12 +166,13 @@
             <table>
               <thead>
                 <tr>
+                  <th class="folder-column">▲</th>
+                  <th>Id</th>
                   <th>Nome</th>
-                  <th>E-mail</th>
+                  <th>CPF/CNPJ</th>
                   <th>Telefone</th>
-                  <th>Cidade</th>
-                  <th>Status</th>
-                  <th></th>
+                  <th>Celular</th>
+                  <th>Ativo</th>
                 </tr>
               </thead>
               <tbody id="clientRows"></tbody>
@@ -181,16 +180,50 @@
           </section>
         </section>
 
-        <section class="view" id="projectsView">
+        <section class="view legacy-view" id="projectsView">
           <header class="page-header">
             <div>
-              <h1>Projetos</h1>
-              <p>Ambientes, custos e prazos por cliente.</p>
+              <h1><span class="list-icon">▦</span> Consulta Projetos</h1>
+              <p><span id="projectCount">0</span> projetos cadastrados</p>
             </div>
-            <button class="button primary" id="projectClientBtn" type="button">+ Novo Projeto</button>
+            <div class="header-actions">
+              <button class="button secondary" type="button" data-export>
+                <span class="button-icon">XLS</span>
+                Exportar Excel
+              </button>
+              <button class="button secondary legacy-return" type="button" data-return-dashboard>Tela principal</button>
+              <button class="button primary" id="projectClientBtn" type="button">
+                <span class="button-icon">+</span>
+                Criar novo
+              </button>
+            </div>
           </header>
 
-          <section class="projects-grid" id="projectCards"></section>
+          <section class="client-toolbar">
+            <label class="search-box">
+              <span>Buscar</span>
+              <input id="projectSearch" type="search" placeholder="Buscar por cliente, ambiente ou vendedor..." />
+            </label>
+          </section>
+
+          <section class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th class="folder-column">▲</th>
+                  <th>Id</th>
+                  <th>Cliente</th>
+                  <th>Ambientes</th>
+                  <th>Vendedor</th>
+                  <th>Prazo Entrega</th>
+                  <th>Valor</th>
+                  <th>Lucro</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="projectListRows"></tbody>
+            </table>
+          </section>
         </section>
 
         <section class="view detail-view" id="detailView">
@@ -200,7 +233,7 @@
               <header class="detail-header">
                 <div>
                   <h1 id="detailName">Cliente</h1>
-                  <p><span class="badge" id="detailStatus">Lead</span><span id="detailOwner"></span></p>
+                  <p><span class="badge" id="detailStatus">Novo</span><span id="detailOwner"></span></p>
                 </div>
                 <button class="button primary" id="editClientBtn" type="button">Editar</button>
               </header>
@@ -273,10 +306,14 @@
           <label>Cidade<input id="formCity" /></label>
           <label>Status
             <select id="formStatus">
-              <option>Lead</option>
-              <option>Em negociacao</option>
-              <option>Fechado</option>
-              <option>Cancelado</option>
+              <option>Novo</option>
+              <option>Contato Realizado</option>
+              <option>Visita Agendada</option>
+              <option>Projeto</option>
+              <option>Orçamento</option>
+              <option>Negociação</option>
+              <option>Fechado Ganho</option>
+              <option>Fechado Perdido</option>
             </select>
           </label>
           <label>Data de cadastro<input id="formCreated" readonly /></label>
@@ -295,34 +332,54 @@
           <h2>Editar Cadastro</h2>
           <button type="button" id="closeProjectDialog">x</button>
         </header>
+        <div class="dialog-actions">
+          <button class="button save" id="saveProjectBtn" value="default" type="submit">✓Salvar</button>
+          <button class="button save-new" id="saveNewProjectBtn" type="button">✓Salvar e Criar Novo</button>
+          <button class="button save-close" id="saveCloseProjectBtn" type="button">✓Salvar e Fechar</button>
+          <button class="button delete" id="deleteProjectBtn" type="button">▥Excluir</button>
+          <button class="button close" id="topCloseProjectBtn" type="button">✖Fechar</button>
+        </div>
         <section class="form-section">
-          <h3>Dados Pessoais</h3>
-          <div class="dialog-grid">
-            <label>Nome completo<input id="editName" required /></label>
+          <h3>Dados Gerais</h3>
+          <div class="legacy-form-grid">
+            <label class="span-3">Nome ou Razão Social *<input id="editName" required /></label>
+            <label>Tipo Pessoa *
+              <select id="editPersonType">
+                <option>Física</option>
+                <option>Jurídica</option>
+              </select>
+            </label>
             <label>CPF<input id="editCpf" /></label>
-            <label>Telefone<input id="editPhone" /></label>
-            <label>E-mail<input id="editEmail" type="email" /></label>
+            <label>Contato<input id="editContact" /></label>
+            <label>Telefone *<input id="editPhone" /></label>
+            <label>Celular<input id="editMobile" /></label>
+            <label class="span-3">Email <span class="hint">(Será encaminhado o e-mail da nota fiscal do produto) *</span><input id="editEmail" type="email" /></label>
             <label>Status
               <select id="editStatus">
-                <option>Lead</option>
-                <option>Em negociacao</option>
-                <option>Fechado</option>
-                <option>Cancelado</option>
+                <option>Novo</option>
+                <option>Contato Realizado</option>
+                <option>Visita Agendada</option>
+                <option>Projeto</option>
+                <option>Orçamento</option>
+                <option>Negociação</option>
+                <option>Fechado Ganho</option>
+                <option>Fechado Perdido</option>
               </select>
             </label>
             <label>Vendedor responsavel<input id="editOwner" /></label>
+            <label class="span-4">Observação<input id="projectNotes" /></label>
           </div>
         </section>
         <section class="form-section">
-          <h3>Endereco</h3>
-          <div class="dialog-grid">
-            <label>CEP<input id="editCep" /></label>
-            <label>Estado<input id="editState" /></label>
-            <label class="span-2">Logradouro<input id="editStreet" /></label>
-            <label>Numero<input id="editNumber" /></label>
+          <h3>Endereço Entrega</h3>
+          <div class="legacy-form-grid">
+            <label>CEP *<span class="cep-field"><input id="editCep" /><button type="button" title="Buscar CEP">⌕</button></span></label>
+            <label class="span-3">Logradouro * <span class="hint">(50 caracteres)</span><input id="editStreet" /></label>
+            <label>Nº *<input id="editNumber" /></label>
             <label>Complemento<input id="editComplement" /></label>
             <label>Bairro<input id="editDistrict" /></label>
             <label>Cidade<input id="editCity" /></label>
+            <label>Estado<input id="editState" /></label>
           </div>
         </section>
         <section class="form-section">
@@ -352,7 +409,6 @@
             </table>
           </div>
         </div>
-        <label class="notes-field">Observacoes<textarea id="projectNotes" rows="4"></textarea></label>
         <datalist id="environmentOptions"></datalist>
         </section>
         <footer>
@@ -363,6 +419,6 @@
     </dialog>
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=13"></script>
+    <script src="app.js?v=22"></script>
   </body>
 </html>
