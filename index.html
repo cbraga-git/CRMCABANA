@@ -3,422 +3,110 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=21" />
+    <meta
+      name="description"
+      content="Cabana Moveis Sob Medida: moveis planejados com projeto personalizado, atendimento consultivo e montagem em Sao Paulo."
+    />
+    <title>Cabana Moveis Sob Medida</title>
+    <link rel="stylesheet" href="institucional.css?v=1" />
   </head>
   <body>
-    <section class="auth-screen" id="authScreen" hidden>
-      <form class="auth-card" id="authForm">
-        <div class="brand auth-brand">
-          <img class="brand-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
+    <header class="site-header">
+      <a class="brand-home" href="#inicio" aria-label="Cabana Moveis Sob Medida">
+        <img src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
+      </a>
+      <nav class="site-nav" aria-label="Navegacao institucional">
+        <a href="#sobre">Sobre</a>
+        <a href="#solucoes">Solucoes</a>
+        <a href="#processo">Processo</a>
+        <a href="#contato">Contato</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" id="inicio">
+        <div class="hero-media" aria-hidden="true">
+          <img src="assets/cozinha-planejada.svg" alt="" />
         </div>
+        <div class="hero-copy">
+          <img class="hero-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
+          <p class="eyebrow">Moveis planejados em Sao Paulo</p>
+          <h1>Projetos sob medida para transformar cada ambiente.</h1>
+          <p>
+            A Cabana desenvolve moveis planejados com atendimento personalizado, aproveitamento inteligente do espaco e acabamento pensado para a rotina de cada cliente.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-link" href="https://wa.me/5511959093538" target="_blank" rel="noreferrer">Solicitar atendimento</a>
+            <a class="secondary-link" href="#solucoes">Ver solucoes</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section split" id="sobre">
         <div>
-          <h1 id="authTitle">Entrar</h1>
-          <p id="authSubtitle">Acesse sua area para ver apenas seus clientes.</p>
+          <p class="eyebrow">20 anos de experiencia</p>
+          <h2>Planejamento, fabricacao e montagem com olhar de projeto.</h2>
         </div>
-        <label>E-mail<input id="authEmail" type="email" autocomplete="email" required /></label>
-        <label>Senha
-          <span class="password-field">
-            <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required />
-            <button id="togglePassword" type="button" aria-label="Mostrar senha">Mostrar</button>
-          </span>
-        </label>
-        <p class="auth-message" id="authMessage" role="status"></p>
-        <button class="button primary" id="authSubmit" type="submit">Entrar</button>
-        <button class="link-button auth-toggle" id="authToggle" type="button">Criar nova conta</button>
-      </form>
-    </section>
+        <p>
+          Com experiencia em moveis sob medida, a Cabana atende clientes que buscam ambientes funcionais, bem acabados e adaptados ao estilo de vida de cada familia ou negocio.
+        </p>
+      </section>
 
-    <div class="crm-shell" id="crmShell" hidden>
-      <aside class="sidebar" aria-label="Navegacao principal">
-        <div class="brand">
-          <img class="brand-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
+      <section class="section" id="solucoes">
+        <div class="section-heading">
+          <p class="eyebrow">Solucoes</p>
+          <h2>Ambientes planejados</h2>
         </div>
-
-        <nav class="nav-list">
-          <button class="nav-item active" type="button" data-view="dashboard">
-            <span class="nav-icon">#</span>
-            Dashboard
-          </button>
-          <button class="nav-item" type="button" data-view="clients">
-            <span class="nav-icon">@</span>
-            Clientes
-          </button>
-          <button class="nav-item" type="button" data-view="projects">
-            <span class="nav-icon">[]</span>
-            Projetos
-          </button>
-        </nav>
-
-        <div class="user-chip">
-          <div class="avatar">U</div>
-          <div>
-            <strong id="userName">Usuario</strong>
-            <span id="userEmail">Administrador</span>
-          </div>
+        <div class="solutions-grid">
+          <article>
+            <span>Cozinhas</span>
+            <p>Layout funcional, armazenamento bem distribuido e acabamentos resistentes ao uso diario.</p>
+          </article>
+          <article>
+            <span>Dormitorios e closets</span>
+            <p>Moveis desenhados para organizacao, circulacao e aproveitamento integral das medidas.</p>
+          </article>
+          <article>
+            <span>Salas e home offices</span>
+            <p>Paineis, bancadas e armarios que combinam estetica, conforto e produtividade.</p>
+          </article>
+          <article>
+            <span>Areas gourmet e comerciais</span>
+            <p>Projetos sob medida para receber, trabalhar e valorizar o imovel.</p>
+          </article>
         </div>
-        <button class="logout-button" id="logoutBtn" type="button">Sair</button>
-      </aside>
+      </section>
 
-      <main class="content">
-        <section class="view active" id="dashboardView">
-          <header class="page-header">
-            <div>
-              <h1>Ola, bem-vindo</h1>
-              <p>Resumo do seu CRM.</p>
-            </div>
-            <button class="button secondary" type="button" data-export>
-              <span class="button-icon">XLS</span>
-              Exportar Excel
-            </button>
-          </header>
-
-          <section class="filters-card" aria-label="Filtros do dashboard">
-            <div>
-              <span class="filter-title">Status</span>
-              <div class="status-filters" data-filter-group="dashboard"></div>
-            </div>
-            <div class="date-filter">
-              <span class="filter-title">Data de cadastro</span>
-              <label>
-                <input id="startDate" type="date" />
-              </label>
-              <span>ate</span>
-              <label>
-                <input id="endDate" type="date" />
-              </label>
-            </div>
-          </section>
-
-          <section class="stats-grid" aria-label="Indicadores principais">
-            <article class="stat-card">
-              <span class="stat-icon brown">@</span>
-              <div><span>Clientes</span><strong id="totalClients">0</strong></div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon orange">up</span>
-              <div><span>Negociação</span><strong id="totalNegotiating">0</strong></div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon green">ok</span>
-              <div><span>Fechado Ganho</span><strong id="totalClosed">0</strong></div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon brown">$</span>
-              <div><span>Faturamento Total</span><strong id="totalRevenue">R$ 0,00</strong></div>
-            </article>
-            <article class="stat-card wide">
-              <span class="stat-icon rose">$</span>
-              <div><span>Custo Total (Fabrica + Montagem)</span><strong id="totalCost">R$ 0,00</strong></div>
-            </article>
-            <article class="stat-card wide">
-              <span class="stat-icon teal">up</span>
-              <div><span>Lucro Total</span><strong id="totalProfit">R$ 0,00</strong></div>
-            </article>
-          </section>
-
-          <section class="chart-card">
-            <h2>Faturamento e Lucro por Status</h2>
-            <canvas id="statusChart" aria-label="Grafico de faturamento e lucro por status"></canvas>
-            <div class="legend">
-              <span><i class="revenue"></i> Faturamento</span>
-              <span><i class="profit"></i> Lucro</span>
-            </div>
-          </section>
-
-          <section class="recent-card">
-            <div class="recent-heading">
-              <h2>Clientes Recentes</h2>
-              <button class="link-button" type="button" id="seeAllClients">Ver todos</button>
-            </div>
-            <div id="recentClients"></div>
-          </section>
-        </section>
-
-        <section class="view legacy-view" id="clientsView">
-          <header class="page-header">
-            <div>
-              <h1><span class="list-icon">▦</span> Cadastro Cliente</h1>
-              <p><span id="clientCount">0</span> clientes cadastrados</p>
-            </div>
-            <div class="header-actions">
-              <button class="button secondary" type="button" data-export>
-                <span class="button-icon">XLS</span>
-                Exportar Excel
-              </button>
-              <button class="button secondary legacy-return" type="button" data-return-dashboard>Tela principal</button>
-              <button class="button primary" id="newClientBtn" type="button">
-                <span class="button-icon">+</span>
-                Criar novo
-              </button>
-            </div>
-          </header>
-
-          <section class="client-toolbar">
-            <label class="search-box">
-              <span>Buscar</span>
-              <input id="clientSearch" type="search" placeholder="Buscar por nome, e-mail ou telefone..." />
-            </label>
-            <div class="status-filters" data-filter-group="clients"></div>
-          </section>
-
-          <section class="table-card">
-            <table>
-              <thead>
-                <tr>
-                  <th class="folder-column">▲</th>
-                  <th>Id</th>
-                  <th>Nome</th>
-                  <th>CPF/CNPJ</th>
-                  <th>Telefone</th>
-                  <th>Celular</th>
-                  <th>Ativo</th>
-                </tr>
-              </thead>
-              <tbody id="clientRows"></tbody>
-            </table>
-          </section>
-        </section>
-
-        <section class="view legacy-view" id="projectsView">
-          <header class="page-header">
-            <div>
-              <h1><span class="list-icon">▦</span> Consulta Projetos</h1>
-              <p><span id="projectCount">0</span> projetos cadastrados</p>
-            </div>
-            <div class="header-actions">
-              <button class="button secondary" type="button" data-export>
-                <span class="button-icon">XLS</span>
-                Exportar Excel
-              </button>
-              <button class="button secondary legacy-return" type="button" data-return-dashboard>Tela principal</button>
-              <button class="button primary" id="projectClientBtn" type="button">
-                <span class="button-icon">+</span>
-                Criar novo
-              </button>
-            </div>
-          </header>
-
-          <section class="client-toolbar">
-            <label class="search-box">
-              <span>Buscar</span>
-              <input id="projectSearch" type="search" placeholder="Buscar por cliente, ambiente ou vendedor..." />
-            </label>
-          </section>
-
-          <section class="table-card">
-            <table>
-              <thead>
-                <tr>
-                  <th class="folder-column">▲</th>
-                  <th>Id</th>
-                  <th>Cliente</th>
-                  <th>Ambientes</th>
-                  <th>Vendedor</th>
-                  <th>Prazo Entrega</th>
-                  <th>Valor</th>
-                  <th>Lucro</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="projectListRows"></tbody>
-            </table>
-          </section>
-        </section>
-
-        <section class="view detail-view" id="detailView">
-          <div class="detail-shell">
-            <button class="back-button" id="backToClients" type="button">&lt;</button>
-            <div class="detail-content">
-              <header class="detail-header">
-                <div>
-                  <h1 id="detailName">Cliente</h1>
-                  <p><span class="badge" id="detailStatus">Novo</span><span id="detailOwner"></span></p>
-                </div>
-                <button class="button primary" id="editClientBtn" type="button">Editar</button>
-              </header>
-
-              <section class="info-card">
-                <h2>Dados Pessoais</h2>
-                <div class="info-grid three">
-                  <div><span>CPF</span><strong id="detailCpf"></strong></div>
-                  <div><span>Telefone</span><strong id="detailPhone"></strong></div>
-                  <div><span>E-mail</span><strong id="detailEmail"></strong></div>
-                </div>
-              </section>
-
-              <section class="info-card">
-                <h2>Endereco</h2>
-                <div class="info-grid three">
-                  <div><span>CEP</span><strong id="detailCep"></strong></div>
-                  <div><span>Logradouro</span><strong id="detailStreet"></strong></div>
-                  <div><span>Numero</span><strong id="detailNumber"></strong></div>
-                  <div><span>Complemento</span><strong id="detailComplement"></strong></div>
-                  <div><span>Bairro</span><strong id="detailDistrict"></strong></div>
-                  <div><span>Cidade / Estado</span><strong id="detailCityState"></strong></div>
-                </div>
-              </section>
-
-              <section class="info-card">
-                <h2>Projeto</h2>
-                <div class="info-grid three">
-                  <div><span>Usuario do cadastro</span><strong id="detailCreatedBy"></strong></div>
-                  <div><span>Vendedor responsavel</span><strong id="detailSeller"></strong></div>
-                  <div><span>Data de cadastro</span><strong id="detailCreated"></strong></div>
-                  <div><span>Prazo de entrega</span><strong id="detailDeadline"></strong></div>
-                </div>
-                <div class="environments-title">Ambientes</div>
-                <div class="table-wrap">
-                  <table class="project-table">
-                    <thead>
-                      <tr>
-                        <th>Ambiente</th>
-                        <th>Orcamento</th>
-                        <th>Fabrica</th>
-                        <th>Montagem</th>
-                        <th>Valor Final</th>
-                      </tr>
-                    </thead>
-                    <tbody id="detailEnvironments"></tbody>
-                  </table>
-                </div>
-                <div class="notes">
-                  <span>Observacoes</span>
-                  <p id="detailNotes"></p>
-                </div>
-              </section>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
-
-    <dialog id="clientDialog">
-      <form method="dialog" id="clientForm" class="dialog-card">
-        <header>
-          <h2 id="dialogTitle">Novo Cliente</h2>
-          <button type="button" id="closeDialog">x</button>
-        </header>
-        <div class="dialog-grid">
-          <label>Nome<input id="formName" required /></label>
-          <label>E-mail<input id="formEmail" type="email" /></label>
-          <label>Telefone<input id="formPhone" /></label>
-          <label>Cidade<input id="formCity" /></label>
-          <label>Status
-            <select id="formStatus">
-              <option>Novo</option>
-              <option>Contato Realizado</option>
-              <option>Visita Agendada</option>
-              <option>Projeto</option>
-              <option>Orçamento</option>
-              <option>Negociação</option>
-              <option>Fechado Ganho</option>
-              <option>Fechado Perdido</option>
-            </select>
-          </label>
-          <label>Data de cadastro<input id="formCreated" readonly /></label>
-          <label>Usuario do cadastro<input id="formCreatedBy" readonly /></label>
+      <section class="process-band" id="processo">
+        <div class="section-heading">
+          <p class="eyebrow">Como fazemos</p>
+          <h2>Do primeiro contato a montagem final.</h2>
         </div>
-        <footer>
-          <button class="button secondary" type="button" id="cancelDialog">Cancelar</button>
-          <button class="button primary" value="default" type="submit">Salvar</button>
-        </footer>
-      </form>
-    </dialog>
+        <ol class="process-list">
+          <li><strong>Briefing</strong><span>Entendemos medidas, rotina, preferencias e prioridades.</span></li>
+          <li><strong>Projeto</strong><span>Desenvolvemos a proposta com foco em uso, beleza e viabilidade.</span></li>
+          <li><strong>Orcamento</strong><span>Detalhamos valores, materiais e prazos com transparencia.</span></li>
+          <li><strong>Entrega</strong><span>Coordenamos fabricacao, montagem e acabamento do ambiente.</span></li>
+        </ol>
+      </section>
 
-    <dialog id="projectDialog" class="wide-dialog">
-      <form method="dialog" id="projectForm" class="dialog-card">
-        <header>
-          <h2>Editar Cadastro</h2>
-          <button type="button" id="closeProjectDialog">x</button>
-        </header>
-        <div class="dialog-actions">
-          <button class="button save" id="saveProjectBtn" value="default" type="submit">✓Salvar</button>
-          <button class="button save-new" id="saveNewProjectBtn" type="button">✓Salvar e Criar Novo</button>
-          <button class="button save-close" id="saveCloseProjectBtn" type="button">✓Salvar e Fechar</button>
-          <button class="button delete" id="deleteProjectBtn" type="button">▥Excluir</button>
-          <button class="button close" id="topCloseProjectBtn" type="button">✖Fechar</button>
+      <section class="contact-section" id="contato">
+        <div>
+          <p class="eyebrow">Contato</p>
+          <h2>Fale com a Cabana</h2>
+          <p>Av. Vida Nova, 28 - Sala 806-B<br />Taboao da Serra - SP<br />CEP: 06764-045</p>
         </div>
-        <section class="form-section">
-          <h3>Dados Gerais</h3>
-          <div class="legacy-form-grid">
-            <label class="span-3">Nome ou Razão Social *<input id="editName" required /></label>
-            <label>Tipo Pessoa *
-              <select id="editPersonType">
-                <option>Física</option>
-                <option>Jurídica</option>
-              </select>
-            </label>
-            <label>CPF<input id="editCpf" /></label>
-            <label>Contato<input id="editContact" /></label>
-            <label>Telefone *<input id="editPhone" /></label>
-            <label>Celular<input id="editMobile" /></label>
-            <label class="span-3">Email <span class="hint">(Será encaminhado o e-mail da nota fiscal do produto) *</span><input id="editEmail" type="email" /></label>
-            <label>Status
-              <select id="editStatus">
-                <option>Novo</option>
-                <option>Contato Realizado</option>
-                <option>Visita Agendada</option>
-                <option>Projeto</option>
-                <option>Orçamento</option>
-                <option>Negociação</option>
-                <option>Fechado Ganho</option>
-                <option>Fechado Perdido</option>
-              </select>
-            </label>
-            <label>Vendedor responsavel<input id="editOwner" /></label>
-            <label class="span-4">Observação<input id="projectNotes" /></label>
-          </div>
-        </section>
-        <section class="form-section">
-          <h3>Endereço Entrega</h3>
-          <div class="legacy-form-grid">
-            <label>CEP *<span class="cep-field"><input id="editCep" /><button type="button" title="Buscar CEP">⌕</button></span></label>
-            <label class="span-3">Logradouro * <span class="hint">(50 caracteres)</span><input id="editStreet" /></label>
-            <label>Nº *<input id="editNumber" /></label>
-            <label>Complemento<input id="editComplement" /></label>
-            <label>Bairro<input id="editDistrict" /></label>
-            <label>Cidade<input id="editCity" /></label>
-            <label>Estado<input id="editState" /></label>
-          </div>
-        </section>
-        <section class="form-section">
-          <h3>Projeto</h3>
-        <div class="dialog-grid">
-          <label>Usuario do cadastro<input id="projectCreatedBy" readonly /></label>
-          <label>Data de cadastro<input id="projectCreated" readonly /></label>
-          <label>Prazo de entrega<input id="projectDeadline" placeholder="dd/mm/aaaa" /></label>
-        </div>
-        <div class="project-editor">
-          <div class="editor-heading">
-            <span>Ambientes</span>
-            <button class="link-button" id="addEnvironmentBtn" type="button">+ Adicionar ambiente</button>
-          </div>
-          <div class="table-wrap">
-            <table class="project-edit-table">
-              <thead>
-                <tr>
-                  <th>Ambiente</th>
-                  <th>Orcamento</th>
-                  <th>Fabrica</th>
-                  <th>Montagem</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="projectEnvironmentRows"></tbody>
-            </table>
-          </div>
-        </div>
-        <datalist id="environmentOptions"></datalist>
-        </section>
-        <footer>
-          <button class="button secondary" type="button" id="cancelProjectDialog">Cancelar</button>
-          <button class="button primary" value="default" type="submit">Salvar</button>
-        </footer>
-      </form>
-    </dialog>
+        <address>
+          <a href="tel:+5511959093538">+55 11 95909-3538</a>
+          <a href="mailto:cabanamoveissobmedida@gmail.com">cabanamoveissobmedida@gmail.com</a>
+          <span>www.cabanamoveissobmedida.com.br</span>
+        </address>
+      </section>
+    </main>
 
-    <script src="config.js?v=1"></script>
-    <script src="app.js?v=22"></script>
+    <footer class="site-footer">
+      <img src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
+      <span>Cabana Moveis Sob Medida. Todos os direitos reservados.</span>
+    </footer>
   </body>
 </html>
