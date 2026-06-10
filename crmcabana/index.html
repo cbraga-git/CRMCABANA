@@ -271,6 +271,7 @@
                   <div><span>CPF</span><strong id="detailCpf"></strong></div>
                   <div><span>Telefone</span><strong id="detailPhone"></strong></div>
                   <div><span>E-mail</span><strong id="detailEmail"></strong></div>
+                  <div><span>Uso Final</span><strong id="detailFinalUse"></strong></div>
                 </div>
               </section>
 
@@ -291,6 +292,7 @@
                 <div class="info-grid three">
                   <div><span>Usuario do cadastro</span><strong id="detailCreatedBy"></strong></div>
                   <div><span>Vendedor responsavel</span><strong id="detailSeller"></strong></div>
+                  <div><span>Lead Hunter</span><strong id="detailLeadHunter"></strong></div>
                   <div><span>Data de cadastro</span><strong id="detailCreated"></strong></div>
                   <div><span>Prazo de entrega</span><strong id="detailDeadline"></strong></div>
                 </div>
@@ -346,6 +348,15 @@
               <option>Fechado Perdido</option>
             </select>
           </label>
+          <label>Uso Final
+            <select id="formFinalUse">
+              <option value="">Selecione</option>
+              <option>Alugar</option>
+              <option>Residir</option>
+              <option>Negociar</option>
+            </select>
+          </label>
+          <label>Lead Hunter<input id="formLeadHunter" /></label>
           <label>Data de cadastro<input id="formCreated" readonly /></label>
           <label>Usuario do cadastro<input id="formCreatedBy" readonly /></label>
         </div>
@@ -399,6 +410,15 @@
                 <option>Fechado Perdido</option>
               </select>
             </label>
+            <label>Uso Final
+              <select id="editFinalUse">
+                <option value="">Selecione</option>
+                <option>Alugar</option>
+                <option>Residir</option>
+                <option>Negociar</option>
+              </select>
+            </label>
+            <label>Lead Hunter<input id="editLeadHunter" /></label>
             <label>Vendedor responsavel<input id="editOwner" /></label>
             <label class="span-4">Observação<input id="projectNotes" /></label>
           </div>
@@ -452,6 +472,6 @@
     </dialog>
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=24"></script>
+    <script src="app.js?v=26"></script>
   </body>
 </html>

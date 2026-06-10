@@ -21,6 +21,7 @@ const STATUS = [
   "Fechado Perdido",
 ];
 const DEFAULT_STATUS = "Novo";
+const FINAL_USE_OPTIONS = ["Alugar", "Residir", "Negociar"];
 const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
@@ -234,6 +235,8 @@ function normalizeClientStatus(client) {
   return {
     ...client,
     status: normalizeLeadStatus(client.status),
+    finalUse: FINAL_USE_OPTIONS.includes(client.finalUse) ? client.finalUse : "",
+    leadHunter: client.leadHunter || "",
   };
 }
 
@@ -1096,6 +1099,7 @@ function renderDetail() {
   document.querySelector("#detailCpf").textContent = client.cpf || "—";
   document.querySelector("#detailPhone").textContent = client.phone || "—";
   document.querySelector("#detailEmail").textContent = client.email || "—";
+  document.querySelector("#detailFinalUse").textContent = client.finalUse || "—";
   document.querySelector("#detailCep").textContent = client.address.cep || "—";
   document.querySelector("#detailStreet").textContent = client.address.street || "—";
   document.querySelector("#detailNumber").textContent = client.address.number || "—";
@@ -1105,6 +1109,7 @@ function renderDetail() {
   document.querySelector("#detailOwner").textContent = `- ${registeredBy(client)}`;
   document.querySelector("#detailCreatedBy").textContent = registeredBy(client);
   document.querySelector("#detailSeller").textContent = responsibleSeller(client);
+  document.querySelector("#detailLeadHunter").textContent = client.leadHunter || "—";
   document.querySelector("#detailDeadline").textContent = client.project.deadline || "A definir";
   document.querySelector("#detailCreated").textContent = client.project.created || "—";
   document.querySelector("#detailNotes").textContent = client.project.notes || "—";
@@ -1141,6 +1146,8 @@ function openClientDialog(client) {
   document.querySelector("#formPhone").value = client ? client.phone : "";
   document.querySelector("#formCity").value = client ? client.city : "";
   document.querySelector("#formStatus").value = client ? normalizeLeadStatus(client.status) : DEFAULT_STATUS;
+  document.querySelector("#formFinalUse").value = client ? client.finalUse || "" : "";
+  document.querySelector("#formLeadHunter").value = client ? client.leadHunter || "" : "";
   document.querySelector("#formCreated").value = client ? client.project.created || "" : registrationDateTime();
   document.querySelector("#formCreatedBy").value = client ? registeredBy(client) : currentUserName();
   elements.dialog.showModal();
@@ -1283,6 +1290,8 @@ function blankClient() {
     mobile: "",
     contact: "",
     personType: "Física",
+    finalUse: "",
+    leadHunter: "",
     city: "",
     state: "",
     status: DEFAULT_STATUS,
@@ -1320,6 +1329,8 @@ function openProjectDialog(client = selectedClient()) {
   document.querySelector("#editMobile").value = editableClient.mobile || "";
   document.querySelector("#editEmail").value = editableClient.email || "";
   document.querySelector("#editStatus").value = normalizeLeadStatus(editableClient.status || DEFAULT_STATUS);
+  document.querySelector("#editFinalUse").value = editableClient.finalUse || "";
+  document.querySelector("#editLeadHunter").value = editableClient.leadHunter || "";
   document.querySelector("#editOwner").value = editableClient.owner || "";
   document.querySelector("#editCep").value = editableClient.address.cep || "";
   document.querySelector("#editState").value = editableClient.state || "";
@@ -1390,6 +1401,8 @@ async function saveProjectFromDialog(event) {
       phone: document.querySelector("#editPhone").value.trim(),
       email: document.querySelector("#editEmail").value.trim(),
       status: document.querySelector("#editStatus").value,
+      finalUse: document.querySelector("#editFinalUse").value,
+      leadHunter: document.querySelector("#editLeadHunter").value.trim(),
       owner: document.querySelector("#editOwner").value.trim() || currentUserName(),
       createdBy: item.createdBy || registeredBy(item),
       city: document.querySelector("#editCity").value.trim(),
@@ -1436,6 +1449,8 @@ async function saveProjectFromDialog(event) {
     mobile: document.querySelector("#editMobile").value.trim(),
     email: document.querySelector("#editEmail").value.trim(),
     status: document.querySelector("#editStatus").value,
+    finalUse: document.querySelector("#editFinalUse").value,
+    leadHunter: document.querySelector("#editLeadHunter").value.trim(),
     owner: document.querySelector("#editOwner").value.trim() || currentUserName(),
     createdBy: baseClient.createdBy || registeredBy(baseClient),
     city: document.querySelector("#editCity").value.trim(),
@@ -1501,6 +1516,8 @@ async function saveClientFromDialog(event) {
         phone: document.querySelector("#formPhone").value.trim(),
         city: document.querySelector("#formCity").value.trim(),
         status: document.querySelector("#formStatus").value,
+        finalUse: document.querySelector("#formFinalUse").value,
+        leadHunter: document.querySelector("#formLeadHunter").value.trim(),
         createdBy: client.createdBy || document.querySelector("#formCreatedBy").value.trim() || currentUserName(),
         project: {
           ...client.project,
@@ -1523,6 +1540,8 @@ async function saveClientFromDialog(event) {
     city: document.querySelector("#formCity").value.trim(),
     state: "",
     status: document.querySelector("#formStatus").value,
+    finalUse: document.querySelector("#formFinalUse").value,
+    leadHunter: document.querySelector("#formLeadHunter").value.trim(),
     createdBy: document.querySelector("#formCreatedBy").value.trim() || currentUserName(),
     owner: currentUserName(),
     cpf: "",
