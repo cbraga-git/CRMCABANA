@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=21" />
+    <link rel="stylesheet" href="styles.css?v=22" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -47,6 +47,10 @@
           <button class="nav-item" type="button" data-view="projects">
             <span class="nav-icon">[]</span>
             Projetos
+          </button>
+          <button class="nav-item" id="usersNavItem" type="button" data-view="users" hidden>
+            <span class="nav-icon">US</span>
+            Usuarios
           </button>
         </nav>
 
@@ -226,6 +230,29 @@
           </section>
         </section>
 
+        <section class="view legacy-view" id="usersView">
+          <header class="page-header">
+            <div>
+              <h1><span class="list-icon">▦</span> Usuarios</h1>
+              <p>Defina quem acessa apenas os proprios clientes e quem administra tudo.</p>
+            </div>
+            <button class="button secondary legacy-return" type="button" data-return-dashboard>Tela principal</button>
+          </header>
+
+          <section class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>E-mail</th>
+                  <th>Perfil</th>
+                  <th>Atualizado em</th>
+                </tr>
+              </thead>
+              <tbody id="userRows"></tbody>
+            </table>
+          </section>
+        </section>
+
         <section class="view detail-view" id="detailView">
           <div class="detail-shell">
             <button class="back-button" id="backToClients" type="button">&lt;</button>
@@ -311,6 +338,9 @@
               <option>Visita Agendada</option>
               <option>Projeto</option>
               <option>Orçamento</option>
+              <option>Medição</option>
+              <option>Entrega Fabrica</option>
+              <option>Montagem</option>
               <option>Negociação</option>
               <option>Fechado Ganho</option>
               <option>Fechado Perdido</option>
@@ -361,6 +391,9 @@
                 <option>Visita Agendada</option>
                 <option>Projeto</option>
                 <option>Orçamento</option>
+                <option>Medição</option>
+                <option>Entrega Fabrica</option>
+                <option>Montagem</option>
                 <option>Negociação</option>
                 <option>Fechado Ganho</option>
                 <option>Fechado Perdido</option>
@@ -419,6 +452,6 @@
     </dialog>
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=22"></script>
+    <script src="app.js?v=24"></script>
   </body>
 </html>

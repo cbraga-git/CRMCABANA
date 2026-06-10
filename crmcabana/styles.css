@@ -795,6 +795,12 @@ button:focus-visible {
   overflow: hidden;
 }
 
+.role-select {
+  min-width: 120px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;

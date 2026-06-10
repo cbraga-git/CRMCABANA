@@ -6,7 +6,20 @@ const BRL = new Intl.NumberFormat("pt-BR", {
 const STORAGE_KEY = "movelcrm-clients";
 const SESSION_KEY = "movelcrm-session";
 const ENVIRONMENT_STORAGE_KEY = "movelcrm-environments";
-const STATUS = ["Todos", "Novo", "Contato Realizado", "Visita Agendada", "Projeto", "Orçamento", "Negociação", "Fechado Ganho", "Fechado Perdido"];
+const STATUS = [
+  "Todos",
+  "Novo",
+  "Contato Realizado",
+  "Visita Agendada",
+  "Projeto",
+  "Orçamento",
+  "Medição",
+  "Entrega Fabrica",
+  "Montagem",
+  "Negociação",
+  "Fechado Ganho",
+  "Fechado Perdido",
+];
 const DEFAULT_STATUS = "Novo";
 const STATUS_MIGRATION = {
   Lead: "Novo",
@@ -32,6 +45,8 @@ const CONFIG = window.CRM_CONFIG || {};
 
 const state = {
   session: null,
+  userRole: "user",
+  userProfiles: [],
   authMode: "signin",
   view: "dashboard",
   dashboardStatus: "Todos",
@@ -61,6 +76,8 @@ const elements = {
   logoutBtn: document.querySelector("#logoutBtn"),
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
+  usersNavItem: document.querySelector("#usersNavItem"),
+  userRows: document.querySelector("#userRows"),
   navItems: document.querySelectorAll(".nav-item"),
   views: document.querySelectorAll(".view"),
   dashboardFilters: document.querySelector('[data-filter-group="dashboard"]'),
@@ -120,6 +137,11 @@ function supabaseEndpoint(path = "") {
   return `${baseUrl}/rest/v1/${CONFIG.clientsTable || "crm_clients"}${path}`;
 }
 
+function supabaseProfilesEndpoint(path = "") {
+  const baseUrl = CONFIG.supabaseUrl.replace(/\/$/, "");
+  return `${baseUrl}/rest/v1/${CONFIG.profilesTable || "crm_profiles"}${path}`;
+}
+
 function authHeaders() {
   return {
     apikey: CONFIG.supabaseAnonKey,
@@ -175,7 +197,10 @@ function showAuthenticatedApp() {
   elements.crmShell.hidden = false;
   const email = state.session?.user?.email || "Usuario";
   elements.userName.textContent = currentUserName();
-  elements.userEmail.textContent = email;
+  elements.userEmail.textContent = `${email} - ${isAdmin() ? "Admin" : "User"}`;
+  if (elements.usersNavItem) {
+    elements.usersNavItem.hidden = !isAdmin();
+  }
 }
 
 function currentUserName() {
@@ -402,6 +427,38 @@ function suggestedAssemblyValue(budget) {
   return Math.round(parseMoney(budget) * 12) / 100;
 }
 
+function isAdmin() {
+  return state.userRole === "admin";
+}
+
+function serializeClientData(client) {
+  const { _recordUserId, ...data } = client;
+  return data;
+}
+
+function shouldAutoCalculateCost(input) {
+  return input.dataset.manual !== "true" || parseMoney(input.value) === parseMoney(input.dataset.autoValue);
+}
+
+function updateSuggestedProjectCosts(inputs) {
+  const budget = parseMoney(inputs.budget.value);
+  const nextFactory = suggestedFactoryValue(budget);
+  const nextAssembly = suggestedAssemblyValue(budget);
+
+  if (shouldAutoCalculateCost(inputs.factory)) {
+    inputs.factory.value = formatMoneyInput(nextFactory);
+    inputs.factory.dataset.manual = "false";
+  }
+
+  if (shouldAutoCalculateCost(inputs.assembly)) {
+    inputs.assembly.value = formatMoneyInput(nextAssembly);
+    inputs.assembly.dataset.manual = "false";
+  }
+
+  inputs.factory.dataset.autoValue = String(nextFactory);
+  inputs.assembly.dataset.autoValue = String(nextAssembly);
+}
+
 function loadLocalClients() {
   const saved = localStorage.getItem(userStorageKey());
 
@@ -460,13 +517,79 @@ async function signOut() {
     }
   }
   saveSession(null);
+  state.userRole = "user";
+  state.userProfiles = [];
   state.clients = [];
   state.selectedId = null;
   showAuthScreen();
 }
 
+async function ensureUserProfile() {
+  if (!remoteDatabaseEnabled() || !currentUserId()) {
+    state.userRole = "user";
+    return;
+  }
+
+  const email = state.session?.user?.email || "";
+  try {
+    const response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,updated_at`), {
+      headers: supabaseHeaders(),
+    });
+    if (!response.ok) throw new Error("profiles_unavailable");
+
+    const rows = await response.json();
+    if (rows[0]) {
+      state.userRole = rows[0].role === "admin" ? "admin" : "user";
+      return;
+    }
+
+    const createResponse = await fetch(supabaseProfilesEndpoint(), {
+      method: "POST",
+      headers: supabaseHeaders(),
+      body: JSON.stringify({ id: currentUserId(), email, role: "user" }),
+    });
+    if (!createResponse.ok) throw new Error("profile_create_failed");
+    state.userRole = "user";
+  } catch (error) {
+    console.warn(error);
+    state.userRole = "user";
+  }
+}
+
+async function loadUserProfiles() {
+  if (!remoteDatabaseEnabled() || !currentUserId() || !isAdmin()) {
+    state.userProfiles = [];
+    return;
+  }
+
+  const response = await fetch(supabaseProfilesEndpoint("?select=id,email,role,updated_at&order=email.asc"), {
+    headers: supabaseHeaders(),
+  });
+  if (!response.ok) throw new Error("Nao foi possivel carregar os usuarios.");
+  state.userProfiles = await response.json();
+}
+
+async function updateUserRole(userId, role) {
+  if (!isAdmin()) return;
+
+  const response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(userId)}`), {
+    method: "PATCH",
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ role, updated_at: new Date().toISOString() }),
+  });
+  if (!response.ok) throw new Error("Nao foi possivel atualizar o perfil do usuario.");
+
+  if (userId === currentUserId()) {
+    state.userRole = role;
+    showAuthenticatedApp();
+    if (!isAdmin()) showView("dashboard");
+  }
+  await loadUserProfiles();
+  renderUsers();
+}
+
 async function loadRemoteClients() {
-  const response = await fetch(supabaseEndpoint("?select=data&order=updated_at.desc"), {
+  const response = await fetch(supabaseEndpoint("?select=user_id,data&order=updated_at.desc"), {
     headers: supabaseHeaders(),
   });
   if (!response.ok) {
@@ -474,7 +597,11 @@ async function loadRemoteClients() {
     throw new Error(message);
   }
   const rows = await response.json();
-  return normalizeClients(rows.map((row) => row.data).filter((client) => client && client.project && client.address));
+  return normalizeClients(
+    rows
+      .map((row) => (row.data ? { ...row.data, _recordUserId: row.user_id } : null))
+      .filter((client) => client && client.project && client.address)
+  );
 }
 
 async function loadClients() {
@@ -500,10 +627,12 @@ async function loadClients() {
 }
 
 async function saveRemoteClients(clients) {
+  if (!clients.length) return;
+
   const rows = clients.map((client) => ({
     id: client.id,
-    user_id: currentUserId(),
-    data: client,
+    user_id: client._recordUserId || currentUserId(),
+    data: serializeClientData(client),
     updated_at: new Date().toISOString(),
   }));
   const response = await fetch(supabaseEndpoint("?on_conflict=id"), {
@@ -512,6 +641,16 @@ async function saveRemoteClients(clients) {
     body: JSON.stringify(rows),
   });
   if (!response.ok) throw new Error("Nao foi possivel salvar os clientes no banco.");
+}
+
+async function deleteRemoteClient(clientId) {
+  if (!remoteDatabaseEnabled() || !currentUserId()) return;
+
+  const response = await fetch(supabaseEndpoint(`?id=eq.${encodeURIComponent(clientId)}`), {
+    method: "DELETE",
+    headers: supabaseHeaders(),
+  });
+  if (!response.ok) throw new Error("Nao foi possivel excluir o cliente no banco.");
 }
 
 async function saveClients() {
@@ -553,6 +692,10 @@ function statusClass(status) {
 }
 
 function showView(view, selectedId) {
+  if (view === "users" && !isAdmin()) {
+    view = "dashboard";
+  }
+
   const previousView = state.view;
   state.view = view;
   document.body.dataset.view = view;
@@ -885,6 +1028,63 @@ function renderProjects() {
   });
 }
 
+function renderUsers() {
+  if (!elements.userRows) return;
+  elements.userRows.innerHTML = "";
+
+  if (!isAdmin()) {
+    elements.userRows.innerHTML = '<tr><td colspan="3" class="empty-state">Acesso restrito a administradores</td></tr>';
+    return;
+  }
+
+  if (!state.userProfiles.length) {
+    elements.userRows.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhum usuario encontrado</td></tr>';
+    return;
+  }
+
+  state.userProfiles.forEach((profile) => {
+    const row = document.createElement("tr");
+
+    const emailCell = document.createElement("td");
+    emailCell.textContent = profile.email || profile.id;
+    row.appendChild(emailCell);
+
+    const roleCell = document.createElement("td");
+    const roleSelect = document.createElement("select");
+    roleSelect.className = "role-select";
+    [
+      ["user", "User"],
+      ["admin", "Admin"],
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      roleSelect.appendChild(option);
+    });
+    roleSelect.value = profile.role === "admin" ? "admin" : "user";
+    roleSelect.addEventListener("change", async () => {
+      roleSelect.disabled = true;
+      try {
+        await updateUserRole(profile.id, roleSelect.value);
+      } catch (error) {
+        console.warn(error);
+        alert(error.message || "Nao foi possivel atualizar o usuario.");
+        roleSelect.value = profile.role === "admin" ? "admin" : "user";
+      } finally {
+        roleSelect.disabled = false;
+      }
+    });
+    roleCell.appendChild(roleSelect);
+    row.appendChild(roleCell);
+
+    const updatedCell = document.createElement("td");
+    updatedCell.textContent = profile.updated_at ? new Date(profile.updated_at).toLocaleString("pt-BR") : "-";
+    row.appendChild(updatedCell);
+
+    elements.userRows.appendChild(row);
+  });
+}
+
 function renderDetail() {
   const client = selectedClient();
   if (!client) return;
@@ -1022,23 +1222,8 @@ function createEnvironmentRow(environment = { name: "", budget: 0, factory: 0, a
     inputs.assembly.dataset.manual = "true";
   });
 
-  inputs.budget.addEventListener("input", () => {
-    const budget = parseMoney(inputs.budget.value);
-    const nextFactory = suggestedFactoryValue(budget);
-    const nextAssembly = suggestedAssemblyValue(budget);
-
-    if (inputs.factory.dataset.manual !== "true" || parseMoney(inputs.factory.value) === parseMoney(inputs.factory.dataset.autoValue)) {
-      inputs.factory.value = formatMoneyInput(nextFactory);
-      inputs.factory.dataset.manual = "false";
-    }
-
-    if (inputs.assembly.dataset.manual !== "true" || parseMoney(inputs.assembly.value) === parseMoney(inputs.assembly.dataset.autoValue)) {
-      inputs.assembly.value = formatMoneyInput(nextAssembly);
-      inputs.assembly.dataset.manual = "false";
-    }
-
-    inputs.factory.dataset.autoValue = String(nextFactory);
-    inputs.assembly.dataset.autoValue = String(nextAssembly);
+  ["input", "change", "blur"].forEach((eventName) => {
+    inputs.budget.addEventListener(eventName, () => updateSuggestedProjectCosts(inputs));
   });
 
   const actionCell = document.createElement("td");
@@ -1091,6 +1276,7 @@ function openProjectDialog() {
 function blankClient() {
   return {
     id: createId(),
+    _recordUserId: currentUserId(),
     name: "",
     email: "",
     phone: "",
@@ -1159,11 +1345,17 @@ function openProjectDialog(client = selectedClient()) {
 function readProjectEnvironmentRows() {
   return Array.from(elements.projectRows.querySelectorAll("tr"))
     .map((row) => {
-      const field = (name) => row.querySelector(`[data-field="${name}"]`).value.trim();
+      const input = (name) => row.querySelector(`[data-field="${name}"]`);
+      const field = (name) => input(name).value.trim();
       const select = row.querySelector('[data-field="name"]');
       const customInput = row.querySelector(".environment-custom-input");
       const rawName = select.value === "__new__" ? customInput.value : select.value;
       const name = registerEnvironmentName(rawName);
+      const budget = parseMoney(field("budget"));
+      const factoryInput = input("factory");
+      const assemblyInput = input("assembly");
+      const factory = shouldAutoCalculateCost(factoryInput) ? suggestedFactoryValue(budget) : parseMoney(factoryInput.value);
+      const assembly = shouldAutoCalculateCost(assemblyInput) ? suggestedAssemblyValue(budget) : parseMoney(assemblyInput.value);
       if (name) {
         addEnvironmentOptionToSelect(select, name);
         select.value = name;
@@ -1171,9 +1363,9 @@ function readProjectEnvironmentRows() {
       customInput.hidden = true;
       return {
         name,
-        budget: parseMoney(field("budget")),
-        factory: parseMoney(field("factory")),
-        assembly: parseMoney(field("assembly")),
+        budget,
+        factory,
+        assembly,
       };
     })
     .filter((environment) => environment.name || environment.budget || environment.factory || environment.assembly);
@@ -1324,6 +1516,7 @@ async function saveClientFromDialog(event) {
 
   const client = {
     id: createId(),
+    _recordUserId: currentUserId(),
     name,
     email: document.querySelector("#formEmail").value.trim(),
     phone: document.querySelector("#formPhone").value.trim(),
@@ -1372,6 +1565,7 @@ function render() {
   renderDashboard();
   renderClients();
   renderProjects();
+  renderUsers();
   renderDetail();
 }
 
@@ -1413,7 +1607,17 @@ elements.authForm.addEventListener("submit", async (event) => {
 elements.logoutBtn.addEventListener("click", signOut);
 
 elements.navItems.forEach((item) => {
-  item.addEventListener("click", () => showView(item.dataset.view));
+  item.addEventListener("click", async () => {
+    if (item.dataset.view === "users" && isAdmin()) {
+      try {
+        await loadUserProfiles();
+      } catch (error) {
+        console.warn(error);
+        alert(error.message || "Nao foi possivel carregar os usuarios.");
+      }
+    }
+    showView(item.dataset.view);
+  });
 });
 
 elements.clientSearch.addEventListener("input", (event) => {
@@ -1461,12 +1665,19 @@ document.querySelector("#saveNewProjectBtn").addEventListener("click", () => {
 document.querySelector("#deleteProjectBtn").addEventListener("click", async () => {
   const client = selectedClient();
   if (!client) return;
-  state.clients = state.clients.filter((item) => item.id !== client.id);
-  state.selectedId = state.clients[0]?.id || null;
-  await saveClients();
-  elements.projectDialog.close();
-  showView(state.projectReturnView || "clients");
-  render();
+
+  try {
+    await deleteRemoteClient(client.id);
+    state.clients = state.clients.filter((item) => item.id !== client.id);
+    state.selectedId = state.clients[0]?.id || null;
+    await saveClients();
+    elements.projectDialog.close();
+    showView(state.projectReturnView || "clients");
+    render();
+  } catch (error) {
+    console.warn(error);
+    alert(error.message || "Nao foi possivel excluir o cliente.");
+  }
 });
 document.querySelectorAll("[data-export]").forEach((button) => button.addEventListener("click", exportCsv));
 document.querySelectorAll("[data-return-dashboard]").forEach((button) => {
@@ -1484,8 +1695,16 @@ window.addEventListener("resize", () => {
 });
 
 async function startApp() {
+  await ensureUserProfile();
   showAuthenticatedApp();
   state.clients = await loadClients();
+  if (isAdmin()) {
+    try {
+      await loadUserProfiles();
+    } catch (error) {
+      console.warn(error);
+    }
+  }
   refreshEnvironmentCatalog();
   state.selectedId = state.clients[0]?.id || null;
   state.view = "dashboard";
