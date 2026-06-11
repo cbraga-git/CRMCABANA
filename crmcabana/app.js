@@ -96,6 +96,7 @@ const elements = {
   projectForm: document.querySelector("#projectForm"),
   projectRows: document.querySelector("#projectEnvironmentRows"),
   environmentOptions: document.querySelector("#environmentOptions"),
+  leadImportFile: document.querySelector("#leadImportFile"),
 };
 
 function createId() {
@@ -231,11 +232,19 @@ function normalizeLeadStatus(status) {
   return STATUS_MIGRATION[status] || (STATUS.includes(status) ? status : DEFAULT_STATUS);
 }
 
+function normalizeFinalUse(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["alugar", "aluguel", "vai alugar"].includes(normalized)) return "Alugar";
+  if (["residir", "moradia", "morar"].includes(normalized)) return "Residir";
+  if (["negociar", "negociacao", "negociação"].includes(normalized)) return "Negociar";
+  return "";
+}
+
 function normalizeClientStatus(client) {
   return {
     ...client,
     status: normalizeLeadStatus(client.status),
-    finalUse: FINAL_USE_OPTIONS.includes(client.finalUse) ? client.finalUse : "",
+    finalUse: FINAL_USE_OPTIONS.includes(client.finalUse) ? client.finalUse : normalizeFinalUse(client.finalUse),
     leadHunter: client.leadHunter || "",
   };
 }
@@ -936,11 +945,18 @@ function renderClients() {
     folderCell.appendChild(folderButton);
     row.appendChild(folderCell);
 
-    [client.id, client.name, client.cpf || "-", client.phone || "-", client.mobile || "-"].forEach((value) => {
+    [client.name, client.cpf || "-", client.phone || "-", client.mobile || "-"].forEach((value) => {
       const cell = document.createElement("td");
       cell.textContent = value;
       row.appendChild(cell);
     });
+
+    const statusCell = document.createElement("td");
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `status-badge ${statusClass(client.status)}`;
+    statusBadge.textContent = client.status;
+    statusCell.appendChild(statusBadge);
+    row.appendChild(statusCell);
 
     const activeCell = document.createElement("td");
     const activeBadge = document.createElement("span");
@@ -1578,6 +1594,158 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
+function parseCsv(text, delimiter = ";") {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const nextChar = text[index + 1];
+
+    if (char === '"') {
+      if (quoted && nextChar === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !quoted) {
+      row.push(value);
+      value = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && nextChar === "\n") index += 1;
+      row.push(value);
+      if (row.some((item) => item.trim())) rows.push(row);
+      row = [];
+      value = "";
+      continue;
+    }
+
+    value += char;
+  }
+
+  row.push(value);
+  if (row.some((item) => item.trim())) rows.push(row);
+  return rows;
+}
+
+function normalizeImportHeader(header) {
+  return String(header || "")
+    .trim()
+    .replace(/^\uFEFF/, "")
+    .toLowerCase();
+}
+
+function slugImportValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function leadImportId(record, index) {
+  const key = [
+    record.cpf_cnpj,
+    record.celular,
+    record.telefone,
+    record.email,
+    record.nome_razao_social,
+    record.data_cadastro,
+  ]
+    .map(slugImportValue)
+    .filter(Boolean)
+    .join("-");
+  return `lead-import-${key || index + 1}`;
+}
+
+async function readImportFileText(file) {
+  const buffer = await file.arrayBuffer();
+  const utf8Text = new TextDecoder("utf-8").decode(buffer);
+  if (!utf8Text.includes("\uFFFD")) return utf8Text;
+  return new TextDecoder("windows-1252").decode(buffer);
+}
+
+function importedLeadToClient(record, index) {
+  const name = (record.nome_razao_social || record.nome_fantasia || "").trim();
+  if (!name) return null;
+
+  return normalizeClientStatus({
+    id: leadImportId(record, index),
+    _recordUserId: currentUserId(),
+    name,
+    email: (record.email || "").trim(),
+    phone: (record.telefone || "").trim(),
+    mobile: (record.celular || "").trim(),
+    contact: "",
+    personType: (record.tipo_pessoa || "Fisica").trim(),
+    finalUse: normalizeFinalUse(record.uso_final),
+    leadHunter: (record.lead_hunter || "").trim(),
+    city: (record.cidade || "").trim(),
+    state: (record.estado || "").trim(),
+    status: normalizeLeadStatus((record.status || "").trim()),
+    createdBy: "Importacao LEADS",
+    owner: (record.vendedor_responsavel || "").trim() || currentUserName(),
+    cpf: (record.cpf_cnpj || "").trim(),
+    address: {
+      cep: (record.cep || "").trim(),
+      street: (record.endereco || "").trim(),
+      number: (record.numero || "").trim(),
+      complement: (record.complemento || "").trim(),
+      district: (record.bairro || "").trim(),
+    },
+    project: {
+      deadline: "",
+      created: (record.data_cadastro || "").trim() || registrationDateTime(),
+      notes: (record.observacoes || "").trim(),
+      environments: [],
+    },
+  });
+}
+
+async function importLeadsFile(file) {
+  const text = await readImportFileText(file);
+  const rows = parseCsv(text);
+  if (rows.length < 2) throw new Error("O arquivo CSV nao possui registros para importar.");
+
+  const headers = rows[0].map(normalizeImportHeader);
+  const importedClients = rows
+    .slice(1)
+    .map((row, index) => {
+      const record = headers.reduce((data, header, headerIndex) => {
+        data[header] = row[headerIndex] || "";
+        return data;
+      }, {});
+      return importedLeadToClient(record, index);
+    })
+    .filter(Boolean);
+
+  if (!importedClients.length) throw new Error("Nenhum lead valido foi encontrado no arquivo.");
+
+  const clientsById = new Map(state.clients.map((client) => [client.id, client]));
+  importedClients.forEach((client) => clientsById.set(client.id, client));
+  state.clients = Array.from(clientsById.values());
+  state.selectedId = importedClients[0].id;
+
+  await saveClients();
+  render();
+  alert(`${importedClients.length} lead(s) importado(s) com sucesso.`);
+}
+
+function openLeadImportFilePicker() {
+  elements.leadImportFile.value = "";
+  elements.leadImportFile.click();
+}
+
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
@@ -1699,6 +1867,18 @@ document.querySelector("#deleteProjectBtn").addEventListener("click", async () =
   }
 });
 document.querySelectorAll("[data-export]").forEach((button) => button.addEventListener("click", exportCsv));
+document.querySelectorAll("[data-import-leads]").forEach((button) => button.addEventListener("click", openLeadImportFilePicker));
+elements.leadImportFile.addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    await importLeadsFile(file);
+  } catch (error) {
+    console.warn(error);
+    alert(error.message || "Nao foi possivel importar os leads.");
+  }
+});
 document.querySelectorAll("[data-return-dashboard]").forEach((button) => {
   button.addEventListener("click", () => showView("dashboard"));
 });

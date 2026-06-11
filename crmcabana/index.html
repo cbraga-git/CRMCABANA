@@ -71,10 +71,16 @@
               <h1>Ola, bem-vindo</h1>
               <p>Resumo do seu CRM.</p>
             </div>
-            <button class="button secondary" type="button" data-export>
-              <span class="button-icon">XLS</span>
-              Exportar Excel
-            </button>
+            <div class="header-actions">
+              <button class="button secondary" type="button" data-import-leads>
+                <span class="button-icon">CSV</span>
+                Importar LEADS
+              </button>
+              <button class="button secondary" type="button" data-export>
+                <span class="button-icon">XLS</span>
+                Exportar Excel
+              </button>
+            </div>
           </header>
 
           <section class="filters-card" aria-label="Filtros do dashboard">
@@ -146,6 +152,10 @@
               <p><span id="clientCount">0</span> clientes cadastrados</p>
             </div>
             <div class="header-actions">
+              <button class="button secondary" type="button" data-import-leads>
+                <span class="button-icon">CSV</span>
+                Importar LEADS
+              </button>
               <button class="button secondary" type="button" data-export>
                 <span class="button-icon">XLS</span>
                 Exportar Excel
@@ -171,11 +181,11 @@
               <thead>
                 <tr>
                   <th class="folder-column">▲</th>
-                  <th>Id</th>
                   <th>Nome</th>
                   <th>CPF/CNPJ</th>
                   <th>Telefone</th>
                   <th>Celular</th>
+                  <th>Status</th>
                   <th>Ativo</th>
                 </tr>
               </thead>
@@ -191,6 +201,10 @@
               <p><span id="projectCount">0</span> projetos cadastrados</p>
             </div>
             <div class="header-actions">
+              <button class="button secondary" type="button" data-import-leads>
+                <span class="button-icon">CSV</span>
+                Importar LEADS
+              </button>
               <button class="button secondary" type="button" data-export>
                 <span class="button-icon">XLS</span>
                 Exportar Excel
@@ -471,7 +485,9 @@
       </form>
     </dialog>
 
+    <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
+
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=26"></script>
+    <script src="app.js?v=27"></script>
   </body>
 </html>
