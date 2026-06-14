@@ -100,6 +100,7 @@ const state = {
   editingId: null,
   projectAction: "stay",
   projectReturnView: "clients",
+  projectInlineEditing: false,
   returnView: "clients",
   clients: [],
   environments: [],
@@ -126,6 +127,9 @@ const elements = {
   views: document.querySelectorAll(".view"),
   dashboardFilters: document.querySelector('[data-filter-group="dashboard"]'),
   clientFilters: document.querySelector('[data-filter-group="clients"]'),
+  clientsHeader: document.querySelector("#clientsHeader"),
+  clientsListCard: document.querySelector("#clientsListCard"),
+  clientInlineEditor: document.querySelector("#clientInlineEditor"),
   clientRows: document.querySelector("#clientRows"),
   recentClients: document.querySelector("#recentClients"),
   projectCards: document.querySelector("#projectCards"),
@@ -772,6 +776,21 @@ function selectedClient() {
   return state.clients.find((item) => item.id === state.selectedId) || state.clients[0];
 }
 
+function openClientRegistration(clientId = state.selectedId, returnView = state.view) {
+  const client = state.clients.find((item) => item.id === clientId);
+  if (!client) return;
+
+  const fallbackView = returnView && returnView !== "detail" ? returnView : state.returnView || "clients";
+  state.selectedId = client.id;
+  state.returnView = fallbackView;
+
+  if (state.view === "detail") {
+    showView(fallbackView);
+  }
+
+  openProjectDialog(client, { inline: fallbackView === "clients" });
+}
+
 function clientTotals(client) {
   return client.project.environments.reduce(
     (totals, item) => ({
@@ -808,6 +827,14 @@ function showView(view, selectedId) {
   }
 
   const previousView = state.view;
+  if (view === "detail") {
+    openClientRegistration(selectedId || state.selectedId, previousView);
+    return;
+  }
+  if (state.projectInlineEditing) {
+    setClientInlineEditing(false);
+  }
+
   state.view = view;
   document.body.dataset.view = view;
   state.selectedId = selectedId || state.selectedId;
@@ -910,7 +937,7 @@ function renderRecentClients(clients) {
     name.textContent = client.name;
     email.textContent = client.email || "-";
     badge.textContent = client.status;
-    badge.addEventListener("click", () => showView("detail", client.id));
+    badge.addEventListener("click", () => openClientRegistration(client.id, "clients"));
 
     info.append(name, email);
     row.append(info, badge);
@@ -1022,7 +1049,7 @@ function renderClients() {
     button.className = "link-button";
     button.type = "button";
     button.textContent = "Ver";
-    button.addEventListener("click", () => showView("detail", client.id));
+    button.addEventListener("click", () => openClientRegistration(client.id, "clients"));
     actionCell.appendChild(button);
     row.appendChild(actionCell);
 
@@ -1049,7 +1076,7 @@ function renderClients() {
     folderButton.type = "button";
     folderButton.title = "Abrir cadastro";
     folderButton.textContent = "▰";
-    folderButton.addEventListener("click", () => showView("detail", client.id));
+    folderButton.addEventListener("click", () => openClientRegistration(client.id, "clients"));
     folderCell.appendChild(folderButton);
     row.appendChild(folderCell);
 
@@ -1098,7 +1125,7 @@ function renderClients() {
 
     row.addEventListener("dblclick", () => {
       state.selectedId = client.id;
-      openProjectDialog();
+      openProjectDialog(client, { inline: true });
     });
 
     elements.clientRows.appendChild(row);
@@ -1265,6 +1292,7 @@ function currentBudgetDraft() {
     createdAt: readBudgetCreatedAt(),
     settings: readBudgetSettings(),
     rows: readBudgetRows(),
+    cashPayments: readCashPaymentRows(),
   };
 }
 
@@ -1331,6 +1359,7 @@ function clientBudget(client) {
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     settings: { ...DEFAULT_BUDGET_SETTINGS, ...(saved.settings || {}) },
     rows: Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client),
+    cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
   };
 }
 
@@ -1342,7 +1371,54 @@ function blankBudget() {
     createdAt: new Date().toISOString(),
     settings: { ...DEFAULT_BUDGET_SETTINGS },
     rows: [{ name: "", gross: 0, factory: 0 }],
+    cashPayments: defaultCashPaymentRows(),
   };
+}
+
+function defaultCashPaymentRows() {
+  return [1, 2, 3].map((parcel) => ({
+    parcel: String(parcel),
+    value: "",
+    dueDate: "",
+    method: "",
+  }));
+}
+
+function renderCashPaymentRows(payments = defaultCashPaymentRows()) {
+  const rows = document.querySelector("#cashPaymentRows");
+  if (!rows) return;
+  const normalizedPayments = [...payments, ...defaultCashPaymentRows()].slice(0, 3);
+  rows.innerHTML = "";
+  normalizedPayments.forEach((payment) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td data-label="Parcela"><input data-cash-payment-field="parcel" /></td>
+      <td data-label="Valor"><input class="money-input" data-cash-payment-field="value" inputmode="decimal" /></td>
+      <td data-label="Vencimento"><input data-cash-payment-field="dueDate" type="date" /></td>
+      <td data-label="Forma"><input data-cash-payment-field="method" /></td>
+    `;
+    row.querySelector('[data-cash-payment-field="parcel"]').value = payment.parcel || "";
+    row.querySelector('[data-cash-payment-field="value"]').value = payment.value ? formatMoneyInput(payment.value) : "";
+    row.querySelector('[data-cash-payment-field="dueDate"]').value = payment.dueDate || "";
+    row.querySelector('[data-cash-payment-field="method"]').value = payment.method || "";
+    row.querySelectorAll("input").forEach((input) => {
+      input.addEventListener("input", markBudgetDirty);
+      input.addEventListener("change", markBudgetDirty);
+    });
+    row.querySelector('[data-cash-payment-field="value"]').addEventListener("blur", (event) => {
+      event.target.value = event.target.value ? formatMoneyInput(event.target.value) : "";
+    });
+    rows.appendChild(row);
+  });
+}
+
+function readCashPaymentRows() {
+  return Array.from(document.querySelectorAll("#cashPaymentRows tr")).map((row) => ({
+    parcel: row.querySelector('[data-cash-payment-field="parcel"]')?.value.trim() || "",
+    value: row.querySelector('[data-cash-payment-field="value"]')?.value.trim() || "",
+    dueDate: row.querySelector('[data-cash-payment-field="dueDate"]')?.value || "",
+    method: row.querySelector('[data-cash-payment-field="method"]')?.value.trim() || "",
+  }));
 }
 
 function clientBudgetHistory(client) {
@@ -1368,6 +1444,25 @@ function clientBudgetHistory(client) {
 function budgetForEditing(client) {
   if (!state.budgetEditingId) return clientBudget(client);
   return clientBudgetHistory(client).find((budget) => budgetIdentity(budget) === state.budgetEditingId) || clientBudget(client);
+}
+
+function renderBudgetEditorSubtitle(client) {
+  const subtitle = document.querySelector("#budgetEditorSubtitle");
+  subtitle.innerHTML = "";
+  if (!client) return;
+
+  [
+    ["Cliente", client.name || "-"],
+    ["Vendedor", responsibleSeller(client) || "-"],
+  ].forEach(([label, value]) => {
+    const item = document.createElement("span");
+    const labelElement = document.createElement("strong");
+    const valueElement = document.createElement("span");
+    labelElement.textContent = `${label}:`;
+    valueElement.textContent = value;
+    item.append(labelElement, valueElement);
+    subtitle.appendChild(item);
+  });
 }
 
 function readBudgetSettings() {
@@ -1600,7 +1695,7 @@ function fillBudgetForm(client) {
   const settings = budget.settings;
   const targetClient = selectedBudgetClient();
   document.querySelector("#budgetEditorTitle").textContent = state.budgetIsNew ? "Novo Orçamento" : "Cadastro Orçamento";
-  document.querySelector("#budgetEditorSubtitle").textContent = targetClient ? `${targetClient.name} - ${responsibleSeller(targetClient)}` : "";
+  renderBudgetEditorSubtitle(targetClient);
   document.querySelector("#budgetEditClientBtn").disabled = false;
   document.querySelector("#budgetEditClientBtn").textContent = targetClient ? "Editar cliente" : "Cadastrar cliente";
   document.querySelector("#budgetCode").value = budget.code || nextBudgetCode();
@@ -1614,6 +1709,7 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetLelaRate").value = settings.lelaRate;
   document.querySelector("#budgetIrisRate").value = settings.irisRate;
   document.querySelector("#budgetTaxRate").value = settings.taxRate;
+  renderCashPaymentRows(budget.cashPayments);
 
   elements.budgetRows.innerHTML = "";
   budget.rows.forEach((row) => elements.budgetRows.appendChild(createBudgetRow(row)));
@@ -1745,6 +1841,8 @@ function renderBudget() {
   renderBudgetList();
 
   const editing = state.view === "budget" && state.budgetEditing;
+  document.body.dataset.budgetEditing = editing ? "true" : "false";
+  document.querySelector("#budgetHeader").hidden = editing;
   elements.budgetListCard.hidden = editing;
   elements.budgetEditor.hidden = !editing;
   if (editing) fillBudgetForm(sourceBudgetClient());
@@ -1768,6 +1866,7 @@ async function saveBudget() {
     createdAt: readBudgetCreatedAt(),
     settings,
     rows,
+    cashPayments: readCashPaymentRows(),
     updatedAt: new Date().toISOString(),
   };
   state.clients = state.clients.map((item) =>
@@ -2026,16 +2125,48 @@ function blankClient() {
   };
 }
 
-function openProjectDialog(client = selectedClient()) {
+function setClientInlineEditing(editing) {
+  state.projectInlineEditing = editing;
+  elements.clientsHeader.hidden = editing;
+  elements.clientsListCard.hidden = editing;
+  elements.clientInlineEditor.hidden = !editing;
+}
+
+function closeProjectForm() {
+  if (state.projectInlineEditing) {
+    setClientInlineEditing(false);
+    state.projectAction = "stay";
+    renderClients();
+    return;
+  }
+  elements.projectDialog.close();
+}
+
+function mountProjectForm(inline = false) {
+  if (inline) {
+    elements.clientInlineEditor.appendChild(elements.projectForm);
+    elements.projectForm.classList.add("inline-client-form");
+    setClientInlineEditing(true);
+    return;
+  }
+
+  elements.projectDialog.appendChild(elements.projectForm);
+  elements.projectForm.classList.remove("inline-client-form");
+  setClientInlineEditing(false);
+}
+
+function openProjectDialog(client = selectedClient(), options = {}) {
   const isNew = !client;
   const editableClient = client || blankClient();
   const editingProject = state.view === "projects";
+  const inline = Boolean(options.inline);
   state.selectedId = client ? client.id : null;
   state.projectAction = "stay";
   state.projectReturnView = ["projects", "budget"].includes(state.view) ? state.view : "clients";
+  mountProjectForm(inline);
 
   document.querySelector("#projectForm").reset();
-  document.querySelector("#projectDialog h2").textContent = isNew
+  document.querySelector("#projectForm h2").textContent = isNew
     ? editingProject ? "Novo Projeto" : "Novo Cliente"
     : editingProject ? "Cadastro Projeto" : "Cadastro Cliente";
   document.querySelector("#deleteProjectBtn").hidden = isNew;
@@ -2068,7 +2199,7 @@ function openProjectDialog(client = selectedClient()) {
     : [{ name: "", budget: 0, factory: 0, assembly: 0 }];
   environments.forEach((environment) => elements.projectRows.appendChild(createEnvironmentRow(environment)));
 
-  elements.projectDialog.showModal();
+  if (!inline) elements.projectDialog.showModal();
 }
 
 function readProjectEnvironmentRows() {
@@ -2224,25 +2355,25 @@ async function saveProjectFromDialog(event) {
     state.budgetDirty = false;
     state.budgetIsNew = false;
     state.budgetDraft = null;
-    elements.projectDialog.close();
+    closeProjectForm();
     showView("budget", savedClient.id);
     state.projectAction = "stay";
     return;
   }
 
   if (isNew) {
-    document.querySelector("#projectDialog h2").textContent = state.projectReturnView === "projects" ? "Cadastro Projeto" : "Cadastro Cliente";
+    document.querySelector("#projectForm h2").textContent = state.projectReturnView === "projects" ? "Cadastro Projeto" : "Cadastro Cliente";
     document.querySelector("#deleteProjectBtn").hidden = false;
   }
 
   if (state.projectAction === "new") {
-    openProjectDialog(null);
+    openProjectDialog(null, { inline: state.projectInlineEditing });
     return;
   }
 
   if (state.projectAction === "close") {
-    elements.projectDialog.close();
-    showView(state.projectReturnView || "clients");
+    closeProjectForm();
+    if (!state.projectInlineEditing) showView(state.projectReturnView || "clients");
   }
 
   state.projectAction = "stay";
@@ -2306,7 +2437,7 @@ async function saveClientFromDialog(event) {
   state.selectedId = client.id;
   await saveClients();
   elements.dialog.close();
-  showView("detail", client.id);
+  openClientRegistration(client.id, "clients");
 }
 
 function exportCsv() {
@@ -2619,7 +2750,7 @@ elements.budgetClientSelect?.addEventListener("change", () => {
   state.selectedId = elements.budgetClientSelect.value || null;
   markBudgetDirty();
   const targetClient = selectedBudgetClient();
-  document.querySelector("#budgetEditorSubtitle").textContent = targetClient ? `${targetClient.name} - ${responsibleSeller(targetClient)}` : "";
+  renderBudgetEditorSubtitle(targetClient);
   document.querySelector("#budgetEditClientBtn").textContent = targetClient ? "Editar cliente" : "Cadastrar cliente";
 });
 document.querySelector("#budgetAddEnvironment")?.addEventListener("click", () => {
@@ -2665,9 +2796,9 @@ document.querySelector("#cancelDialog").addEventListener("click", () => {
   state.editingId = null;
   elements.dialog.close();
 });
-document.querySelector("#closeProjectDialog").addEventListener("click", () => elements.projectDialog.close());
-document.querySelector("#cancelProjectDialog").addEventListener("click", () => elements.projectDialog.close());
-document.querySelector("#topCloseProjectBtn").addEventListener("click", () => elements.projectDialog.close());
+document.querySelector("#closeProjectDialog").addEventListener("click", closeProjectForm);
+document.querySelector("#cancelProjectDialog").addEventListener("click", closeProjectForm);
+document.querySelector("#topCloseProjectBtn").addEventListener("click", closeProjectForm);
 document.querySelector("#saveProjectBtn").addEventListener("click", () => {
   state.projectAction = "stay";
 });
@@ -2688,7 +2819,7 @@ document.querySelector("#deleteProjectBtn").addEventListener("click", async () =
     state.clients = state.clients.filter((item) => item.id !== client.id);
     state.selectedId = state.clients[0]?.id || null;
     await saveClients();
-    elements.projectDialog.close();
+    closeProjectForm();
     showView(state.projectReturnView || "clients");
     render();
   } catch (error) {

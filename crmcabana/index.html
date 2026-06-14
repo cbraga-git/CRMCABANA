@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=34" />
+    <link rel="stylesheet" href="styles.css?v=52" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -149,12 +149,19 @@
           </section>
         </section>
 
-        <section class="view legacy-view" id="clientsView">
-          <header class="page-header">
+        <section class="view clients-view" id="clientsView">
+          <header class="page-header" id="clientsHeader">
             <div>
-              <h1><span class="list-icon">▦</span> Cadastro Cliente</h1>
+              <h1>Cadastro Cliente</h1>
               <p><span id="clientCount">0</span> clientes cadastrados</p>
             </div>
+            <section class="client-toolbar clients-search-toolbar">
+              <label class="search-box">
+                <span>Buscar</span>
+                <input id="clientSearch" type="search" placeholder="Buscar por nome, e-mail ou telefone..." />
+              </label>
+              <div class="status-filters" data-filter-group="clients"></div>
+            </section>
             <div class="header-actions">
               <button class="button secondary" type="button" data-import-leads>
                 <span class="button-icon">CSV</span>
@@ -171,15 +178,7 @@
             </div>
           </header>
 
-          <section class="client-toolbar">
-            <label class="search-box">
-              <span>Buscar</span>
-              <input id="clientSearch" type="search" placeholder="Buscar por nome, e-mail ou telefone..." />
-            </label>
-            <div class="status-filters" data-filter-group="clients"></div>
-          </section>
-
-          <section class="table-card">
+          <section class="table-card" id="clientsListCard">
             <table class="client-list-table">
               <thead>
                 <tr>
@@ -202,14 +201,22 @@
               <tbody id="clientRows"></tbody>
             </table>
           </section>
+
+          <section class="client-inline-editor" id="clientInlineEditor" hidden></section>
         </section>
 
         <section class="view budget-view" id="budgetView">
-          <header class="page-header">
+          <header class="page-header" id="budgetHeader">
             <div>
               <h1>Orçamento</h1>
               <p><span id="budgetCount">0</span> orçamentos disponíveis</p>
             </div>
+            <section class="client-toolbar budget-search-toolbar">
+              <label class="search-box">
+                <span>Buscar</span>
+                <input id="budgetSearch" type="search" placeholder="Buscar por cliente, vendedor ou status..." />
+              </label>
+            </section>
             <div class="header-actions">
               <button class="button primary" id="budgetNewBtn" type="button">
                 <span class="button-icon">+</span>
@@ -217,13 +224,6 @@
               </button>
             </div>
           </header>
-
-          <section class="client-toolbar">
-            <label class="search-box">
-              <span>Buscar</span>
-              <input id="budgetSearch" type="search" placeholder="Buscar por cliente, vendedor ou status..." />
-            </label>
-          </section>
 
           <section class="table-card" id="budgetListCard">
             <table>
@@ -276,36 +276,6 @@
               <label>Cliente do orçamento
                 <select id="budgetClientSelect"></select>
               </label>
-              <label>Entrada
-                <input id="budgetEntry" class="money-input" inputmode="decimal" />
-              </label>
-              <label>Qtd Parcelas
-                <select id="budgetInstallments">
-                  <option value="0">Sem financiamento</option>
-                  <option>3</option>
-                  <option>4</option>
-                  <option>5</option>
-                  <option>6</option>
-                  <option>7</option>
-                  <option>8</option>
-                  <option>9</option>
-                  <option>10</option>
-                  <option>11</option>
-                  <option>12</option>
-                  <option>13</option>
-                  <option>14</option>
-                  <option>15</option>
-                  <option>16</option>
-                  <option>17</option>
-                  <option>18</option>
-                  <option>19</option>
-                  <option>20</option>
-                  <option>21</option>
-                  <option>22</option>
-                  <option>23</option>
-                  <option>24</option>
-                </select>
-              </label>
             </section>
 
             <section class="budget-summary" aria-label="Resumo do orçamento">
@@ -314,26 +284,59 @@
               <article><span>Custo total</span><strong id="budgetTotalCost">R$ 0,00</strong></article>
               <article><span>Lucro</span><strong id="budgetTotalProfit">R$ 0,00</strong></article>
               <article><span>Margem</span><strong id="budgetMargin">0%</strong></article>
-              <article><span>Valor parcela</span><strong id="budgetInstallmentValue">R$ 0,00</strong></article>
             </section>
 
-            <section class="budget-grid">
-              <article class="budget-panel">
-                <h2>Indices base</h2>
-                <div class="budget-index-grid">
-                  <label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label>
-                  <label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label>
-                  <label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label>
-                  <label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label>
-                  <label>IRIS (%)<input id="budgetIrisRate" type="number" min="0" max="100" step="0.01" /></label>
-                  <label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label>
-                </div>
+            <section class="payments-grid" aria-label="Pagamentos">
+              <article class="budget-panel cash-payment-card">
+                <h2>Pagamento a vista</h2>
+                <table class="cash-payment-table">
+                  <thead>
+                    <tr>
+                      <th>Parcela</th>
+                      <th>Valor</th>
+                      <th>Vencimento</th>
+                      <th>Forma de pagamento</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cashPaymentRows"></tbody>
+                </table>
               </article>
 
               <article class="budget-panel">
                 <h2>Financiamento</h2>
                 <div class="budget-finance-grid">
+                  <label>Entrada
+                    <input id="budgetEntry" class="money-input" inputmode="decimal" />
+                  </label>
+                  <label>Qtd Parcelas
+                    <select id="budgetInstallments">
+                      <option value="0">Sem financiamento</option>
+                      <option>3</option>
+                      <option>4</option>
+                      <option>5</option>
+                      <option>6</option>
+                      <option>7</option>
+                      <option>8</option>
+                      <option>9</option>
+                      <option>10</option>
+                      <option>11</option>
+                      <option>12</option>
+                      <option>13</option>
+                      <option>14</option>
+                      <option>15</option>
+                      <option>16</option>
+                      <option>17</option>
+                      <option>18</option>
+                      <option>19</option>
+                      <option>20</option>
+                      <option>21</option>
+                      <option>22</option>
+                      <option>23</option>
+                      <option>24</option>
+                    </select>
+                  </label>
                   <div><span>Base financiada</span><strong id="budgetFinancedBase">R$ 0,00</strong></div>
+                  <div><span>Valor parcela</span><strong id="budgetInstallmentValue">R$ 0,00</strong></div>
                   <div><span>Total financiamento</span><strong id="budgetFinancingTotal">R$ 0,00</strong></div>
                 </div>
               </article>
@@ -347,6 +350,21 @@
               <div class="table-card budget-table-card">
                 <table class="budget-table">
                   <thead>
+                    <tr class="budget-rate-row">
+                      <th></th>
+                      <th><label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th></th>
+                      <th><label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th><label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th><label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th><label>IRIS (%)<input id="budgetIrisRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th><label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th></th>
+                      <th></th>
+                      <th></th>
+                      <th></th>
+                      <th></th>
+                    </tr>
                     <tr>
                       <th>Ambiente</th>
                       <th>VITTA</th>
@@ -533,11 +551,11 @@
           <button type="button" id="closeProjectDialog">x</button>
         </header>
         <div class="dialog-actions">
-          <button class="button save" id="saveProjectBtn" value="default" type="submit">✓Salvar</button>
-          <button class="button save-new" id="saveNewProjectBtn" type="button">✓Salvar e Criar Novo</button>
-          <button class="button save-close" id="saveCloseProjectBtn" type="button">✓Salvar e Fechar</button>
-          <button class="button delete" id="deleteProjectBtn" type="button">▥Excluir</button>
-          <button class="button close" id="topCloseProjectBtn" type="button">✖Fechar</button>
+          <button class="button save" id="saveProjectBtn" value="default" type="submit">Salvar</button>
+          <button class="button save-new" id="saveNewProjectBtn" type="button">Salvar e criar novo</button>
+          <button class="button save-close" id="saveCloseProjectBtn" type="button">Salvar e fechar</button>
+          <button class="button delete" id="deleteProjectBtn" type="button">Excluir</button>
+          <button class="button close" id="topCloseProjectBtn" type="button">Fechar</button>
         </div>
         <section class="form-section">
           <h3>Dados Gerais</h3>
@@ -633,6 +651,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=55"></script>
+    <script src="app.js?v=64"></script>
   </body>
 </html>
