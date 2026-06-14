@@ -22,6 +22,41 @@ const STATUS = [
 ];
 const DEFAULT_STATUS = "Novo";
 const FINAL_USE_OPTIONS = ["Alugar", "Residir", "Negociar"];
+const PAYMENT_FACTORS = {
+  3: 0.37036340080909302,
+  4: 0.28267848916224497,
+  5: 0.230115936630129,
+  6: 0.19511467648419001,
+  7: 0.170148531661652,
+  8: 0.151454408719365,
+  9: 0.136941695822036,
+  10: 0.12535602194078399,
+  11: 0.115899147400871,
+  12: 0.10803890915826,
+  13: 0.1013948855344,
+  14: 0.095708193041200998,
+  15: 0.090788541049344099,
+  16: 0.086492924587185993,
+  17: 0.082711795039469599,
+  18: 0.079359816123894103,
+  19: 0.076369524337721095,
+  20: 0.073686882173234894,
+  21: 0.071268096054398405,
+  22: 0.069077298334298404,
+  23: 0.067084831472997999,
+  24: 0.065265959460575895,
+};
+const DEFAULT_BUDGET_SETTINGS = {
+  discountRate: 47,
+  releaseRate: 2,
+  assemblyRate: 12,
+  lelaRate: 2.5,
+  irisRate: 2.5,
+  taxRate: 4.9,
+  entry: 0,
+  installments: 0,
+};
+const BUDGET_STATUS = ["Negociação", "Aprovado", "Recusado"];
 const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
@@ -54,6 +89,11 @@ const state = {
   clientStatus: "Todos",
   search: "",
   projectSearch: "",
+  budgetSearch: "",
+  budgetEditing: false,
+  budgetDirty: false,
+  budgetIsNew: false,
+  budgetSourceId: null,
   selectedId: null,
   editingId: null,
   projectAction: "stay",
@@ -78,6 +118,7 @@ const elements = {
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
+  budgetNavItem: document.querySelector("#budgetNavItem"),
   userRows: document.querySelector("#userRows"),
   navItems: document.querySelectorAll(".nav-item"),
   views: document.querySelectorAll(".view"),
@@ -88,6 +129,10 @@ const elements = {
   projectCards: document.querySelector("#projectCards"),
   projectListRows: document.querySelector("#projectListRows"),
   projectSearch: document.querySelector("#projectSearch"),
+  budgetSearch: document.querySelector("#budgetSearch"),
+  budgetListRows: document.querySelector("#budgetListRows"),
+  budgetListCard: document.querySelector("#budgetListCard"),
+  budgetEditor: document.querySelector("#budgetEditor"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
   dialog: document.querySelector("#clientDialog"),
@@ -97,6 +142,8 @@ const elements = {
   projectRows: document.querySelector("#projectEnvironmentRows"),
   environmentOptions: document.querySelector("#environmentOptions"),
   leadImportFile: document.querySelector("#leadImportFile"),
+  budgetClientSelect: document.querySelector("#budgetClientSelect"),
+  budgetRows: document.querySelector("#budgetRows"),
 };
 
 function createId() {
@@ -202,6 +249,9 @@ function showAuthenticatedApp() {
   elements.userEmail.textContent = `${email} - ${isAdmin() ? "Admin" : "User"}`;
   if (elements.usersNavItem) {
     elements.usersNavItem.hidden = !isAdmin();
+  }
+  if (elements.budgetNavItem) {
+    elements.budgetNavItem.hidden = !isAdmin();
   }
 }
 
@@ -352,7 +402,7 @@ function saveEnvironmentCatalog() {
 
 function clientEnvironmentNames() {
   return state.clients.flatMap((client) =>
-    (client.project?.environments || []).map((environment) => normalizeEnvironmentName(environment.name || ""))
+    [...(client.project?.environments || []), ...(client.budget?.rows || [])].map((environment) => normalizeEnvironmentName(environment.name || ""))
   );
 }
 
@@ -416,6 +466,44 @@ function addEnvironmentOptionToSelect(select, environment) {
   option.value = environment;
   option.textContent = environment;
   select.insertBefore(option, customOption);
+}
+
+function createEnvironmentPicker(selectedName = "", onChange = () => {}) {
+  const wrapper = document.createElement("div");
+  const environmentSelect = createEnvironmentSelect(selectedName);
+  const customEnvironmentInput = document.createElement("input");
+  customEnvironmentInput.className = "environment-custom-input";
+  customEnvironmentInput.placeholder = "Digite o novo ambiente";
+  customEnvironmentInput.hidden = true;
+
+  const commitCustomEnvironment = () => {
+    const normalized = registerEnvironmentName(customEnvironmentInput.value);
+    if (!normalized) return;
+    addEnvironmentOptionToSelect(environmentSelect, normalized);
+    environmentSelect.value = normalized;
+    customEnvironmentInput.hidden = true;
+    onChange();
+  };
+
+  environmentSelect.addEventListener("change", () => {
+    const creatingNewEnvironment = environmentSelect.value === "__new__";
+    customEnvironmentInput.hidden = !creatingNewEnvironment;
+    if (creatingNewEnvironment) {
+      customEnvironmentInput.focus();
+      return;
+    }
+    onChange();
+  });
+
+  customEnvironmentInput.addEventListener("blur", commitCustomEnvironment);
+  customEnvironmentInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitCustomEnvironment();
+  });
+
+  wrapper.append(environmentSelect, customEnvironmentInput);
+  return { wrapper, select: environmentSelect, customInput: customEnvironmentInput };
 }
 
 function parseMoney(value) {
@@ -533,6 +621,7 @@ async function signOut() {
   state.userProfiles = [];
   state.clients = [];
   state.selectedId = null;
+  if (elements.budgetNavItem) elements.budgetNavItem.hidden = true;
   showAuthScreen();
 }
 
@@ -693,6 +782,13 @@ function clientTotals(client) {
   );
 }
 
+function clientBudgetTotals(client) {
+  if (!client.budget?.updatedAt) {
+    return { gross: 0, net: 0, cost: 0, profit: 0, margin: 0, financedBase: 0, installmentValue: 0, financingTotal: 0 };
+  }
+  return budgetSummaryForClient(client);
+}
+
 function statusClass(status) {
   const normalized = normalizeLeadStatus(status)
     .normalize("NFD")
@@ -704,7 +800,7 @@ function statusClass(status) {
 }
 
 function showView(view, selectedId) {
-  if (view === "users" && !isAdmin()) {
+  if ((view === "users" || view === "budget") && !isAdmin()) {
     view = "dashboard";
   }
 
@@ -761,25 +857,33 @@ function renderStatusFilters(container, activeStatus, group) {
 
 function renderDashboard() {
   const clients = filteredClients("dashboard");
-  const totals = clients.reduce(
+  const budgetClients = clients.filter((client) => client.budget?.updatedAt);
+  const totals = budgetClients.reduce(
     (summary, client) => {
-      const total = clientTotals(client);
-      summary.revenue += total.revenue;
+      const total = clientBudgetTotals(client);
+      summary.revenue += total.gross;
+      summary.net += total.net;
       summary.cost += total.cost;
       summary.profit += total.profit;
       return summary;
     },
-    { revenue: 0, cost: 0, profit: 0 }
+    { revenue: 0, net: 0, cost: 0, profit: 0 }
   );
 
   document.querySelector("#totalClients").textContent = clients.length;
   document.querySelector("#totalNegotiating").textContent = clients.filter((client) => client.status === "Negociação").length;
   document.querySelector("#totalClosed").textContent = clients.filter((client) => client.status === "Fechado Ganho").length;
   document.querySelector("#totalRevenue").textContent = BRL.format(totals.revenue);
+  document.querySelector("#totalNet").textContent = BRL.format(totals.net);
   document.querySelector("#totalCost").textContent = BRL.format(totals.cost);
   document.querySelector("#totalProfit").textContent = BRL.format(totals.profit);
+  document.querySelectorAll("[data-admin-finance]").forEach((element) => {
+    element.hidden = !isAdmin();
+  });
 
-  renderChart(clients);
+  if (isAdmin()) {
+    renderChart(budgetClients);
+  }
   renderRecentClients(clients);
 }
 
@@ -827,20 +931,20 @@ function renderChart(clients) {
   const width = displayWidth;
   const height = displayHeight;
   const padding = { top: 22, right: 24, bottom: 70, left: 72 };
-  const statuses = STATUS.slice(1);
+  const statuses = BUDGET_STATUS;
   const values = statuses.map((status) => {
-    const statusClients = clients.filter((client) => client.status === status);
+    const statusClients = clients.filter((client) => clientBudget(client).status === status);
     return statusClients.reduce(
       (sum, client) => {
-        const total = clientTotals(client);
-        sum.revenue += total.revenue;
+        const total = clientBudgetTotals(client);
+        sum.revenue += total.gross;
         sum.profit += total.profit;
         return sum;
       },
       { revenue: 0, profit: 0 }
     );
   });
-  const maxValue = Math.max(140000, ...values.flatMap((item) => [item.revenue, item.profit]));
+  const maxValue = Math.max(1, ...values.flatMap((item) => [item.revenue, item.profit]));
   const chartHeight = height - padding.top - padding.bottom;
   const chartWidth = width - padding.left - padding.right;
 
@@ -853,7 +957,8 @@ function renderChart(clients) {
   context.lineTo(width - padding.right, height - padding.bottom);
   context.stroke();
 
-  [0, 35000, 70000, 105000, 140000].forEach((tick) => {
+  const step = maxValue / 4;
+  [0, step, step * 2, step * 3, maxValue].forEach((tick) => {
     const y = height - padding.bottom - (tick / maxValue) * chartHeight;
     context.fillStyle = "#6e6135";
     context.font = "13px Arial";
@@ -945,13 +1050,20 @@ function renderClients() {
     folderCell.appendChild(folderButton);
     row.appendChild(folderCell);
 
-    [client.name, client.cpf || "-", client.phone || "-", client.mobile || "-"].forEach((value) => {
+    [
+      { className: "client-name-cell", value: client.name },
+      { className: "client-document-cell", value: client.cpf || "-" },
+      { className: "client-phone-cell", value: client.phone || "-" },
+      { className: "client-phone-cell", value: client.mobile || "-" },
+    ].forEach(({ className, value }) => {
       const cell = document.createElement("td");
+      cell.className = className;
       cell.textContent = value;
       row.appendChild(cell);
     });
 
     const statusCell = document.createElement("td");
+    statusCell.className = "client-status-cell";
     const statusBadge = document.createElement("span");
     statusBadge.className = `status-badge ${statusClass(client.status)}`;
     statusBadge.textContent = client.status;
@@ -959,6 +1071,7 @@ function renderClients() {
     row.appendChild(statusCell);
 
     const activeCell = document.createElement("td");
+    activeCell.className = "client-active-cell";
     const activeBadge = document.createElement("span");
     activeBadge.className = "active-badge";
     activeBadge.textContent = client.status === "Fechado Perdido" ? "Não" : "Sim";
@@ -993,12 +1106,11 @@ function renderProjects() {
   rows.innerHTML = "";
 
   if (!projects.length) {
-    rows.innerHTML = '<tr><td colspan="9" class="empty-state">Nenhum projeto encontrado</td></tr>';
+    rows.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum projeto encontrado</td></tr>';
     return;
   }
 
   projects.forEach((client) => {
-    const totals = clientTotals(client);
     const row = document.createElement("tr");
     const folderCell = document.createElement("td");
     const folderButton = document.createElement("button");
@@ -1018,13 +1130,10 @@ function renderProjects() {
     row.appendChild(folderCell);
 
     [
-      client.id,
       client.name,
       environmentSummary,
       responsibleSeller(client),
       client.project.deadline || "A definir",
-      BRL.format(totals.revenue),
-      BRL.format(totals.profit),
     ].forEach((value) => {
       const cell = document.createElement("td");
       cell.textContent = value;
@@ -1104,6 +1213,460 @@ function renderUsers() {
   });
 }
 
+function percentToRate(value) {
+  return (Number(value) || 0) / 100;
+}
+
+function formatPercent(value) {
+  return `${((Number(value) || 0) * 100).toFixed(1).replace(".", ",")}%`;
+}
+
+function budgetInputValue(id) {
+  return document.querySelector(`#${id}`).value;
+}
+
+function selectedBudgetClient() {
+  const id = elements.budgetClientSelect?.value || state.selectedId;
+  return state.clients.find((client) => client.id === id) || state.clients[0] || null;
+}
+
+function sourceBudgetClient() {
+  return state.clients.find((client) => client.id === state.budgetSourceId) || selectedBudgetClient();
+}
+
+function budgetPeriod(date = new Date()) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear());
+  return `${month}${year}`;
+}
+
+function nextBudgetCode(date = new Date()) {
+  const period = budgetPeriod(date);
+  const maxSequence = state.clients.reduce((max, client) => {
+    const code = client.budget?.code || "";
+    const match = code.match(/^(\d+)-(\d{2})(\d{4})$/);
+    if (!match || `${match[2]}${match[3]}` !== period) return max;
+    return Math.max(max, Number(match[1]) || 0);
+  }, 0);
+  return `${String(maxSequence + 1).padStart(3, "0")}-${period}`;
+}
+
+function fallbackBudgetCode(client) {
+  const savedBudgets = state.clients.filter((item) => item.budget?.updatedAt);
+  const orderedBudgets = savedBudgets.sort((first, second) => {
+    const firstDate = new Date(first.budget.updatedAt || 0).getTime();
+    const secondDate = new Date(second.budget.updatedAt || 0).getTime();
+    return firstDate - secondDate;
+  });
+  const sequence = orderedBudgets.findIndex((item) => item.id === client?.id) + 1;
+  const date = client?.budget?.updatedAt ? new Date(client.budget.updatedAt) : new Date();
+  return `${String(Math.max(sequence, 1)).padStart(3, "0")}-${budgetPeriod(date)}`;
+}
+
+function defaultBudgetRows(client) {
+  const environments = client?.project?.environments || [];
+  if (!environments.length) return [{ name: "", gross: 0, factory: 0 }];
+  return environments.map((environment) => ({
+    name: environment.name || "",
+    gross: parseMoney(environment.budget),
+    factory: parseMoney(environment.factory),
+  }));
+}
+
+function clientBudget(client) {
+  const saved = client?.budget || {};
+  return {
+    code: saved.code || (saved.updatedAt ? fallbackBudgetCode(client) : ""),
+    status: BUDGET_STATUS.includes(saved.status) ? saved.status : "Negociação",
+    settings: { ...DEFAULT_BUDGET_SETTINGS, ...(saved.settings || {}) },
+    rows: Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client),
+  };
+}
+
+function blankBudget() {
+  return {
+    code: nextBudgetCode(),
+    status: "Negociação",
+    settings: { ...DEFAULT_BUDGET_SETTINGS },
+    rows: [{ name: "", gross: 0, factory: 0 }],
+  };
+}
+
+function readBudgetSettings() {
+  return {
+    discountRate: Number(budgetInputValue("budgetDiscountRate")) || 0,
+    releaseRate: Number(budgetInputValue("budgetReleaseRate")) || 0,
+    assemblyRate: Number(budgetInputValue("budgetAssemblyRate")) || 0,
+    lelaRate: Number(budgetInputValue("budgetLelaRate")) || 0,
+    irisRate: Number(budgetInputValue("budgetIrisRate")) || 0,
+    taxRate: Number(budgetInputValue("budgetTaxRate")) || 0,
+    entry: parseMoney(budgetInputValue("budgetEntry")),
+    installments: Number(budgetInputValue("budgetInstallments")) || 0,
+  };
+}
+
+function readBudgetRows() {
+  return Array.from(elements.budgetRows.querySelectorAll("tr"))
+    .map((row) => {
+      const select = row.querySelector('[data-budget-field="name"]');
+      const customInput = row.querySelector(".environment-custom-input");
+      const rawName = select?.value === "__new__" ? customInput?.value : select?.value;
+      const name = registerEnvironmentName(rawName || "");
+      if (name && select) {
+        addEnvironmentOptionToSelect(select, name);
+        select.value = name;
+      }
+      if (customInput) customInput.hidden = true;
+      return {
+        name,
+        gross: parseMoney(row.querySelector('[data-budget-field="gross"]')?.value),
+        factory: parseMoney(row.querySelector('[data-budget-field="factory"]')?.value),
+      };
+    })
+    .filter((row) => row.name || row.gross || row.factory);
+}
+
+function calculateBudgetRows(rows, settings) {
+  const rates = {
+    discount: percentToRate(settings.discountRate),
+    release: percentToRate(settings.releaseRate),
+    assembly: percentToRate(settings.assemblyRate),
+    lela: percentToRate(settings.lelaRate),
+    iris: percentToRate(settings.irisRate),
+    tax: percentToRate(settings.taxRate),
+  };
+
+  return rows.map((row) => {
+    const gross = parseMoney(row.gross);
+    const factory = parseMoney(row.factory);
+    const net = gross - gross * rates.discount;
+    const release = net * rates.release;
+    const assembly = net * rates.assembly;
+    const lela = net * rates.lela;
+    const iris = net * rates.iris;
+    const tax = net * rates.tax;
+    const totalCost = factory + release + assembly + lela + iris + tax;
+    const profit = net - totalCost;
+    return {
+      ...row,
+      gross,
+      factory,
+      release,
+      assembly,
+      lela,
+      iris,
+      tax,
+      totalCost,
+      net,
+      profit,
+      margin: net ? profit / net : 0,
+    };
+  });
+}
+
+function budgetTotals(calculatedRows, settings) {
+  const totals = calculatedRows.reduce(
+    (summary, row) => ({
+      gross: summary.gross + row.gross,
+      net: summary.net + row.net,
+      cost: summary.cost + row.totalCost,
+      profit: summary.profit + row.profit,
+    }),
+    { gross: 0, net: 0, cost: 0, profit: 0 }
+  );
+  const financedBase = Math.max(0, totals.gross - totals.gross * percentToRate(settings.discountRate) - settings.entry);
+  const installmentFactor = PAYMENT_FACTORS[settings.installments] || 0;
+  const installmentValue = financedBase * installmentFactor;
+  const financingTotal = installmentValue * settings.installments + settings.entry;
+
+  return {
+    ...totals,
+    margin: totals.net ? totals.profit / totals.net : 0,
+    financedBase,
+    installmentValue,
+    financingTotal,
+  };
+}
+
+function updateBudgetTableTotals(calculatedRows, totals) {
+  const rowTotals = calculatedRows.reduce(
+    (summary, row) => ({
+      factory: summary.factory + row.factory,
+      release: summary.release + row.release,
+      assembly: summary.assembly + row.assembly,
+      lela: summary.lela + row.lela,
+      iris: summary.iris + row.iris,
+      tax: summary.tax + row.tax,
+    }),
+    { factory: 0, release: 0, assembly: 0, lela: 0, iris: 0, tax: 0 }
+  );
+
+  document.querySelector("#budgetRowsTotalGross").textContent = BRL.format(totals.gross);
+  document.querySelector("#budgetRowsTotalFactory").textContent = BRL.format(rowTotals.factory);
+  document.querySelector("#budgetRowsTotalRelease").textContent = BRL.format(rowTotals.release);
+  document.querySelector("#budgetRowsTotalAssembly").textContent = BRL.format(rowTotals.assembly);
+  document.querySelector("#budgetRowsTotalLela").textContent = BRL.format(rowTotals.lela);
+  document.querySelector("#budgetRowsTotalIris").textContent = BRL.format(rowTotals.iris);
+  document.querySelector("#budgetRowsTotalTax").textContent = BRL.format(rowTotals.tax);
+  document.querySelector("#budgetRowsTotalCost").textContent = BRL.format(totals.cost);
+  document.querySelector("#budgetRowsTotalNet").textContent = BRL.format(totals.net);
+  document.querySelector("#budgetRowsTotalProfit").textContent = BRL.format(totals.profit);
+  document.querySelector("#budgetRowsTotalMargin").textContent = formatPercent(totals.margin);
+}
+
+function updateBudgetSummary() {
+  if (!elements.budgetRows) return;
+  const settings = readBudgetSettings();
+  const calculatedRows = calculateBudgetRows(readBudgetRows(), settings);
+  const totals = budgetTotals(calculatedRows, settings);
+
+  document.querySelector("#budgetTotalGross").textContent = BRL.format(totals.gross);
+  document.querySelector("#budgetTotalNet").textContent = BRL.format(totals.net);
+  document.querySelector("#budgetTotalCost").textContent = BRL.format(totals.cost);
+  document.querySelector("#budgetTotalProfit").textContent = BRL.format(totals.profit);
+  document.querySelector("#budgetMargin").textContent = formatPercent(totals.margin);
+  document.querySelector("#budgetInstallmentValue").textContent = BRL.format(totals.installmentValue);
+  document.querySelector("#budgetFinancedBase").textContent = BRL.format(totals.financedBase);
+  document.querySelector("#budgetFinancingTotal").textContent = BRL.format(totals.financingTotal);
+  updateBudgetTableTotals(calculatedRows, totals);
+
+  Array.from(elements.budgetRows.querySelectorAll("tr")).forEach((row, index) => {
+    const values = calculatedRows[index] || {};
+    row.querySelector('[data-budget-result="release"]').textContent = BRL.format(values.release || 0);
+    row.querySelector('[data-budget-result="assembly"]').textContent = BRL.format(values.assembly || 0);
+    row.querySelector('[data-budget-result="lela"]').textContent = BRL.format(values.lela || 0);
+    row.querySelector('[data-budget-result="iris"]').textContent = BRL.format(values.iris || 0);
+    row.querySelector('[data-budget-result="tax"]').textContent = BRL.format(values.tax || 0);
+    row.querySelector('[data-budget-result="totalCost"]').textContent = BRL.format(values.totalCost || 0);
+    row.querySelector('[data-budget-result="net"]').textContent = BRL.format(values.net || 0);
+    row.querySelector('[data-budget-result="profit"]').textContent = BRL.format(values.profit || 0);
+    row.querySelector('[data-budget-result="margin"]').textContent = formatPercent(values.margin || 0);
+  });
+}
+
+function markBudgetDirty() {
+  state.budgetDirty = true;
+}
+
+function createBudgetRow(rowData = {}) {
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td data-budget-environment></td>
+    <td><input class="money-input" data-budget-field="gross" inputmode="decimal" /></td>
+    <td><input class="money-input" data-budget-field="factory" inputmode="decimal" /></td>
+    <td data-budget-result="release"></td>
+    <td data-budget-result="assembly"></td>
+    <td data-budget-result="lela"></td>
+    <td data-budget-result="iris"></td>
+    <td data-budget-result="tax"></td>
+    <td data-budget-result="totalCost"></td>
+    <td data-budget-result="net"></td>
+    <td data-budget-result="profit"></td>
+    <td data-budget-result="margin"></td>
+    <td><button class="link-button" type="button" data-budget-remove>Remover</button></td>
+  `;
+  const environmentPicker = createEnvironmentPicker(rowData.name || "", () => {
+    markBudgetDirty();
+    updateBudgetSummary();
+  });
+  environmentPicker.select.dataset.budgetField = "name";
+  row.querySelector("[data-budget-environment]").appendChild(environmentPicker.wrapper);
+  row.querySelector('[data-budget-field="gross"]').value = formatMoneyInput(rowData.gross || 0);
+  row.querySelector('[data-budget-field="factory"]').value = formatMoneyInput(rowData.factory || 0);
+  row.querySelectorAll('[data-budget-field="gross"], [data-budget-field="factory"]').forEach((input) => {
+    input.addEventListener("input", () => {
+      markBudgetDirty();
+      updateBudgetSummary();
+    });
+    if (input.classList.contains("money-input")) {
+      input.addEventListener("blur", () => {
+        input.value = formatMoneyInput(input.value);
+        updateBudgetSummary();
+      });
+    }
+  });
+  row.querySelector("[data-budget-remove]").addEventListener("click", () => {
+    row.remove();
+    markBudgetDirty();
+    updateBudgetSummary();
+  });
+  return row;
+}
+
+function fillBudgetForm(client) {
+  const budget = state.budgetIsNew ? blankBudget() : clientBudget(client);
+  const settings = budget.settings;
+  const targetClient = selectedBudgetClient();
+  document.querySelector("#budgetEditorTitle").textContent = state.budgetIsNew ? "Novo Orçamento" : "Cadastro Orçamento";
+  document.querySelector("#budgetEditorSubtitle").textContent = targetClient ? `${targetClient.name} - ${responsibleSeller(targetClient)}` : "";
+  document.querySelector("#budgetCode").value = budget.code || nextBudgetCode();
+  document.querySelector("#budgetStatus").value = budget.status || "Negociação";
+  document.querySelector("#budgetEntry").value = formatMoneyInput(settings.entry);
+  document.querySelector("#budgetInstallments").value = String(settings.installments || 0);
+  document.querySelector("#budgetDiscountRate").value = settings.discountRate;
+  document.querySelector("#budgetReleaseRate").value = settings.releaseRate;
+  document.querySelector("#budgetAssemblyRate").value = settings.assemblyRate;
+  document.querySelector("#budgetLelaRate").value = settings.lelaRate;
+  document.querySelector("#budgetIrisRate").value = settings.irisRate;
+  document.querySelector("#budgetTaxRate").value = settings.taxRate;
+
+  elements.budgetRows.innerHTML = "";
+  budget.rows.forEach((row) => elements.budgetRows.appendChild(createBudgetRow(row)));
+  state.budgetDirty = false;
+  updateBudgetSummary();
+}
+
+function openBudgetEditor(clientId = state.selectedId, options = {}) {
+  if (!isAdmin()) return;
+  state.selectedId = clientId || state.clients[0]?.id || state.selectedId;
+  state.budgetIsNew = Boolean(options.blank);
+  state.budgetSourceId = state.budgetIsNew ? null : state.selectedId;
+  state.budgetEditing = true;
+  renderBudget();
+}
+
+function closeBudgetEditor() {
+  if (state.budgetDirty && !confirm("Descartar alteracoes do orçamento atual?")) return;
+  state.budgetEditing = false;
+  state.budgetDirty = false;
+  state.budgetIsNew = false;
+  state.budgetSourceId = null;
+  renderBudget();
+}
+
+function budgetSummaryForClient(client) {
+  const budget = clientBudget(client);
+  const calculatedRows = calculateBudgetRows(budget.rows, budget.settings);
+  return budgetTotals(calculatedRows, budget.settings);
+}
+
+function renderBudgetClientOptions() {
+  if (!elements.budgetClientSelect) return;
+  const selectedId = state.selectedId || elements.budgetClientSelect.value || state.clients[0]?.id || "";
+  elements.budgetClientSelect.innerHTML = "";
+  state.clients.forEach((client) => {
+    const option = document.createElement("option");
+    option.value = client.id;
+    option.textContent = client.name || client.id;
+    elements.budgetClientSelect.appendChild(option);
+  });
+  if (state.clients.length) {
+    elements.budgetClientSelect.value = state.clients.some((client) => client.id === selectedId) ? selectedId : state.clients[0].id;
+  }
+}
+
+function renderBudgetList() {
+  const rows = elements.budgetListRows;
+  if (!rows) return;
+  const search = state.budgetSearch.toLowerCase();
+  const budgets = state.clients.filter((client) => {
+    const hasSavedBudget = Boolean(client.budget?.updatedAt);
+    const budget = clientBudget(client);
+    const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
+      String(value || "").toLowerCase().includes(search)
+    );
+    return hasSavedBudget && matchesSearch;
+  });
+
+  document.querySelector("#budgetCount").textContent = budgets.length;
+  rows.innerHTML = "";
+
+  if (!budgets.length) {
+    rows.innerHTML = '<tr><td colspan="10" class="empty-state">Nenhum orçamento encontrado</td></tr>';
+    return;
+  }
+
+  budgets.forEach((client) => {
+    const budget = clientBudget(client);
+    const totals = budgetSummaryForClient(client);
+    const row = document.createElement("tr");
+    const folderCell = document.createElement("td");
+    const folderButton = document.createElement("button");
+    folderCell.className = "folder-column";
+    folderButton.className = "folder-button";
+    folderButton.type = "button";
+    folderButton.title = "Abrir orçamento";
+    folderButton.textContent = "▰";
+    folderButton.addEventListener("click", () => openBudgetEditor(client.id));
+    folderCell.appendChild(folderButton);
+    row.appendChild(folderCell);
+
+    [
+      budget.code || "-",
+      client.name,
+      responsibleSeller(client),
+      budget.status || "Negociação",
+    ].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value || "-";
+      row.appendChild(cell);
+    });
+
+    [
+      BRL.format(totals.gross),
+      BRL.format(totals.cost),
+      BRL.format(totals.profit),
+      formatPercent(totals.margin),
+      client.budget?.updatedAt ? new Date(client.budget.updatedAt).toLocaleString("pt-BR") : "-",
+    ].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+
+    row.addEventListener("dblclick", () => openBudgetEditor(client.id));
+    rows.appendChild(row);
+  });
+}
+
+function renderBudget() {
+  if (!elements.budgetClientSelect || !isAdmin()) return;
+  renderBudgetClientOptions();
+  renderBudgetList();
+
+  const editing = state.view === "budget" && state.budgetEditing;
+  elements.budgetListCard.hidden = editing;
+  elements.budgetEditor.hidden = !editing;
+  if (editing) fillBudgetForm(sourceBudgetClient());
+}
+
+async function saveBudget() {
+  const client = selectedBudgetClient();
+  if (!client || !isAdmin()) return;
+  const settings = readBudgetSettings();
+  const rows = readBudgetRows();
+  const sourceId = state.budgetSourceId;
+  const budgetPayload = {
+    code: budgetInputValue("budgetCode") || nextBudgetCode(),
+    status: BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : "Negociação",
+    settings,
+    rows,
+    updatedAt: new Date().toISOString(),
+  };
+  state.clients = state.clients.map((item) =>
+    item.id === client.id
+      ? {
+          ...item,
+          budget: budgetPayload,
+        }
+      : sourceId && sourceId !== client.id && item.id === sourceId
+      ? {
+          ...item,
+          budget: undefined,
+        }
+      : item
+  );
+  state.selectedId = client.id;
+  await saveClients();
+  refreshEnvironmentCatalog(rows.map((row) => row.name));
+  state.budgetEditing = false;
+  state.budgetDirty = false;
+  state.budgetIsNew = false;
+  state.budgetSourceId = null;
+  render();
+  alert("Orçamento salvo com sucesso.");
+}
+
 function renderDetail() {
   const client = selectedClient();
   if (!client) return;
@@ -1112,6 +1675,7 @@ function renderDetail() {
   document.querySelector("#detailName").textContent = client.name;
   document.querySelector("#detailStatus").textContent = client.status;
   document.querySelector("#detailStatus").className = `badge ${statusClass(client.status)}`;
+  document.querySelector("#clientBudgetBtn").hidden = !isAdmin();
   document.querySelector("#detailCpf").textContent = client.cpf || "—";
   document.querySelector("#detailPhone").textContent = client.phone || "—";
   document.querySelector("#detailEmail").textContent = client.email || "—";
@@ -1330,7 +1894,7 @@ function openProjectDialog(client = selectedClient()) {
   const editingProject = state.view === "projects";
   state.selectedId = client ? client.id : null;
   state.projectAction = "stay";
-  state.projectReturnView = state.view === "projects" ? "projects" : "clients";
+  state.projectReturnView = ["projects", "budget"].includes(state.view) ? state.view : "clients";
 
   document.querySelector("#projectForm").reset();
   document.querySelector("#projectDialog h2").textContent = isNew
@@ -1746,12 +2310,45 @@ function openLeadImportFilePicker() {
   elements.leadImportFile.click();
 }
 
+function editableEnterShouldMoveFocus(event) {
+  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return false;
+  const field = event.target;
+  if (!(field instanceof HTMLElement)) return false;
+  if (field.matches("textarea, button, [type='button'], [type='submit'], [type='reset'], a")) return false;
+  if (!field.matches("input, select, [contenteditable='true']")) return false;
+  if (field.readOnly || field.disabled) return false;
+  return true;
+}
+
+function focusNextEditableField(currentField) {
+  const fields = Array.from(document.querySelectorAll("input, select, textarea, button, [contenteditable='true']"))
+    .filter((field) => {
+      if (!(field instanceof HTMLElement)) return false;
+      if (field.hidden || field.disabled) return false;
+      if (field.matches("[type='hidden'], button, [type='button'], [type='submit'], [type='reset']")) return false;
+      if (field.offsetParent === null && field.getClientRects().length === 0) return false;
+      return field.matches("input:not([readonly]), select, textarea:not([readonly]), [contenteditable='true']");
+    });
+  const currentIndex = fields.indexOf(currentField);
+  const nextField = fields[currentIndex + 1] || fields[0];
+  if (!nextField || nextField === currentField) return;
+  nextField.focus();
+  if (nextField instanceof HTMLInputElement) nextField.select();
+}
+
+document.addEventListener("keydown", (event) => {
+  if (!editableEnterShouldMoveFocus(event)) return;
+  event.preventDefault();
+  focusNextEditableField(event.target);
+});
+
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
   renderDashboard();
   renderClients();
   renderProjects();
+  renderBudget();
   renderUsers();
   renderDetail();
 }
@@ -1803,6 +2400,9 @@ elements.navItems.forEach((item) => {
         alert(error.message || "Nao foi possivel carregar os usuarios.");
       }
     }
+    if (item.dataset.view === "budget") {
+      state.budgetEditing = false;
+    }
     showView(item.dataset.view);
   });
 });
@@ -1812,17 +2412,72 @@ elements.clientSearch.addEventListener("input", (event) => {
   renderClients();
 });
 
-elements.projectSearch.addEventListener("input", (event) => {
+elements.projectSearch?.addEventListener("input", (event) => {
   state.projectSearch = event.target.value;
   renderProjects();
 });
 
+elements.budgetSearch?.addEventListener("input", (event) => {
+  state.budgetSearch = event.target.value;
+  renderBudgetList();
+});
+
 document.querySelector("#newClientBtn").addEventListener("click", () => openProjectDialog(null));
-document.querySelector("#projectClientBtn").addEventListener("click", () => openProjectDialog(null));
+document.querySelector("#projectClientBtn")?.addEventListener("click", () => openProjectDialog(null));
 document.querySelector("#backToClients").addEventListener("click", () => showView(state.returnView || "clients"));
 document.querySelector("#seeAllClients").addEventListener("click", () => showView("clients"));
 document.querySelector("#editClientBtn").addEventListener("click", () => {
   openProjectDialog();
+});
+document.querySelector("#clientBudgetBtn")?.addEventListener("click", () => {
+  const client = selectedClient();
+  if (client) showView("budget", client.id);
+  openBudgetEditor(client?.id);
+});
+document.querySelector("#budgetNewBtn")?.addEventListener("click", () => openBudgetEditor(state.clients[0]?.id || state.selectedId, { blank: true }));
+document.querySelector("#budgetBackToList")?.addEventListener("click", closeBudgetEditor);
+document.querySelector("#budgetEditClientBtn")?.addEventListener("click", () => {
+  const client = selectedBudgetClient();
+  if (!client) return;
+  state.selectedId = client.id;
+  openProjectDialog(client);
+});
+elements.budgetClientSelect?.addEventListener("change", () => {
+  state.selectedId = elements.budgetClientSelect.value;
+  markBudgetDirty();
+  const targetClient = selectedBudgetClient();
+  document.querySelector("#budgetEditorSubtitle").textContent = targetClient ? `${targetClient.name} - ${responsibleSeller(targetClient)}` : "";
+});
+document.querySelector("#budgetAddEnvironment")?.addEventListener("click", () => {
+  elements.budgetRows.appendChild(createBudgetRow({ name: "", gross: 0, factory: 0 }));
+  markBudgetDirty();
+  updateBudgetSummary();
+});
+document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
+[
+  "#budgetEntry",
+  "#budgetStatus",
+  "#budgetInstallments",
+  "#budgetDiscountRate",
+  "#budgetReleaseRate",
+  "#budgetAssemblyRate",
+  "#budgetLelaRate",
+  "#budgetIrisRate",
+  "#budgetTaxRate",
+].forEach((selector) => {
+  const input = document.querySelector(selector);
+  input?.addEventListener("input", () => {
+    markBudgetDirty();
+    updateBudgetSummary();
+  });
+  input?.addEventListener("change", () => {
+    markBudgetDirty();
+    updateBudgetSummary();
+  });
+});
+document.querySelector("#budgetEntry")?.addEventListener("blur", (event) => {
+  event.target.value = formatMoneyInput(event.target.value);
+  updateBudgetSummary();
 });
 document.querySelector("#addEnvironmentBtn").addEventListener("click", () => {
   elements.projectRows.appendChild(createEnvironmentRow({ name: "", budget: 0, factory: 0, assembly: 0 }));
@@ -1878,9 +2533,6 @@ elements.leadImportFile.addEventListener("change", async (event) => {
     console.warn(error);
     alert(error.message || "Nao foi possivel importar os leads.");
   }
-});
-document.querySelectorAll("[data-return-dashboard]").forEach((button) => {
-  button.addEventListener("click", () => showView("dashboard"));
 });
 document.querySelectorAll("[data-legacy-logout]").forEach((button) => {
   button.addEventListener("click", signOut);
