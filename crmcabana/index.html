@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=30" />
+    <link rel="stylesheet" href="styles.css?v=34" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -123,7 +123,7 @@
             </article>
             <article class="stat-card wide" data-admin-finance>
               <span class="stat-icon teal">$</span>
-              <div><span>Total Líquido</span><strong id="totalNet">R$ 0,00</strong></div>
+              <div><span>Total Liquido Orçamentos</span><strong id="totalNet">R$ 0,00</strong></div>
             </article>
             <article class="stat-card wide" data-admin-finance>
               <span class="stat-icon teal">up</span>
@@ -262,8 +262,12 @@
               <label>ID Orçamento
                 <input id="budgetCode" readonly />
               </label>
+              <label>Data cadastro
+                <input id="budgetCreatedAt" type="datetime-local" />
+              </label>
               <label>Status do orçamento
                 <select id="budgetStatus">
+                  <option>Novo Orçamento</option>
                   <option>Negociação</option>
                   <option>Aprovado</option>
                   <option>Recusado</option>
@@ -271,7 +275,6 @@
               </label>
               <label>Cliente do orçamento
                 <select id="budgetClientSelect"></select>
-                <span class="hint">Troque aqui para transferir este orçamento ao salvar.</span>
               </label>
               <label>Entrada
                 <input id="budgetEntry" class="money-input" inputmode="decimal" />
@@ -630,6 +633,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=46"></script>
+    <script src="app.js?v=55"></script>
   </body>
 </html>

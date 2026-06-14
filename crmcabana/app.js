@@ -56,7 +56,7 @@ const DEFAULT_BUDGET_SETTINGS = {
   entry: 0,
   installments: 0,
 };
-const BUDGET_STATUS = ["Negociação", "Aprovado", "Recusado"];
+const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Recusado"];
 const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
@@ -94,6 +94,8 @@ const state = {
   budgetDirty: false,
   budgetIsNew: false,
   budgetSourceId: null,
+  budgetEditingId: null,
+  budgetDraft: null,
   selectedId: null,
   editingId: null,
   projectAction: "stay",
@@ -499,6 +501,7 @@ function createEnvironmentPicker(selectedName = "", onChange = () => {}) {
   customEnvironmentInput.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
+    event.stopPropagation();
     commitCustomEnvironment();
   });
 
@@ -1240,13 +1243,42 @@ function budgetInputValue(id) {
   return document.querySelector(`#${id}`).value;
 }
 
+function formatDateTimeLocal(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDateTimeLocal(new Date());
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
+function readBudgetCreatedAt() {
+  const value = budgetInputValue("budgetCreatedAt");
+  if (!value) return new Date().toISOString();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+}
+
+function currentBudgetDraft() {
+  return {
+    id: state.budgetEditingId || `budget-${Date.now()}`,
+    code: budgetInputValue("budgetCode") || nextBudgetCode(),
+    status: BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0],
+    createdAt: readBudgetCreatedAt(),
+    settings: readBudgetSettings(),
+    rows: readBudgetRows(),
+  };
+}
+
 function selectedBudgetClient() {
   const id = elements.budgetClientSelect?.value || state.selectedId;
-  return state.clients.find((client) => client.id === id) || state.clients[0] || null;
+  return state.clients.find((client) => client.id === id) || null;
 }
 
 function sourceBudgetClient() {
   return state.clients.find((client) => client.id === state.budgetSourceId) || selectedBudgetClient();
+}
+
+function budgetIdentity(budget) {
+  return budget?.id || budget?.code || budget?.createdAt || budget?.updatedAt || "";
 }
 
 function budgetPeriod(date = new Date()) {
@@ -1257,12 +1289,14 @@ function budgetPeriod(date = new Date()) {
 
 function nextBudgetCode(date = new Date()) {
   const period = budgetPeriod(date);
-  const maxSequence = state.clients.reduce((max, client) => {
-    const code = client.budget?.code || "";
-    const match = code.match(/^(\d+)-(\d{2})(\d{4})$/);
-    if (!match || `${match[2]}${match[3]}` !== period) return max;
-    return Math.max(max, Number(match[1]) || 0);
-  }, 0);
+  const maxSequence = state.clients
+    .flatMap((client) => [...(client.budgets || []), client.budget].filter(Boolean))
+    .reduce((max, budget) => {
+      const code = budget.code || "";
+      const match = code.match(/^(\d+)-(\d{2})(\d{4})$/);
+      if (!match || `${match[2]}${match[3]}` !== period) return max;
+      return Math.max(max, Number(match[1]) || 0);
+    }, 0);
   return `${String(maxSequence + 1).padStart(3, "0")}-${period}`;
 }
 
@@ -1291,8 +1325,10 @@ function defaultBudgetRows(client) {
 function clientBudget(client) {
   const saved = client?.budget || {};
   return {
+    id: saved.id || saved.code || "",
     code: saved.code || (saved.updatedAt ? fallbackBudgetCode(client) : ""),
-    status: BUDGET_STATUS.includes(saved.status) ? saved.status : "Negociação",
+    status: BUDGET_STATUS.includes(saved.status) ? saved.status : BUDGET_STATUS[0],
+    createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     settings: { ...DEFAULT_BUDGET_SETTINGS, ...(saved.settings || {}) },
     rows: Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client),
   };
@@ -1300,11 +1336,38 @@ function clientBudget(client) {
 
 function blankBudget() {
   return {
+    id: `budget-${Date.now()}`,
     code: nextBudgetCode(),
-    status: "Negociação",
+    status: BUDGET_STATUS[0],
+    createdAt: new Date().toISOString(),
     settings: { ...DEFAULT_BUDGET_SETTINGS },
     rows: [{ name: "", gross: 0, factory: 0 }],
   };
+}
+
+function clientBudgetHistory(client) {
+  const budgets = [];
+  const addBudget = (budget) => {
+    if (!budget?.updatedAt) return;
+    const normalized = {
+      ...budget,
+      id: budgetIdentity(budget) || `budget-${budgets.length + 1}`,
+      createdAt: budget.createdAt || budget.updatedAt,
+    };
+    const identity = budgetIdentity(normalized);
+    const existingIndex = budgets.findIndex((item) => budgetIdentity(item) === identity);
+    if (existingIndex >= 0) budgets[existingIndex] = normalized;
+    else budgets.push(normalized);
+  };
+
+  (client?.budgets || []).forEach(addBudget);
+  addBudget(client?.budget);
+  return budgets.sort((first, second) => new Date(second.updatedAt || second.createdAt || 0) - new Date(first.updatedAt || first.createdAt || 0));
+}
+
+function budgetForEditing(client) {
+  if (!state.budgetEditingId) return clientBudget(client);
+  return clientBudgetHistory(client).find((budget) => budgetIdentity(budget) === state.budgetEditingId) || clientBudget(client);
 }
 
 function readBudgetSettings() {
@@ -1357,11 +1420,13 @@ function calculateBudgetRows(rows, settings) {
     const net = gross - gross * rates.discount;
     const release = net * rates.release;
     const assembly = net * rates.assembly;
-    const lela = net * rates.lela;
-    const iris = net * rates.iris;
     const tax = net * rates.tax;
+    const profitBeforeProfitRates = net - factory - release - assembly - tax;
+    const profitRateTotal = rates.lela + rates.iris;
+    const profit = profitBeforeProfitRates > 0 ? profitBeforeProfitRates / (1 + profitRateTotal) : profitBeforeProfitRates;
+    const lela = profit > 0 ? profit * rates.lela : 0;
+    const iris = profit > 0 ? profit * rates.iris : 0;
     const totalCost = factory + release + assembly + lela + iris + tax;
-    const profit = net - totalCost;
     return {
       ...row,
       gross,
@@ -1478,13 +1543,23 @@ function createBudgetRow(rowData = {}) {
     <td data-budget-result="net"></td>
     <td data-budget-result="profit"></td>
     <td data-budget-result="margin"></td>
-    <td><button class="link-button" type="button" data-budget-remove>Remover</button></td>
+    <td><button class="icon-button danger" type="button" data-budget-remove aria-label="Remover ambiente" title="Remover ambiente">🗑</button></td>
   `;
+  const focusBudgetGross = () => {
+    window.setTimeout(() => row.querySelector('[data-budget-field="gross"]')?.focus(), 0);
+  };
   const environmentPicker = createEnvironmentPicker(rowData.name || "", () => {
     markBudgetDirty();
     updateBudgetSummary();
+    focusBudgetGross();
   });
   environmentPicker.select.dataset.budgetField = "name";
+  environmentPicker.select.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.stopPropagation();
+    focusBudgetGross();
+  });
   row.querySelector("[data-budget-environment]").appendChild(environmentPicker.wrapper);
   row.querySelector('[data-budget-field="gross"]').value = formatMoneyInput(rowData.gross || 0);
   row.querySelector('[data-budget-field="factory"]').value = formatMoneyInput(rowData.factory || 0);
@@ -1500,6 +1575,17 @@ function createBudgetRow(rowData = {}) {
       });
     }
   });
+  row.querySelector('[data-budget-field="factory"]').addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+    const nextRow = createBudgetRow({ name: "", gross: 0, factory: 0 });
+    elements.budgetRows.appendChild(nextRow);
+    markBudgetDirty();
+    updateBudgetSummary();
+    nextRow.querySelector('[data-budget-field="name"]')?.focus();
+  });
   row.querySelector("[data-budget-remove]").addEventListener("click", () => {
     row.remove();
     markBudgetDirty();
@@ -1509,13 +1595,17 @@ function createBudgetRow(rowData = {}) {
 }
 
 function fillBudgetForm(client) {
-  const budget = state.budgetIsNew ? blankBudget() : clientBudget(client);
+  const budget = state.budgetDraft || (state.budgetIsNew ? blankBudget() : budgetForEditing(client));
+  state.budgetEditingId = budgetIdentity(budget) || state.budgetEditingId;
   const settings = budget.settings;
   const targetClient = selectedBudgetClient();
   document.querySelector("#budgetEditorTitle").textContent = state.budgetIsNew ? "Novo Orçamento" : "Cadastro Orçamento";
   document.querySelector("#budgetEditorSubtitle").textContent = targetClient ? `${targetClient.name} - ${responsibleSeller(targetClient)}` : "";
+  document.querySelector("#budgetEditClientBtn").disabled = false;
+  document.querySelector("#budgetEditClientBtn").textContent = targetClient ? "Editar cliente" : "Cadastrar cliente";
   document.querySelector("#budgetCode").value = budget.code || nextBudgetCode();
-  document.querySelector("#budgetStatus").value = budget.status || "Negociação";
+  document.querySelector("#budgetCreatedAt").value = formatDateTimeLocal(budget.createdAt || new Date());
+  document.querySelector("#budgetStatus").value = budget.status || BUDGET_STATUS[0];
   document.querySelector("#budgetEntry").value = formatMoneyInput(settings.entry);
   document.querySelector("#budgetInstallments").value = String(settings.installments || 0);
   document.querySelector("#budgetDiscountRate").value = settings.discountRate;
@@ -1533,9 +1623,10 @@ function fillBudgetForm(client) {
 
 function openBudgetEditor(clientId = state.selectedId, options = {}) {
   if (!isAdmin()) return;
-  state.selectedId = clientId || state.clients[0]?.id || state.selectedId;
   state.budgetIsNew = Boolean(options.blank);
+  state.selectedId = state.budgetIsNew && !clientId ? null : clientId || state.selectedId;
   state.budgetSourceId = state.budgetIsNew ? null : state.selectedId;
+  state.budgetEditingId = options.budgetId || null;
   state.budgetEditing = true;
   renderBudget();
 }
@@ -1546,6 +1637,8 @@ function closeBudgetEditor() {
   state.budgetDirty = false;
   state.budgetIsNew = false;
   state.budgetSourceId = null;
+  state.budgetEditingId = null;
+  state.budgetDraft = null;
   renderBudget();
 }
 
@@ -1555,33 +1648,46 @@ function budgetSummaryForClient(client) {
   return budgetTotals(calculatedRows, budget.settings);
 }
 
+function budgetSummary(budget) {
+  const calculatedRows = calculateBudgetRows(budget.rows || [], budget.settings || DEFAULT_BUDGET_SETTINGS);
+  return budgetTotals(calculatedRows, budget.settings || DEFAULT_BUDGET_SETTINGS);
+}
+
+function budgetCodeSequence(code) {
+  const match = String(code || "").match(/^(\d+)/);
+  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+
 function renderBudgetClientOptions() {
   if (!elements.budgetClientSelect) return;
-  const selectedId = state.selectedId || elements.budgetClientSelect.value || state.clients[0]?.id || "";
+  const selectedId = state.budgetIsNew && !state.selectedId ? "" : state.selectedId || elements.budgetClientSelect.value || "";
   elements.budgetClientSelect.innerHTML = "";
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = "Selecione um cliente";
+  placeholderOption.selected = !selectedId;
+  elements.budgetClientSelect.appendChild(placeholderOption);
   state.clients.forEach((client) => {
     const option = document.createElement("option");
     option.value = client.id;
     option.textContent = client.name || client.id;
     elements.budgetClientSelect.appendChild(option);
   });
-  if (state.clients.length) {
-    elements.budgetClientSelect.value = state.clients.some((client) => client.id === selectedId) ? selectedId : state.clients[0].id;
-  }
+  elements.budgetClientSelect.value = state.clients.some((client) => client.id === selectedId) ? selectedId : "";
 }
 
 function renderBudgetList() {
   const rows = elements.budgetListRows;
   if (!rows) return;
   const search = state.budgetSearch.toLowerCase();
-  const budgets = state.clients.filter((client) => {
-    const hasSavedBudget = Boolean(client.budget?.updatedAt);
-    const budget = clientBudget(client);
+  const budgets = state.clients.flatMap((client) =>
+    clientBudgetHistory(client).map((budget) => ({ client, budget }))
+  ).filter(({ client, budget }) => {
     const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
       String(value || "").toLowerCase().includes(search)
     );
-    return hasSavedBudget && matchesSearch;
-  });
+    return matchesSearch;
+  }).sort((first, second) => budgetCodeSequence(first.budget.code) - budgetCodeSequence(second.budget.code));
 
   document.querySelector("#budgetCount").textContent = budgets.length;
   rows.innerHTML = "";
@@ -1591,9 +1697,8 @@ function renderBudgetList() {
     return;
   }
 
-  budgets.forEach((client) => {
-    const budget = clientBudget(client);
-    const totals = budgetSummaryForClient(client);
+  budgets.forEach(({ client, budget }) => {
+    const totals = budgetSummary(budget);
     const row = document.createElement("tr");
     const folderCell = document.createElement("td");
     const folderButton = document.createElement("button");
@@ -1602,7 +1707,7 @@ function renderBudgetList() {
     folderButton.type = "button";
     folderButton.title = "Abrir orçamento";
     folderButton.textContent = "▰";
-    folderButton.addEventListener("click", () => openBudgetEditor(client.id));
+    folderButton.addEventListener("click", () => openBudgetEditor(client.id, { budgetId: budgetIdentity(budget) }));
     folderCell.appendChild(folderButton);
     row.appendChild(folderCell);
 
@@ -1622,14 +1727,14 @@ function renderBudgetList() {
       BRL.format(totals.cost),
       BRL.format(totals.profit),
       formatPercent(totals.margin),
-      client.budget?.updatedAt ? new Date(client.budget.updatedAt).toLocaleString("pt-BR") : "-",
+      budget.updatedAt ? new Date(budget.updatedAt).toLocaleString("pt-BR") : "-",
     ].forEach((value) => {
       const cell = document.createElement("td");
       cell.textContent = value;
       row.appendChild(cell);
     });
 
-    row.addEventListener("dblclick", () => openBudgetEditor(client.id));
+    row.addEventListener("dblclick", () => openBudgetEditor(client.id, { budgetId: budgetIdentity(budget) }));
     rows.appendChild(row);
   });
 }
@@ -1647,27 +1752,43 @@ function renderBudget() {
 
 async function saveBudget() {
   const client = selectedBudgetClient();
-  if (!client || !isAdmin()) return;
+  if (!isAdmin()) return;
+  if (!client) {
+    alert("Selecione um cliente para salvar o orcamento.");
+    elements.budgetClientSelect?.focus();
+    return;
+  }
   const settings = readBudgetSettings();
   const rows = readBudgetRows();
   const sourceId = state.budgetSourceId;
   const budgetPayload = {
+    id: state.budgetEditingId || `budget-${Date.now()}`,
     code: budgetInputValue("budgetCode") || nextBudgetCode(),
-    status: BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : "Negociação",
+    status: BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0],
+    createdAt: readBudgetCreatedAt(),
     settings,
     rows,
     updatedAt: new Date().toISOString(),
   };
   state.clients = state.clients.map((item) =>
     item.id === client.id
-      ? {
-          ...item,
-          budget: budgetPayload,
-        }
+      ? (() => {
+          const budgets = clientBudgetHistory(item);
+          const payloadIdentity = budgetIdentity(budgetPayload);
+          const existingIndex = budgets.findIndex((budget) => budgetIdentity(budget) === payloadIdentity);
+          if (existingIndex >= 0) budgets[existingIndex] = budgetPayload;
+          else budgets.unshift(budgetPayload);
+          return {
+            ...item,
+            budget: budgetPayload,
+            budgets,
+          };
+        })()
       : sourceId && sourceId !== client.id && item.id === sourceId
       ? {
           ...item,
           budget: undefined,
+          budgets: clientBudgetHistory(item).filter((budget) => budgetIdentity(budget) !== state.budgetEditingId),
         }
       : item
   );
@@ -1678,6 +1799,8 @@ async function saveBudget() {
   state.budgetDirty = false;
   state.budgetIsNew = false;
   state.budgetSourceId = null;
+  state.budgetEditingId = null;
+  state.budgetDraft = null;
   render();
   alert("Orçamento salvo com sucesso.");
 }
@@ -2077,6 +2200,36 @@ async function saveProjectFromDialog(event) {
   refreshEnvironmentCatalog(environments.map((environment) => environment.name));
   render();
 
+  if (state.projectReturnView === "budget" && state.budgetEditing && state.budgetDraft) {
+    const budgetPayload = {
+      ...state.budgetDraft,
+      id: budgetIdentity(state.budgetDraft) || `budget-${Date.now()}`,
+      updatedAt: new Date().toISOString(),
+    };
+    const payloadIdentity = budgetIdentity(budgetPayload);
+    state.clients = state.clients.map((item) => {
+      if (item.id !== savedClient.id) return item;
+      const budgets = clientBudgetHistory(item);
+      const existingIndex = budgets.findIndex((budget) => budgetIdentity(budget) === payloadIdentity);
+      if (existingIndex >= 0) budgets[existingIndex] = budgetPayload;
+      else budgets.unshift(budgetPayload);
+      return {
+        ...item,
+        budget: budgetPayload,
+        budgets,
+      };
+    });
+    await saveClients();
+    state.budgetEditingId = payloadIdentity;
+    state.budgetDirty = false;
+    state.budgetIsNew = false;
+    state.budgetDraft = null;
+    elements.projectDialog.close();
+    showView("budget", savedClient.id);
+    state.projectAction = "stay";
+    return;
+  }
+
   if (isNew) {
     document.querySelector("#projectDialog h2").textContent = state.projectReturnView === "projects" ? "Cadastro Projeto" : "Cadastro Cliente";
     document.querySelector("#deleteProjectBtn").hidden = false;
@@ -2449,19 +2602,25 @@ document.querySelector("#clientBudgetBtn")?.addEventListener("click", () => {
   if (client) showView("budget", client.id);
   openBudgetEditor(client?.id);
 });
-document.querySelector("#budgetNewBtn")?.addEventListener("click", () => openBudgetEditor(state.clients[0]?.id || state.selectedId, { blank: true }));
+document.querySelector("#budgetNewBtn")?.addEventListener("click", () => openBudgetEditor(null, { blank: true }));
 document.querySelector("#budgetBackToList")?.addEventListener("click", closeBudgetEditor);
 document.querySelector("#budgetEditClientBtn")?.addEventListener("click", () => {
   const client = selectedBudgetClient();
-  if (!client) return;
-  state.selectedId = client.id;
-  openProjectDialog(client);
+  if (client) {
+    state.selectedId = client.id;
+    openProjectDialog(client);
+    return;
+  }
+  state.budgetDraft = currentBudgetDraft();
+  state.projectReturnView = "budget";
+  openProjectDialog(null);
 });
 elements.budgetClientSelect?.addEventListener("change", () => {
-  state.selectedId = elements.budgetClientSelect.value;
+  state.selectedId = elements.budgetClientSelect.value || null;
   markBudgetDirty();
   const targetClient = selectedBudgetClient();
   document.querySelector("#budgetEditorSubtitle").textContent = targetClient ? `${targetClient.name} - ${responsibleSeller(targetClient)}` : "";
+  document.querySelector("#budgetEditClientBtn").textContent = targetClient ? "Editar cliente" : "Cadastrar cliente";
 });
 document.querySelector("#budgetAddEnvironment")?.addEventListener("click", () => {
   elements.budgetRows.appendChild(createBudgetRow({ name: "", gross: 0, factory: 0 }));
@@ -2470,6 +2629,7 @@ document.querySelector("#budgetAddEnvironment")?.addEventListener("click", () =>
 });
 document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
 [
+  "#budgetCreatedAt",
   "#budgetEntry",
   "#budgetStatus",
   "#budgetInstallments",

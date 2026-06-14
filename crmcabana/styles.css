@@ -1084,7 +1084,7 @@ button.status-badge:hover {
 
 .budget-toolbar {
   display: grid;
-  grid-template-columns: 150px 170px minmax(280px, 1fr) 180px 170px;
+  grid-template-columns: 150px 190px 170px minmax(280px, 1fr) 180px 170px;
   gap: 14px;
   margin-bottom: 16px;
 }
@@ -1111,6 +1111,18 @@ button.status-badge:hover {
   background: #fffdf7;
   color: var(--text);
   font: inherit;
+}
+
+.budget-table th,
+.budget-table td {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.budget-table select,
+.budget-table input {
+  min-height: 30px;
+  padding: 0 8px;
 }
 
 .budget-summary {
@@ -1196,7 +1208,7 @@ button.status-badge:hover {
 }
 
 .budget-table {
-  min-width: 1320px;
+  min-width: 1480px;
 }
 
 .budget-table th,
@@ -1222,8 +1234,33 @@ button.status-badge:hover {
   min-width: 112px;
 }
 
+.budget-table th:first-child,
+.budget-table td:first-child {
+  min-width: 230px;
+  width: 230px;
+}
+
+.budget-table td:first-child select,
 .budget-table td:first-child input {
-  min-width: 180px;
+  min-width: 220px;
+}
+
+.budget-table .icon-button {
+  width: 32px;
+  height: 30px;
+  min-height: 30px;
+  border: 1px solid #b24a35;
+  border-radius: 8px;
+  background: #fff1eb;
+  color: #9f2417;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.budget-table .icon-button:hover {
+  background: #9f2417;
+  border-color: #9f2417;
+  color: #ffffff;
 }
 
 .detail-shell {
