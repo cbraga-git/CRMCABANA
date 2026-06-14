@@ -696,7 +696,7 @@ button:focus-visible {
 }
 
 .legacy-view .client-list-table {
-  min-width: 720px;
+  min-width: 1580px;
   table-layout: fixed;
 }
 
@@ -725,34 +725,67 @@ button:focus-visible {
 }
 
 .legacy-view .client-list-table th:nth-child(2) {
-  width: 32%;
+  width: 190px;
 }
 
 .legacy-view .client-list-table th:nth-child(3) {
-  width: 14%;
+  width: 105px;
 }
 
 .legacy-view .client-list-table th:nth-child(4),
 .legacy-view .client-list-table th:nth-child(5) {
-  width: 12%;
+  width: 105px;
 }
 
 .legacy-view .client-list-table th:nth-child(6) {
-  width: 16%;
+  width: 72px;
 }
 
 .legacy-view .client-list-table th:nth-child(7) {
-  width: 8%;
+  width: 105px;
+}
+
+.legacy-view .client-list-table th:nth-child(8) {
+  width: 170px;
+}
+
+.legacy-view .client-list-table th:nth-child(9) {
+  width: 72px;
+}
+
+.legacy-view .client-list-table th:nth-child(10) {
+  width: 135px;
+}
+
+.legacy-view .client-list-table th:nth-child(11) {
+  width: 130px;
+}
+
+.legacy-view .client-list-table th:nth-child(12) {
+  width: 95px;
+}
+
+.legacy-view .client-list-table th:nth-child(13) {
+  width: 190px;
+}
+
+.legacy-view .client-list-table th:nth-child(14) {
+  width: 130px;
 }
 
 .client-name-cell {
   font-weight: 700;
 }
 
-.client-document-cell,
 .client-phone-cell,
 .client-status-cell,
-.client-active-cell {
+.client-active-cell,
+.client-lead-cell,
+.client-address-cell,
+.client-number-cell,
+.client-final-use-cell,
+.client-email-cell,
+.client-date-cell {
   font-size: 12px;
 }
 

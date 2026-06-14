@@ -1033,7 +1033,7 @@ function renderClients() {
   elements.clientRows.innerHTML = "";
 
   if (!clients.length) {
-    elements.clientRows.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum cliente encontrado</td></tr>';
+    elements.clientRows.innerHTML = '<tr><td colspan="14" class="empty-state">Nenhum cliente encontrado</td></tr>';
     return;
   }
 
@@ -1052,9 +1052,8 @@ function renderClients() {
 
     [
       { className: "client-name-cell", value: client.name },
-      { className: "client-document-cell", value: client.cpf || "-" },
-      { className: "client-phone-cell", value: client.phone || "-" },
       { className: "client-phone-cell", value: client.mobile || "-" },
+      { className: "client-phone-cell", value: client.phone || "-" },
     ].forEach(({ className, value }) => {
       const cell = document.createElement("td");
       cell.className = className;
@@ -1077,6 +1076,22 @@ function renderClients() {
     activeBadge.textContent = client.status === "Fechado Perdido" ? "Não" : "Sim";
     activeCell.appendChild(activeBadge);
     row.appendChild(activeCell);
+
+    [
+      { className: "client-lead-cell", value: client.leadHunter || "-" },
+      { className: "client-address-cell", value: client.address?.street || "-" },
+      { className: "client-number-cell", value: client.address?.number || "-" },
+      { className: "client-address-cell", value: client.address?.complement || "-" },
+      { className: "client-address-cell", value: client.address?.district || "-" },
+      { className: "client-final-use-cell", value: client.finalUse || "-" },
+      { className: "client-email-cell", value: client.email || "-" },
+      { className: "client-date-cell", value: client.project?.created || "-" },
+    ].forEach(({ className, value }) => {
+      const cell = document.createElement("td");
+      cell.className = className;
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
 
     row.addEventListener("dblclick", () => {
       state.selectedId = client.id;
