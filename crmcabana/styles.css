@@ -251,6 +251,12 @@ button {
   place-items: center;
 }
 
+.nav-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
 .nav-label,
 .logout-label,
 .user-chip > div {
