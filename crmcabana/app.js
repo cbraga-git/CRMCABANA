@@ -6,6 +6,7 @@ const BRL = new Intl.NumberFormat("pt-BR", {
 const STORAGE_KEY = "movelcrm-clients";
 const SESSION_KEY = "movelcrm-session";
 const ENVIRONMENT_STORAGE_KEY = "movelcrm-environments";
+const SIDEBAR_COLLAPSED_KEY = "movelcrm-sidebar-collapsed";
 const STATUS = [
   "Todos",
   "Novo",
@@ -55,6 +56,8 @@ const DEFAULT_BUDGET_SETTINGS = {
   taxRate: 4.9,
   entry: 0,
   installments: 0,
+  dailyQuantity: 0,
+  dailyValue: 0,
 };
 const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Recusado"];
 const STATUS_MIGRATION = {
@@ -118,6 +121,7 @@ const elements = {
   authSubmit: document.querySelector("#authSubmit"),
   authToggle: document.querySelector("#authToggle"),
   logoutBtn: document.querySelector("#logoutBtn"),
+  sidebarToggle: document.querySelector("#sidebarToggle"),
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
@@ -1475,6 +1479,8 @@ function readBudgetSettings() {
     taxRate: Number(budgetInputValue("budgetTaxRate")) || 0,
     entry: parseMoney(budgetInputValue("budgetEntry")),
     installments: Number(budgetInputValue("budgetInstallments")) || 0,
+    dailyQuantity: Number(budgetInputValue("budgetDailyQuantity")) || 0,
+    dailyValue: parseMoney(budgetInputValue("budgetDailyValue")),
   };
 }
 
@@ -1540,7 +1546,7 @@ function calculateBudgetRows(rows, settings) {
 }
 
 function budgetTotals(calculatedRows, settings) {
-  const totals = calculatedRows.reduce(
+  const rowTotals = calculatedRows.reduce(
     (summary, row) => ({
       gross: summary.gross + row.gross,
       net: summary.net + row.net,
@@ -1549,6 +1555,13 @@ function budgetTotals(calculatedRows, settings) {
     }),
     { gross: 0, net: 0, cost: 0, profit: 0 }
   );
+  const dailyTotal = (Number(settings.dailyQuantity) || 0) * parseMoney(settings.dailyValue);
+  const totals = {
+    ...rowTotals,
+    cost: rowTotals.cost + dailyTotal,
+    profit: rowTotals.profit - dailyTotal,
+    dailyTotal,
+  };
   const financedBase = Math.max(0, totals.gross - totals.gross * percentToRate(settings.discountRate) - settings.entry);
   const installmentFactor = PAYMENT_FACTORS[settings.installments] || 0;
   const installmentValue = financedBase * installmentFactor;
@@ -1603,6 +1616,7 @@ function updateBudgetSummary() {
   document.querySelector("#budgetInstallmentValue").textContent = BRL.format(totals.installmentValue);
   document.querySelector("#budgetFinancedBase").textContent = BRL.format(totals.financedBase);
   document.querySelector("#budgetFinancingTotal").textContent = BRL.format(totals.financingTotal);
+  document.querySelector("#budgetDailyTotal").value = BRL.format(totals.dailyTotal);
   updateBudgetTableTotals(calculatedRows, totals);
 
   Array.from(elements.budgetRows.querySelectorAll("tr")).forEach((row, index) => {
@@ -1709,6 +1723,8 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetLelaRate").value = settings.lelaRate;
   document.querySelector("#budgetIrisRate").value = settings.irisRate;
   document.querySelector("#budgetTaxRate").value = settings.taxRate;
+  document.querySelector("#budgetDailyQuantity").value = settings.dailyQuantity || "";
+  document.querySelector("#budgetDailyValue").value = formatMoneyInput(settings.dailyValue || 0);
   renderCashPaymentRows(budget.cashPayments);
 
   elements.budgetRows.innerHTML = "";
@@ -2652,6 +2668,26 @@ function render() {
   renderDetail();
 }
 
+function applySidebarCollapsed(collapsed) {
+  document.body.dataset.sidebarCollapsed = collapsed ? "true" : "false";
+  if (!elements.sidebarToggle) return;
+
+  elements.sidebarToggle.textContent = collapsed ? ">" : "<";
+  elements.sidebarToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  elements.sidebarToggle.setAttribute("aria-label", collapsed ? "Expandir menu lateral" : "Retrair menu lateral");
+  elements.sidebarToggle.title = collapsed ? "Expandir menu" : "Retrair menu";
+}
+
+function loadSidebarPreference() {
+  return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+}
+
+function toggleSidebar() {
+  const collapsed = document.body.dataset.sidebarCollapsed !== "true";
+  localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+  applySidebarCollapsed(collapsed);
+}
+
 elements.authToggle.addEventListener("click", () => {
   state.authMode = state.authMode === "signin" ? "signup" : "signin";
   renderAuthMode();
@@ -2688,6 +2724,7 @@ elements.authForm.addEventListener("submit", async (event) => {
 });
 
 elements.logoutBtn.addEventListener("click", signOut);
+elements.sidebarToggle?.addEventListener("click", toggleSidebar);
 
 elements.navItems.forEach((item) => {
   item.addEventListener("click", async () => {
@@ -2770,6 +2807,8 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
   "#budgetLelaRate",
   "#budgetIrisRate",
   "#budgetTaxRate",
+  "#budgetDailyQuantity",
+  "#budgetDailyValue",
 ].forEach((selector) => {
   const input = document.querySelector(selector);
   input?.addEventListener("input", () => {
@@ -2782,6 +2821,10 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
   });
 });
 document.querySelector("#budgetEntry")?.addEventListener("blur", (event) => {
+  event.target.value = formatMoneyInput(event.target.value);
+  updateBudgetSummary();
+});
+document.querySelector("#budgetDailyValue")?.addEventListener("blur", (event) => {
   event.target.value = formatMoneyInput(event.target.value);
   updateBudgetSummary();
 });
@@ -2870,6 +2913,7 @@ async function startApp() {
 }
 
 async function init() {
+  applySidebarCollapsed(loadSidebarPreference());
   state.session = loadStoredSession();
 
   if (authEnabled() && !state.session) {

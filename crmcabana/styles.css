@@ -15,6 +15,7 @@
   --rose: #f43f68;
   --blue: #2563eb;
   --shadow: 0 2px 10px rgba(5, 5, 5, 0.12);
+  --sidebar-width: clamp(210px, 15vw, 266px);
 }
 
 * {
@@ -141,7 +142,7 @@ button {
   display: grid;
   width: 100%;
   min-height: 100dvh;
-  grid-template-columns: clamp(210px, 15vw, 266px) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar {
@@ -162,6 +163,19 @@ button {
   min-height: 132px;
   border-bottom: 1px solid var(--accent);
   padding: 16px 12px 18px;
+}
+
+.sidebar-toggle {
+  display: grid;
+  width: calc(100% - 24px);
+  min-height: 30px;
+  margin: 10px 12px 0;
+  place-items: center;
+  border: 1px solid var(--sidebar-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 900;
 }
 
 .brand-logo {
@@ -237,6 +251,12 @@ button {
   place-items: center;
 }
 
+.nav-label,
+.logout-label,
+.user-chip > div {
+  min-width: 0;
+}
+
 .user-chip {
   display: flex;
   align-items: center;
@@ -247,6 +267,10 @@ button {
 }
 
 .logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 42px;
   margin: 0 16px 16px;
   border: 1px solid var(--sidebar-line);
@@ -254,6 +278,76 @@ button {
   background: transparent;
   color: #fff8f1;
   font-weight: 800;
+}
+
+.logout-icon {
+  display: none;
+}
+
+body[data-sidebar-collapsed="true"] {
+  --sidebar-width: 72px;
+}
+
+body[data-sidebar-collapsed="true"] .crm-shell {
+  --sidebar-width: 72px;
+}
+
+body[data-sidebar-collapsed="true"] .brand {
+  min-height: 74px;
+  padding: 10px 8px 8px;
+}
+
+body[data-sidebar-collapsed="true"] .brand-logo {
+  width: 46px;
+  height: 46px;
+  max-width: 46px;
+}
+
+body[data-sidebar-collapsed="true"] .sidebar-toggle {
+  width: 42px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+body[data-sidebar-collapsed="true"] .nav-list {
+  padding-right: 6px;
+  padding-left: 6px;
+}
+
+body[data-sidebar-collapsed="true"] .nav-item {
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body[data-sidebar-collapsed="true"] .nav-icon {
+  width: auto;
+  min-width: 24px;
+}
+
+body[data-sidebar-collapsed="true"] .nav-label,
+body[data-sidebar-collapsed="true"] .user-chip > div,
+body[data-sidebar-collapsed="true"] .logout-label {
+  display: none;
+}
+
+body[data-sidebar-collapsed="true"] .user-chip {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+body[data-sidebar-collapsed="true"] .logout-button {
+  width: 42px;
+  min-height: 36px;
+  margin-right: auto;
+  margin-left: auto;
+  padding: 0;
+}
+
+body[data-sidebar-collapsed="true"] .logout-icon {
+  display: inline;
 }
 
 .content {
@@ -1327,6 +1421,12 @@ body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header
   vertical-align: bottom;
 }
 
+.budget-rate-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(96px, 1fr));
+  gap: 8px;
+}
+
 .budget-rate-row label {
   min-width: 92px;
   font-size: 10px;
@@ -2020,6 +2120,43 @@ dialog::backdrop {
     height: auto;
   }
 
+  .sidebar-toggle {
+    display: none;
+  }
+
+  body[data-sidebar-collapsed="true"] .brand {
+    min-height: 96px;
+  }
+
+  body[data-sidebar-collapsed="true"] .brand-logo {
+    width: 100%;
+    max-width: 176px;
+    height: 78px;
+  }
+
+  body[data-sidebar-collapsed="true"] .nav-label,
+  body[data-sidebar-collapsed="true"] .logout-label {
+    display: inline;
+  }
+
+  body[data-sidebar-collapsed="true"] .nav-item {
+    justify-content: flex-start;
+    gap: 12px;
+    width: calc(100% - 12px);
+    margin: 0 6px;
+    padding: 0 14px;
+  }
+
+  body[data-sidebar-collapsed="true"] .logout-button {
+    width: auto;
+    margin: 0 16px 16px;
+    padding: 0 14px;
+  }
+
+  body[data-sidebar-collapsed="true"] .logout-icon {
+    display: none;
+  }
+
   .nav-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2168,13 +2305,19 @@ dialog::backdrop {
 
 @media (min-width: 1051px) and (max-width: 1366px) {
   .crm-shell {
-    grid-template-columns: clamp(190px, 14vw, 230px) minmax(0, 1fr);
+    --sidebar-width: clamp(190px, 14vw, 230px);
   }
 }
 
 @media (min-width: 1051px) and (max-height: 820px) {
   .crm-shell {
-    grid-template-columns: clamp(190px, 14vw, 230px) minmax(0, 1fr);
+    --sidebar-width: clamp(190px, 14vw, 230px);
+  }
+}
+
+@media (min-width: 1051px) and (max-width: 1366px) {
+  body[data-sidebar-collapsed="true"] .crm-shell {
+    --sidebar-width: 64px;
   }
 }
 

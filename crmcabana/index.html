@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=52" />
+    <link rel="stylesheet" href="styles.css?v=56" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -34,23 +34,24 @@
         <div class="brand">
           <img class="brand-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" />
         </div>
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Retrair menu lateral" aria-expanded="true">&lt;</button>
 
         <nav class="nav-list">
-          <button class="nav-item active" type="button" data-view="dashboard">
+          <button class="nav-item active" type="button" data-view="dashboard" title="Dashboard">
             <span class="nav-icon">#</span>
-            Dashboard
+            <span class="nav-label">Dashboard</span>
           </button>
-          <button class="nav-item" type="button" data-view="clients">
+          <button class="nav-item" type="button" data-view="clients" title="Clientes">
             <span class="nav-icon">@</span>
-            Clientes
+            <span class="nav-label">Clientes</span>
           </button>
-          <button class="nav-item" id="budgetNavItem" type="button" data-view="budget" hidden>
+          <button class="nav-item" id="budgetNavItem" type="button" data-view="budget" title="Orçamento" hidden>
             <span class="nav-icon">$</span>
-            Orçamento
+            <span class="nav-label">Orçamento</span>
           </button>
-          <button class="nav-item" id="usersNavItem" type="button" data-view="users" hidden>
+          <button class="nav-item" id="usersNavItem" type="button" data-view="users" title="Usuarios" hidden>
             <span class="nav-icon">US</span>
-            Usuarios
+            <span class="nav-label">Usuarios</span>
           </button>
         </nav>
 
@@ -61,7 +62,7 @@
             <span id="userEmail">Administrador</span>
           </div>
         </div>
-        <button class="logout-button" id="logoutBtn" type="button">Sair</button>
+        <button class="logout-button" id="logoutBtn" type="button" title="Sair"><span class="logout-icon">S</span><span class="logout-label">Sair</span></button>
       </aside>
 
       <main class="content">
@@ -351,19 +352,19 @@
                 <table class="budget-table">
                   <thead>
                     <tr class="budget-rate-row">
-                      <th></th>
-                      <th><label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th></th>
-                      <th><label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th><label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th><label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th><label>IRIS (%)<input id="budgetIrisRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th><label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th></th>
-                      <th></th>
-                      <th></th>
-                      <th></th>
-                      <th></th>
+                      <th colspan="13">
+                        <div class="budget-rate-grid">
+                          <label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label>
+                          <label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label>
+                          <label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label>
+                          <label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label>
+                          <label>IRIS (%)<input id="budgetIrisRate" type="number" min="0" max="100" step="0.01" /></label>
+                          <label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label>
+                          <label>Qtd diária<input id="budgetDailyQuantity" type="number" min="0" step="0.01" /></label>
+                          <label>Vr diária<input id="budgetDailyValue" class="money-input" inputmode="decimal" /></label>
+                          <label>Total diária<input id="budgetDailyTotal" readonly /></label>
+                        </div>
+                      </th>
                     </tr>
                     <tr>
                       <th>Ambiente</th>
@@ -651,6 +652,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=64"></script>
+    <script src="app.js?v=67"></script>
   </body>
 </html>
