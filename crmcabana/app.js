@@ -1297,6 +1297,7 @@ function currentBudgetDraft() {
     settings: readBudgetSettings(),
     rows: readBudgetRows(),
     cashPayments: readCashPaymentRows(),
+    notes: document.querySelector("#budgetNotes")?.value.trim() || "",
   };
 }
 
@@ -1364,6 +1365,7 @@ function clientBudget(client) {
     settings: { ...DEFAULT_BUDGET_SETTINGS, ...(saved.settings || {}) },
     rows: Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client),
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
+    notes: saved.notes || "",
   };
 }
 
@@ -1376,6 +1378,7 @@ function blankBudget() {
     settings: { ...DEFAULT_BUDGET_SETTINGS },
     rows: [{ name: "", gross: 0, factory: 0 }],
     cashPayments: defaultCashPaymentRows(),
+    notes: "",
   };
 }
 
@@ -1728,6 +1731,7 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetTaxRate").value = settings.taxRate;
   document.querySelector("#budgetDailyQuantity").value = settings.dailyQuantity || "";
   document.querySelector("#budgetDailyValue").value = formatMoneyInput(settings.dailyValue || 0);
+  document.querySelector("#budgetNotes").value = budget.notes || "";
   renderCashPaymentRows(budget.cashPayments);
 
   elements.budgetRows.innerHTML = "";
@@ -1886,6 +1890,7 @@ async function saveBudget() {
     settings,
     rows,
     cashPayments: readCashPaymentRows(),
+    notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
   };
   state.clients = state.clients.map((item) =>
@@ -2835,6 +2840,7 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
   "#budgetTaxRate",
   "#budgetDailyQuantity",
   "#budgetDailyValue",
+  "#budgetNotes",
 ].forEach((selector) => {
   const input = document.querySelector(selector);
   input?.addEventListener("input", () => {
