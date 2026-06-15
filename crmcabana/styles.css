@@ -1423,23 +1423,17 @@ body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header
 
 .budget-rate-row th {
   background: var(--card);
-  padding: 5px 8px 3px;
+  padding: 4px 5px 3px;
   vertical-align: bottom;
 }
 
-.budget-rate-grid {
-  display: grid;
-  grid-template-columns: repeat(9, minmax(96px, 1fr));
-  gap: 8px;
-}
-
 .budget-rate-row label {
-  min-width: 92px;
   font-size: 10px;
   white-space: nowrap;
 }
 
 .budget-rate-row input {
+  width: 100%;
   min-height: 26px;
   padding: 0 7px;
   font-size: 12px;

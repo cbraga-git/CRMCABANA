@@ -1689,11 +1689,14 @@ function createBudgetRow(rowData = {}) {
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
-    const nextRow = createBudgetRow({ name: "", gross: 0, factory: 0 });
-    elements.budgetRows.appendChild(nextRow);
+    let nextRow = row.nextElementSibling;
+    if (!nextRow) {
+      nextRow = createBudgetRow({ name: "", gross: 0, factory: 0 });
+      row.after(nextRow);
+    }
     markBudgetDirty();
     updateBudgetSummary();
-    nextRow.querySelector('[data-budget-field="name"]')?.focus();
+    focusAfterEnterRelease(() => nextRow.querySelector('[data-budget-field="gross"]'));
   });
   row.querySelector("[data-budget-remove]").addEventListener("click", () => {
     row.remove();
@@ -2649,6 +2652,29 @@ function focusNextEditableField(currentField) {
   if (!nextField || nextField === currentField) return;
   nextField.focus();
   if (nextField instanceof HTMLInputElement) nextField.select();
+}
+
+function focusAfterEnterRelease(resolveField) {
+  let handled = false;
+  const focusTarget = () => {
+    if (handled) return;
+    handled = true;
+    document.removeEventListener("keyup", onKeyUp);
+    const target = resolveField();
+    if (!(target instanceof HTMLElement)) return;
+    target.focus();
+    if (target instanceof HTMLInputElement) target.select();
+  };
+  const fallback = window.setTimeout(() => {
+    document.removeEventListener("keyup", onKeyUp);
+    focusTarget();
+  }, 120);
+  function onKeyUp(event) {
+    if (event.key !== "Enter") return;
+    window.clearTimeout(fallback);
+    focusTarget();
+  }
+  document.addEventListener("keyup", onKeyUp);
 }
 
 document.addEventListener("keydown", (event) => {
