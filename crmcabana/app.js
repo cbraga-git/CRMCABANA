@@ -151,6 +151,10 @@ const elements = {
   projectForm: document.querySelector("#projectForm"),
   projectRows: document.querySelector("#projectEnvironmentRows"),
   environmentOptions: document.querySelector("#environmentOptions"),
+  environmentRows: document.querySelector("#environmentRows"),
+  environmentCount: document.querySelector("#environmentCount"),
+  environmentForm: document.querySelector("#environmentForm"),
+  environmentNameInput: document.querySelector("#environmentNameInput"),
   leadImportFile: document.querySelector("#leadImportFile"),
   budgetClientSelect: document.querySelector("#budgetClientSelect"),
   budgetRows: document.querySelector("#budgetRows"),
@@ -406,6 +410,10 @@ function loadStoredEnvironments() {
   }
 }
 
+function hasStoredEnvironmentCatalog() {
+  return localStorage.getItem(environmentStorageKey()) !== null;
+}
+
 function saveEnvironmentCatalog() {
   localStorage.setItem(environmentStorageKey(), JSON.stringify(state.environments));
 }
@@ -426,7 +434,8 @@ function renderEnvironmentOptions() {
 }
 
 function refreshEnvironmentCatalog(extraEnvironments = []) {
-  const names = [...DEFAULT_ENVIRONMENTS, ...loadStoredEnvironments(), ...clientEnvironmentNames(), ...extraEnvironments]
+  const baseEnvironments = hasStoredEnvironmentCatalog() ? loadStoredEnvironments() : DEFAULT_ENVIRONMENTS;
+  const names = [...baseEnvironments, ...clientEnvironmentNames(), ...extraEnvironments]
     .map(normalizeEnvironmentName)
     .filter(Boolean);
   state.environments = Array.from(new Set(names)).sort((first, second) => first.localeCompare(second, "pt-BR"));
@@ -478,6 +487,57 @@ function addEnvironmentOptionToSelect(select, environment) {
   select.insertBefore(option, customOption);
 }
 
+function focusAndOpenSelect(select) {
+  if (!select) return;
+  select.focus();
+  if (typeof select.showPicker !== "function") return;
+  try {
+    select.showPicker();
+  } catch {
+    // Some browsers only allow showPicker during direct user interaction.
+  }
+}
+
+function focusEmptyEnvironmentSelect(select) {
+  if (!select || select.value) return;
+  window.setTimeout(() => focusAndOpenSelect(select), 0);
+}
+
+function persistEnvironmentCatalog() {
+  state.environments = Array.from(new Set(state.environments.map(normalizeEnvironmentName).filter(Boolean))).sort((first, second) =>
+    first.localeCompare(second, "pt-BR")
+  );
+  saveEnvironmentCatalog();
+  renderEnvironmentOptions();
+  renderEnvironmentManager();
+}
+
+function addEnvironmentToCatalog(name) {
+  const normalized = normalizeEnvironmentName(name);
+  if (!normalized) return false;
+  if (state.environments.includes(normalized)) return false;
+  state.environments = [...state.environments, normalized];
+  persistEnvironmentCatalog();
+  return true;
+}
+
+function renameEnvironmentInCatalog(previousName, nextName) {
+  const previous = normalizeEnvironmentName(previousName);
+  const next = normalizeEnvironmentName(nextName);
+  if (!previous || !next) return previous;
+  if (previous === next) return next;
+  state.environments = state.environments.map((environment) => (environment === previous ? next : environment));
+  persistEnvironmentCatalog();
+  return next;
+}
+
+function removeEnvironmentFromCatalog(name) {
+  const normalized = normalizeEnvironmentName(name);
+  if (!normalized) return;
+  state.environments = state.environments.filter((environment) => environment !== normalized);
+  persistEnvironmentCatalog();
+}
+
 function createEnvironmentPicker(selectedName = "", onChange = () => {}) {
   const wrapper = document.createElement("div");
   const environmentSelect = createEnvironmentSelect(selectedName);
@@ -503,6 +563,10 @@ function createEnvironmentPicker(selectedName = "", onChange = () => {}) {
       return;
     }
     onChange();
+  });
+
+  environmentSelect.addEventListener("focus", () => {
+    if (!environmentSelect.value) focusAndOpenSelect(environmentSelect);
   });
 
   customEnvironmentInput.addEventListener("blur", commitCustomEnvironment);
@@ -1262,6 +1326,59 @@ function renderUsers() {
   });
 }
 
+function renderEnvironmentManager() {
+  if (!elements.environmentRows) return;
+  elements.environmentRows.innerHTML = "";
+  if (elements.environmentCount) {
+    elements.environmentCount.textContent = String(state.environments.length);
+  }
+
+  if (!state.environments.length) {
+    elements.environmentRows.innerHTML = '<tr><td colspan="2" class="empty-state">Nenhum ambiente cadastrado</td></tr>';
+    return;
+  }
+
+  state.environments.forEach((environment) => {
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = environment;
+    nameInput.dataset.previousEnvironment = environment;
+
+    const commitEnvironmentName = () => {
+      const previous = nameInput.dataset.previousEnvironment || environment;
+      const savedName = renameEnvironmentInCatalog(previous, nameInput.value);
+      nameInput.value = savedName;
+      nameInput.dataset.previousEnvironment = savedName;
+    };
+
+    nameInput.addEventListener("blur", commitEnvironmentName);
+    nameInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      commitEnvironmentName();
+      nameInput.blur();
+    });
+    nameCell.appendChild(nameInput);
+    row.appendChild(nameCell);
+
+    const actionsCell = document.createElement("td");
+    const removeButton = document.createElement("button");
+    removeButton.className = "link-button danger";
+    removeButton.type = "button";
+    removeButton.textContent = "Remover";
+    removeButton.addEventListener("click", () => {
+      removeEnvironmentFromCatalog(environment);
+    });
+    actionsCell.appendChild(removeButton);
+    row.appendChild(actionsCell);
+
+    elements.environmentRows.appendChild(row);
+  });
+}
+
 function percentToRate(value) {
   return (Number(value) || 0) / 100;
 }
@@ -1699,7 +1816,7 @@ function createBudgetRow(rowData = {}) {
     }
     markBudgetDirty();
     updateBudgetSummary();
-    focusAfterEnterRelease(() => nextRow.querySelector('[data-budget-field="gross"]'));
+    focusAfterEnterRelease(() => nextRow.querySelector('[data-budget-field="name"]') || nextRow.querySelector('[data-budget-field="gross"]'));
   });
   row.querySelector("[data-budget-remove]").addEventListener("click", () => {
     row.remove();
@@ -2010,6 +2127,10 @@ function createEnvironmentRow(environment = { name: "", budget: 0, factory: 0, a
     if (creatingNewEnvironment) {
       customEnvironmentInput.focus();
     }
+  });
+
+  environmentSelect.addEventListener("focus", () => {
+    if (!environmentSelect.value) focusAndOpenSelect(environmentSelect);
   });
 
   customEnvironmentInput.addEventListener("blur", () => {
@@ -2695,6 +2816,7 @@ function render() {
   renderClients();
   renderProjects();
   renderBudget();
+  renderEnvironmentManager();
   renderUsers();
   renderDetail();
 }
@@ -2774,6 +2896,15 @@ elements.navItems.forEach((item) => {
   });
 });
 
+elements.environmentForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const added = addEnvironmentToCatalog(elements.environmentNameInput?.value || "");
+  if (added && elements.environmentNameInput) {
+    elements.environmentNameInput.value = "";
+  }
+  elements.environmentNameInput?.focus();
+});
+
 elements.clientSearch.addEventListener("input", (event) => {
   state.search = event.target.value;
   renderClients();
@@ -2822,9 +2953,11 @@ elements.budgetClientSelect?.addEventListener("change", () => {
   document.querySelector("#budgetEditClientBtn").textContent = targetClient ? "Editar cliente" : "Cadastrar cliente";
 });
 document.querySelector("#budgetAddEnvironment")?.addEventListener("click", () => {
-  elements.budgetRows.appendChild(createBudgetRow({ name: "", gross: 0, factory: 0 }));
+  const row = createBudgetRow({ name: "", gross: 0, factory: 0 });
+  elements.budgetRows.appendChild(row);
   markBudgetDirty();
   updateBudgetSummary();
+  focusEmptyEnvironmentSelect(row.querySelector('[data-budget-field="name"]'));
 });
 document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
 [
@@ -2861,7 +2994,9 @@ document.querySelector("#budgetDailyValue")?.addEventListener("blur", (event) =>
   updateBudgetSummary();
 });
 document.querySelector("#addEnvironmentBtn").addEventListener("click", () => {
-  elements.projectRows.appendChild(createEnvironmentRow({ name: "", budget: 0, factory: 0, assembly: 0 }));
+  const row = createEnvironmentRow({ name: "", budget: 0, factory: 0, assembly: 0 });
+  elements.projectRows.appendChild(row);
+  focusEmptyEnvironmentSelect(row.querySelector('select[data-field="name"]'));
 });
 document.querySelector("#closeDialog").addEventListener("click", () => {
   state.editingId = null;

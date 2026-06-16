@@ -983,6 +983,63 @@ button:focus-visible {
   width: 190px;
 }
 
+.environments-view {
+  max-width: 980px;
+}
+
+.environments-view > .page-header {
+  display: grid;
+  grid-template-columns: minmax(220px, auto) minmax(360px, 1fr);
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.environment-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.environment-toolbar .search-box {
+  width: 100%;
+  min-height: 38px;
+}
+
+.environment-toolbar .search-box input {
+  min-height: 34px;
+}
+
+.environment-table-card {
+  overflow-x: auto;
+}
+
+.environment-table {
+  min-width: 520px;
+  table-layout: fixed;
+}
+
+.environment-table th:nth-child(1) {
+  width: auto;
+}
+
+.environment-table th:nth-child(2) {
+  width: 130px;
+}
+
+.environment-table input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fffdf7;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+}
+
 .client-inline-editor {
   display: grid;
   gap: 10px;
@@ -1474,7 +1531,7 @@ body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header
 
 .payments-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(420px, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -2207,6 +2264,11 @@ dialog::backdrop {
   }
 
   .clients-view > .page-header {
+    grid-template-columns: 1fr;
+  }
+
+  .environments-view > .page-header,
+  .environment-toolbar {
     grid-template-columns: 1fr;
   }
 

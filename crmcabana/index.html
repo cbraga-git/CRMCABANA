@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=59" />
+    <link rel="stylesheet" href="styles.css?v=60" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -48,6 +48,10 @@
           <button class="nav-item" id="budgetNavItem" type="button" data-view="budget" title="Orçamento" hidden>
             <span class="nav-icon">$</span>
             <span class="nav-label">Orçamento</span>
+          </button>
+          <button class="nav-item" type="button" data-view="environments" title="Ambientes">
+            <span class="nav-icon">[]</span>
+            <span class="nav-label">Ambientes</span>
           </button>
           <button class="nav-item" id="usersNavItem" type="button" data-view="users" title="Usuarios" hidden>
             <span class="nav-icon" aria-hidden="true">
@@ -208,6 +212,37 @@
           </section>
 
           <section class="client-inline-editor" id="clientInlineEditor" hidden></section>
+        </section>
+
+        <section class="view environments-view" id="environmentsView">
+          <header class="page-header">
+            <div>
+              <h1>Cadastro de Ambientes</h1>
+              <p><span id="environmentCount">0</span> ambientes cadastrados</p>
+            </div>
+            <form class="environment-toolbar" id="environmentForm">
+              <label class="search-box">
+                <span>Ambiente</span>
+                <input id="environmentNameInput" type="text" placeholder="Nome do ambiente" autocomplete="off" />
+              </label>
+              <button class="button primary" type="submit">
+                <span class="button-icon">+</span>
+                Adicionar
+              </button>
+            </form>
+          </header>
+
+          <div class="table-card environment-table-card">
+            <table class="environment-table">
+              <thead>
+                <tr>
+                  <th>Ambiente</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="environmentRows"></tbody>
+            </table>
+          </div>
         </section>
 
         <section class="view budget-view" id="budgetView">
@@ -660,6 +695,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=71"></script>
+    <script src="app.js?v=72"></script>
   </body>
 </html>
