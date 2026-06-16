@@ -87,9 +87,12 @@ const state = {
   userRole: "user",
   userProfiles: [],
   authMode: "signin",
-  view: "dashboard",
+  view: "clients",
   dashboardStatus: "Todos",
   clientStatus: "Todos",
+  budgetStatus: "Todos",
+  budgetStartDate: "",
+  budgetEndDate: "",
   search: "",
   projectSearch: "",
   budgetSearch: "",
@@ -131,11 +134,13 @@ const elements = {
   views: document.querySelectorAll(".view"),
   dashboardFilters: document.querySelector('[data-filter-group="dashboard"]'),
   clientFilters: document.querySelector('[data-filter-group="clients"]'),
+  budgetFilters: document.querySelector('[data-filter-group="budget"]'),
+  budgetStartDate: document.querySelector("#budgetStartDate"),
+  budgetEndDate: document.querySelector("#budgetEndDate"),
   clientsHeader: document.querySelector("#clientsHeader"),
   clientsListCard: document.querySelector("#clientsListCard"),
   clientInlineEditor: document.querySelector("#clientInlineEditor"),
   clientRows: document.querySelector("#clientRows"),
-  recentClients: document.querySelector("#recentClients"),
   projectCards: document.querySelector("#projectCards"),
   projectListRows: document.querySelector("#projectListRows"),
   projectSearch: document.querySelector("#projectSearch"),
@@ -143,6 +148,11 @@ const elements = {
   budgetListRows: document.querySelector("#budgetListRows"),
   budgetListCard: document.querySelector("#budgetListCard"),
   budgetEditor: document.querySelector("#budgetEditor"),
+  budgetPrintPreview: document.querySelector("#budgetPrintPreview"),
+  budgetPrintPreviewTitle: document.querySelector("#budgetPrintPreviewTitle"),
+  budgetPrintPreviewContent: document.querySelector("#budgetPrintPreviewContent"),
+  budgetPreviewPrintBtn: document.querySelector("#budgetPreviewPrintBtn"),
+  budgetPreviewCloseBtn: document.querySelector("#budgetPreviewCloseBtn"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
   dialog: document.querySelector("#clientDialog"),
@@ -521,6 +531,15 @@ function addEnvironmentToCatalog(name) {
   return true;
 }
 
+function focusEnvironmentManagerRow(name) {
+  const normalized = normalizeEnvironmentName(name);
+  if (!normalized || !elements.environmentRows) return;
+  const input = elements.environmentRows.querySelector(`input[data-environment-name="${CSS.escape(normalized)}"]`);
+  if (!input) return;
+  input.focus();
+  input.select();
+}
+
 function renameEnvironmentInCatalog(previousName, nextName) {
   const previous = normalizeEnvironmentName(previousName);
   const next = normalizeEnvironmentName(nextName);
@@ -758,7 +777,7 @@ async function updateUserRole(userId, role) {
   if (userId === currentUserId()) {
     state.userRole = role;
     showAuthenticatedApp();
-    if (!isAdmin()) showView("dashboard");
+    if (!isAdmin()) showView("clients");
   }
   await loadUserProfiles();
   renderUsers();
@@ -891,7 +910,7 @@ function statusClass(status) {
 
 function showView(view, selectedId) {
   if ((view === "users" || view === "budget") && !isAdmin()) {
-    view = "dashboard";
+    view = "clients";
   }
 
   const previousView = state.view;
@@ -923,6 +942,7 @@ function showView(view, selectedId) {
 function setStatusFilter(group, status) {
   if (group === "dashboard") state.dashboardStatus = status;
   if (group === "clients") state.clientStatus = status;
+  if (group === "budget") state.budgetStatus = status;
   render();
 }
 
@@ -941,9 +961,11 @@ function filteredClients(group) {
 }
 
 function renderStatusFilters(container, activeStatus, group) {
+  if (!container) return;
   container.innerHTML = "";
 
-  STATUS.forEach((status) => {
+  const statuses = group === "budget" ? ["Todos", ...BUDGET_STATUS] : STATUS;
+  statuses.forEach((status) => {
     const button = document.createElement("button");
     button.className = `pill ${status === activeStatus ? "active" : ""}`;
     button.type = "button";
@@ -955,10 +977,18 @@ function renderStatusFilters(container, activeStatus, group) {
 
 function renderDashboard() {
   const clients = filteredClients("dashboard");
-  const budgetClients = clients.filter((client) => client.budget?.updatedAt);
-  const totals = budgetClients.reduce(
-    (summary, client) => {
-      const total = clientBudgetTotals(client);
+
+  document.querySelector("#totalClients").textContent = clients.length;
+  document.querySelector("#totalNegotiating").textContent = clients.filter((client) => client.status === "Negociação").length;
+  document.querySelector("#totalClosed").textContent = clients.filter((client) => client.status === "Fechado Ganho").length;
+}
+
+function renderBudgetDashboard() {
+  if (!isAdmin()) return;
+  const budgets = filteredBudgets();
+  const totals = budgets.reduce(
+    (summary, { budget }) => {
+      const total = budgetSummary(budget);
       summary.revenue += total.gross;
       summary.net += total.net;
       summary.cost += total.cost;
@@ -968,59 +998,17 @@ function renderDashboard() {
     { revenue: 0, net: 0, cost: 0, profit: 0 }
   );
 
-  document.querySelector("#totalClients").textContent = clients.length;
-  document.querySelector("#totalNegotiating").textContent = clients.filter((client) => client.status === "Negociação").length;
-  document.querySelector("#totalClosed").textContent = clients.filter((client) => client.status === "Fechado Ganho").length;
-  document.querySelector("#totalRevenue").textContent = BRL.format(totals.revenue);
   document.querySelector("#totalNet").textContent = BRL.format(totals.net);
   document.querySelector("#totalCost").textContent = BRL.format(totals.cost);
   document.querySelector("#totalProfit").textContent = BRL.format(totals.profit);
-  document.querySelectorAll("[data-admin-finance]").forEach((element) => {
-    element.hidden = !isAdmin();
-  });
-
-  if (isAdmin()) {
-    renderChart(budgetClients);
-  }
-  renderRecentClients(clients);
+  renderChart(budgets);
 }
 
-function renderRecentClients(clients) {
-  elements.recentClients.innerHTML = "";
-
-  clients.slice(0, 3).forEach((client) => {
-    const row = document.createElement("div");
-    const info = document.createElement("div");
-    const name = document.createElement("span");
-    const email = document.createElement("span");
-    const badge = document.createElement("button");
-
-    row.className = "recent-row";
-    name.className = "recent-name";
-    email.className = "recent-email";
-    badge.className = `status-badge recent-status ${statusClass(client.status)}`;
-    badge.type = "button";
-    badge.setAttribute("aria-label", `Abrir cadastro e projeto de ${client.name}`);
-
-    name.textContent = client.name;
-    email.textContent = client.email || "-";
-    badge.textContent = client.status;
-    badge.addEventListener("click", () => openClientRegistration(client.id, "clients"));
-
-    info.append(name, email);
-    row.append(info, badge);
-    elements.recentClients.appendChild(row);
-  });
-
-  if (!clients.length) {
-    elements.recentClients.innerHTML = '<div class="empty-state">Nenhum cliente encontrado</div>';
-  }
-}
-
-function renderChart(clients) {
+function renderChart(budgets) {
   const canvas = elements.chart;
+  if (!canvas) return;
   const displayWidth = canvas.clientWidth || 1200;
-  const displayHeight = 310;
+  const displayHeight = state.view === "budget" ? 180 : 310;
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.round(displayWidth * ratio);
   canvas.height = Math.round(displayHeight * ratio);
@@ -1028,13 +1016,13 @@ function renderChart(clients) {
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   const width = displayWidth;
   const height = displayHeight;
-  const padding = { top: 22, right: 24, bottom: 70, left: 72 };
+  const padding = state.view === "budget" ? { top: 12, right: 18, bottom: 52, left: 64 } : { top: 22, right: 24, bottom: 70, left: 72 };
   const statuses = BUDGET_STATUS;
   const values = statuses.map((status) => {
-    const statusClients = clients.filter((client) => clientBudget(client).status === status);
-    return statusClients.reduce(
-      (sum, client) => {
-        const total = clientBudgetTotals(client);
+    const statusBudgets = budgets.filter(({ budget }) => budget.status === status);
+    return statusBudgets.reduce(
+      (sum, { budget }) => {
+        const total = budgetSummary(budget);
         sum.revenue += total.gross;
         sum.profit += total.profit;
         return sum;
@@ -1340,11 +1328,13 @@ function renderEnvironmentManager() {
 
   state.environments.forEach((environment) => {
     const row = document.createElement("tr");
+    row.dataset.environmentName = environment;
 
     const nameCell = document.createElement("td");
     const nameInput = document.createElement("input");
     nameInput.type = "text";
     nameInput.value = environment;
+    nameInput.dataset.environmentName = environment;
     nameInput.dataset.previousEnvironment = environment;
 
     const commitEnvironmentName = () => {
@@ -1464,11 +1454,12 @@ function fallbackBudgetCode(client) {
 
 function defaultBudgetRows(client) {
   const environments = client?.project?.environments || [];
-  if (!environments.length) return [{ name: "", gross: 0, factory: 0 }];
+  if (!environments.length) return [{ name: "", gross: 0, factory: 0, hardware: 0 }];
   return environments.map((environment) => ({
     name: environment.name || "",
     gross: parseMoney(environment.budget),
     factory: parseMoney(environment.factory),
+    hardware: parseMoney(environment.hardware),
   }));
 }
 
@@ -1493,7 +1484,7 @@ function blankBudget() {
     status: BUDGET_STATUS[0],
     createdAt: new Date().toISOString(),
     settings: { ...DEFAULT_BUDGET_SETTINGS },
-    rows: [{ name: "", gross: 0, factory: 0 }],
+    rows: [{ name: "", gross: 0, factory: 0, hardware: 0 }],
     cashPayments: defaultCashPaymentRows(),
     notes: "",
   };
@@ -1620,9 +1611,10 @@ function readBudgetRows() {
         name,
         gross: parseMoney(row.querySelector('[data-budget-field="gross"]')?.value),
         factory: parseMoney(row.querySelector('[data-budget-field="factory"]')?.value),
+        hardware: parseMoney(row.querySelector('[data-budget-field="hardware"]')?.value),
       };
     })
-    .filter((row) => row.name || row.gross || row.factory);
+    .filter((row) => row.name || row.gross || row.factory || row.hardware);
 }
 
 function calculateBudgetRows(rows, settings) {
@@ -1638,20 +1630,22 @@ function calculateBudgetRows(rows, settings) {
   return rows.map((row) => {
     const gross = parseMoney(row.gross);
     const factory = parseMoney(row.factory);
+    const hardware = parseMoney(row.hardware);
     const net = gross - gross * rates.discount;
     const release = net * rates.release;
     const assembly = net * rates.assembly;
     const tax = net * rates.tax;
-    const profitBeforeProfitRates = net - factory - release - assembly - tax;
+    const profitBeforeProfitRates = net - factory - hardware - release - assembly - tax;
     const profitRateTotal = rates.lela + rates.iris;
     const profit = profitBeforeProfitRates > 0 ? profitBeforeProfitRates / (1 + profitRateTotal) : profitBeforeProfitRates;
     const lela = profit > 0 ? profit * rates.lela : 0;
     const iris = profit > 0 ? profit * rates.iris : 0;
-    const totalCost = factory + release + assembly + lela + iris + tax;
+    const totalCost = factory + hardware + release + assembly + lela + iris + tax;
     return {
       ...row,
       gross,
       factory,
+      hardware,
       release,
       assembly,
       lela,
@@ -1700,17 +1694,19 @@ function updateBudgetTableTotals(calculatedRows, totals) {
   const rowTotals = calculatedRows.reduce(
     (summary, row) => ({
       factory: summary.factory + row.factory,
+      hardware: summary.hardware + row.hardware,
       release: summary.release + row.release,
       assembly: summary.assembly + row.assembly,
       lela: summary.lela + row.lela,
       iris: summary.iris + row.iris,
       tax: summary.tax + row.tax,
     }),
-    { factory: 0, release: 0, assembly: 0, lela: 0, iris: 0, tax: 0 }
+    { factory: 0, hardware: 0, release: 0, assembly: 0, lela: 0, iris: 0, tax: 0 }
   );
 
   document.querySelector("#budgetRowsTotalGross").textContent = BRL.format(totals.gross);
   document.querySelector("#budgetRowsTotalFactory").textContent = BRL.format(rowTotals.factory);
+  document.querySelector("#budgetRowsTotalHardware").textContent = BRL.format(rowTotals.hardware);
   document.querySelector("#budgetRowsTotalRelease").textContent = BRL.format(rowTotals.release);
   document.querySelector("#budgetRowsTotalAssembly").textContent = BRL.format(rowTotals.assembly);
   document.querySelector("#budgetRowsTotalLela").textContent = BRL.format(rowTotals.lela);
@@ -1753,6 +1749,227 @@ function updateBudgetSummary() {
   });
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function budgetPrintContext() {
+  const client = selectedBudgetClient();
+  if (!client) {
+    alert("Selecione um cliente para gerar o documento.");
+    elements.budgetClientSelect?.focus();
+    return null;
+  }
+  const draft = currentBudgetDraft();
+  const settings = draft.settings;
+  const rows = calculateBudgetRows(draft.rows, settings).filter((row) => row.name || row.gross || row.factory || row.hardware);
+  const totals = budgetTotals(rows, settings);
+  return { client, budget: draft, settings, rows, totals };
+}
+
+function clientAddressLine(client) {
+  return [
+    client.address?.street,
+    client.address?.number,
+    client.address?.complement,
+    client.address?.district,
+    client.city,
+    client.state,
+    client.address?.cep,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function printField(label, value) {
+  return `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "-")}</strong></div>`;
+}
+
+function printableDocumentStyles() {
+  return `<style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #16120a; font: 12px Arial, sans-serif; }
+    .print-document { color: #16120a; font: 12px Arial, sans-serif; }
+    .print-document header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #aa8e34; padding-bottom: 12px; margin-bottom: 16px; }
+    .print-document h1 { margin: 0; font: 700 24px Georgia, "Times New Roman", serif; }
+    .print-document h2 { margin: 18px 0 8px; font: 700 15px Georgia, "Times New Roman", serif; }
+    .print-document p { margin: 4px 0; }
+    .print-document .meta { text-align: right; color: #5f5128; }
+    .print-document .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 14px; margin-bottom: 14px; }
+    .print-document .info-grid div { border-bottom: 1px solid #e4d7a4; padding-bottom: 5px; }
+    .print-document span { display: block; color: #6e6135; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    .print-document strong { display: block; margin-top: 2px; }
+    .print-document table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .print-document th, .print-document td { border: 1px solid #d9c779; padding: 6px 7px; text-align: left; vertical-align: top; }
+    .print-document th { background: #f5efd8; color: #5f5128; font-size: 10px; text-transform: uppercase; }
+    .print-document td.money, .print-document th.money { text-align: right; white-space: nowrap; }
+    .print-document tfoot td { font-weight: 800; background: #fffaf0; }
+    .print-document .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .print-document .totals div { border: 1px solid #d9c779; padding: 8px; background: #fffaf0; }
+    .print-document .notes { white-space: pre-wrap; border: 1px solid #d9c779; padding: 8px; min-height: 42px; }
+  </style>`;
+}
+
+function printableDocumentShell(title, body) {
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(title)}</title>
+  ${printableDocumentStyles()}
+</head>
+<body>
+  <main class="print-document">${body}</main>
+</body>
+</html>`;
+}
+
+function printableClientSection(client) {
+  return `<section>
+    <h2>Dados do cliente</h2>
+    <div class="info-grid">
+      ${printField("Cliente", client.name)}
+      ${printField("CPF/CNPJ", client.cpf)}
+      ${printField("Telefone", client.phone || client.mobile)}
+      ${printField("E-mail", client.email)}
+      ${printField("Endereço", clientAddressLine(client))}
+      ${printField("Vendedor", responsibleSeller(client))}
+    </div>
+  </section>`;
+}
+
+function printableHeader(title, context) {
+  const createdAt = new Date(context.budget.createdAt || new Date()).toLocaleString("pt-BR");
+  return `<header>
+    <div>
+      <h1>${escapeHtml(title)}</h1>
+      <p>Cabana Moveis Sob Medida</p>
+    </div>
+    <div class="meta">
+      <p><strong>${escapeHtml(context.budget.code || "-")}</strong></p>
+      <p>${escapeHtml(createdAt)}</p>
+      <p>${escapeHtml(context.budget.status || "-")}</p>
+    </div>
+  </header>`;
+}
+
+function buildOrderDocument(context) {
+  const rows = context.rows
+    .map(
+      (row) => `<tr>
+        <td>${escapeHtml(row.name || "-")}</td>
+        <td class="money">${BRL.format(row.net || 0)}</td>
+      </tr>`
+    )
+    .join("");
+  const body = `${printableHeader("Pedido", context)}
+    ${printableClientSection(context.client)}
+    <section>
+      <h2>Ambientes</h2>
+      <table>
+        <thead><tr><th>Ambiente</th><th class="money">Valor liquido</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="2">Nenhum ambiente informado</td></tr>'}</tbody>
+        <tfoot><tr><td>Total liquido</td><td class="money">${BRL.format(context.totals.net)}</td></tr></tfoot>
+      </table>
+    </section>
+    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>`;
+  const title = `Pedido ${context.budget.code || ""}`;
+  return { title, body, html: printableDocumentShell(title, body) };
+}
+
+function buildQuoteDocument(context) {
+  const rows = context.rows
+    .map(
+      (row) => `<tr>
+        <td>${escapeHtml(row.name || "-")}</td>
+        <td class="money">${BRL.format(row.gross || 0)}</td>
+        <td class="money">${BRL.format(row.factory || 0)}</td>
+        <td class="money">${BRL.format(row.hardware || 0)}</td>
+        <td class="money">${BRL.format(row.release || 0)}</td>
+        <td class="money">${BRL.format(row.assembly || 0)}</td>
+        <td class="money">${BRL.format(row.lela || 0)}</td>
+        <td class="money">${BRL.format(row.iris || 0)}</td>
+        <td class="money">${BRL.format(row.tax || 0)}</td>
+        <td class="money">${BRL.format(row.totalCost || 0)}</td>
+        <td class="money">${BRL.format(row.net || 0)}</td>
+        <td class="money">${BRL.format(row.profit || 0)}</td>
+        <td class="money">${formatPercent(row.margin || 0)}</td>
+      </tr>`
+    )
+    .join("");
+  const body = `${printableHeader("Orçamento", context)}
+    ${printableClientSection(context.client)}
+    <section>
+      <h2>Ambientes e valores</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Ambiente</th><th class="money">VITTA</th><th class="money">Fábrica</th><th class="money">Ferragens</th><th class="money">Liberação</th>
+            <th class="money">Montagem</th><th class="money">LELA</th><th class="money">IRIS</th><th class="money">Impostos</th>
+            <th class="money">Custo total</th><th class="money">Liquido</th><th class="money">Lucro</th><th class="money">Margem</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="13">Nenhum ambiente informado</td></tr>'}</tbody>
+      </table>
+      <div class="totals">
+        ${printField("Total ambientes", BRL.format(context.totals.gross))}
+        ${printField("Total liquido", BRL.format(context.totals.net))}
+        ${printField("Custo total", BRL.format(context.totals.cost))}
+        ${printField("Lucro", BRL.format(context.totals.profit))}
+        ${printField("Margem", formatPercent(context.totals.margin))}
+        ${printField("Total diaria", BRL.format(context.totals.dailyTotal))}
+        ${printField("Base financiada", BRL.format(context.totals.financedBase))}
+        ${printField("Valor parcela", BRL.format(context.totals.installmentValue))}
+        ${printField("Total financiamento", BRL.format(context.totals.financingTotal))}
+      </div>
+    </section>
+    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>`;
+  const title = `Orcamento ${context.budget.code || ""}`;
+  return { title, body, html: printableDocumentShell(title, body) };
+}
+
+function previewPrintableBudgetDocument(type) {
+  const context = budgetPrintContext();
+  if (!context) return;
+  const documentData = type === "order" ? buildOrderDocument(context) : buildQuoteDocument(context);
+  if (!elements.budgetPrintPreview || !elements.budgetPrintPreviewContent) return;
+  elements.budgetPrintPreviewTitle.textContent = type === "order" ? "Prévia do pedido" : "Prévia do orçamento";
+  elements.budgetPrintPreviewContent.innerHTML = `${printableDocumentStyles()}<main class="print-document">${documentData.body}</main>`;
+  elements.budgetPrintPreview.dataset.printTitle = documentData.title;
+  elements.budgetPrintPreview.dataset.printHtml = documentData.html;
+  elements.budgetPrintPreview.hidden = false;
+  elements.budgetPrintPreview.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function printBudgetPreview() {
+  const html = elements.budgetPrintPreview?.dataset.printHtml;
+  if (!html) return;
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Permita pop-ups para gerar o documento.");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+}
+
+function closeBudgetPrintPreview() {
+  if (!elements.budgetPrintPreview) return;
+  elements.budgetPrintPreview.hidden = true;
+  elements.budgetPrintPreviewContent.innerHTML = "";
+  delete elements.budgetPrintPreview.dataset.printTitle;
+  delete elements.budgetPrintPreview.dataset.printHtml;
+}
+
 function markBudgetDirty() {
   state.budgetDirty = true;
 }
@@ -1763,6 +1980,7 @@ function createBudgetRow(rowData = {}) {
     <td data-budget-environment></td>
     <td><input class="money-input" data-budget-field="gross" inputmode="decimal" /></td>
     <td><input class="money-input" data-budget-field="factory" inputmode="decimal" /></td>
+    <td><input class="money-input" data-budget-field="hardware" inputmode="decimal" /></td>
     <td data-budget-result="release"></td>
     <td data-budget-result="assembly"></td>
     <td data-budget-result="lela"></td>
@@ -1792,7 +2010,8 @@ function createBudgetRow(rowData = {}) {
   row.querySelector("[data-budget-environment]").appendChild(environmentPicker.wrapper);
   row.querySelector('[data-budget-field="gross"]').value = formatMoneyInput(rowData.gross || 0);
   row.querySelector('[data-budget-field="factory"]').value = formatMoneyInput(rowData.factory || 0);
-  row.querySelectorAll('[data-budget-field="gross"], [data-budget-field="factory"]').forEach((input) => {
+  row.querySelector('[data-budget-field="hardware"]').value = formatMoneyInput(rowData.hardware || 0);
+  row.querySelectorAll('[data-budget-field="gross"], [data-budget-field="factory"], [data-budget-field="hardware"]').forEach((input) => {
     input.addEventListener("input", () => {
       markBudgetDirty();
       updateBudgetSummary();
@@ -1804,14 +2023,14 @@ function createBudgetRow(rowData = {}) {
       });
     }
   });
-  row.querySelector('[data-budget-field="factory"]').addEventListener("keydown", (event) => {
+  row.querySelector('[data-budget-field="hardware"]').addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
     let nextRow = row.nextElementSibling;
     if (!nextRow) {
-      nextRow = createBudgetRow({ name: "", gross: 0, factory: 0 });
+      nextRow = createBudgetRow({ name: "", gross: 0, factory: 0, hardware: 0 });
       row.after(nextRow);
     }
     markBudgetDirty();
@@ -1827,6 +2046,7 @@ function createBudgetRow(rowData = {}) {
 }
 
 function fillBudgetForm(client) {
+  closeBudgetPrintPreview();
   const budget = state.budgetDraft || (state.budgetIsNew ? blankBudget() : budgetForEditing(client));
   state.budgetEditingId = budgetIdentity(budget) || state.budgetEditingId;
   const settings = budget.settings;
@@ -1834,7 +2054,8 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetEditorTitle").textContent = state.budgetIsNew ? "Novo Orçamento" : "Cadastro Orçamento";
   renderBudgetEditorSubtitle(targetClient);
   document.querySelector("#budgetEditClientBtn").disabled = false;
-  document.querySelector("#budgetEditClientBtn").textContent = targetClient ? "Editar cliente" : "Cadastrar cliente";
+  document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";
+  document.querySelector("#budgetEditClientBtn").setAttribute("aria-label", targetClient ? "Editar cliente" : "Cadastrar cliente");
   document.querySelector("#budgetCode").value = budget.code || nextBudgetCode();
   document.querySelector("#budgetCreatedAt").value = formatDateTimeLocal(budget.createdAt || new Date());
   document.querySelector("#budgetStatus").value = budget.status || BUDGET_STATUS[0];
@@ -1869,6 +2090,7 @@ function openBudgetEditor(clientId = state.selectedId, options = {}) {
 
 function closeBudgetEditor() {
   if (state.budgetDirty && !confirm("Descartar alteracoes do orçamento atual?")) return;
+  closeBudgetPrintPreview();
   state.budgetEditing = false;
   state.budgetDirty = false;
   state.budgetIsNew = false;
@@ -1894,6 +2116,40 @@ function budgetCodeSequence(code) {
   return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
 }
 
+function budgetDateValue(budget) {
+  return budget.createdAt || budget.updatedAt || "";
+}
+
+function dateInRange(value, startDate, endDate) {
+  if (!value) return !startDate && !endDate;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  if (startDate) {
+    const start = new Date(`${startDate}T00:00:00`);
+    if (date < start) return false;
+  }
+  if (endDate) {
+    const end = new Date(`${endDate}T23:59:59`);
+    if (date > end) return false;
+  }
+  return true;
+}
+
+function filteredBudgets() {
+  const search = state.budgetSearch.toLowerCase();
+  return state.clients
+    .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
+    .filter(({ client, budget }) => {
+      const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
+        String(value || "").toLowerCase().includes(search)
+      );
+      const matchesStatus = state.budgetStatus === "Todos" || budget.status === state.budgetStatus;
+      const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
+      return matchesSearch && matchesStatus && matchesDate;
+    })
+    .sort((first, second) => budgetCodeSequence(first.budget.code) - budgetCodeSequence(second.budget.code));
+}
+
 function renderBudgetClientOptions() {
   if (!elements.budgetClientSelect) return;
   const selectedId = state.budgetIsNew && !state.selectedId ? "" : state.selectedId || elements.budgetClientSelect.value || "";
@@ -1915,15 +2171,7 @@ function renderBudgetClientOptions() {
 function renderBudgetList() {
   const rows = elements.budgetListRows;
   if (!rows) return;
-  const search = state.budgetSearch.toLowerCase();
-  const budgets = state.clients.flatMap((client) =>
-    clientBudgetHistory(client).map((budget) => ({ client, budget }))
-  ).filter(({ client, budget }) => {
-    const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
-      String(value || "").toLowerCase().includes(search)
-    );
-    return matchesSearch;
-  }).sort((first, second) => budgetCodeSequence(first.budget.code) - budgetCodeSequence(second.budget.code));
+  const budgets = filteredBudgets();
 
   document.querySelector("#budgetCount").textContent = budgets.length;
   rows.innerHTML = "";
@@ -1979,10 +2227,12 @@ function renderBudget() {
   if (!elements.budgetClientSelect || !isAdmin()) return;
   renderBudgetClientOptions();
   renderBudgetList();
+  renderBudgetDashboard();
 
   const editing = state.view === "budget" && state.budgetEditing;
   document.body.dataset.budgetEditing = editing ? "true" : "false";
   document.querySelector("#budgetHeader").hidden = editing;
+  document.querySelector("#budgetDashboard").hidden = editing;
   elements.budgetListCard.hidden = editing;
   elements.budgetEditor.hidden = !editing;
   if (editing) fillBudgetForm(sourceBudgetClient());
@@ -2812,6 +3062,7 @@ document.addEventListener("keydown", (event) => {
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
+  renderStatusFilters(elements.budgetFilters, state.budgetStatus, "budget");
   renderDashboard();
   renderClients();
   renderProjects();
@@ -2898,9 +3149,20 @@ elements.navItems.forEach((item) => {
 
 elements.environmentForm?.addEventListener("submit", (event) => {
   event.preventDefault();
-  const added = addEnvironmentToCatalog(elements.environmentNameInput?.value || "");
+  const typedName = elements.environmentNameInput?.value || "";
+  const normalizedName = normalizeEnvironmentName(typedName);
+  const alreadyExists = state.environments.includes(normalizedName);
+  const added = addEnvironmentToCatalog(typedName);
   if (added && elements.environmentNameInput) {
     elements.environmentNameInput.value = "";
+  }
+  if (alreadyExists) {
+    focusEnvironmentManagerRow(normalizedName);
+    return;
+  }
+  if (added) {
+    window.setTimeout(() => focusEnvironmentManagerRow(normalizedName), 0);
+    return;
   }
   elements.environmentNameInput?.focus();
 });
@@ -2917,13 +3179,22 @@ elements.projectSearch?.addEventListener("input", (event) => {
 
 elements.budgetSearch?.addEventListener("input", (event) => {
   state.budgetSearch = event.target.value;
-  renderBudgetList();
+  renderBudget();
+});
+
+elements.budgetStartDate?.addEventListener("change", (event) => {
+  state.budgetStartDate = event.target.value;
+  renderBudget();
+});
+
+elements.budgetEndDate?.addEventListener("change", (event) => {
+  state.budgetEndDate = event.target.value;
+  renderBudget();
 });
 
 document.querySelector("#newClientBtn").addEventListener("click", () => openProjectDialog(null));
 document.querySelector("#projectClientBtn")?.addEventListener("click", () => openProjectDialog(null));
 document.querySelector("#backToClients").addEventListener("click", () => showView(state.returnView || "clients"));
-document.querySelector("#seeAllClients").addEventListener("click", () => showView("clients"));
 document.querySelector("#editClientBtn").addEventListener("click", () => {
   openProjectDialog();
 });
@@ -2950,15 +3221,20 @@ elements.budgetClientSelect?.addEventListener("change", () => {
   markBudgetDirty();
   const targetClient = selectedBudgetClient();
   renderBudgetEditorSubtitle(targetClient);
-  document.querySelector("#budgetEditClientBtn").textContent = targetClient ? "Editar cliente" : "Cadastrar cliente";
+  document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";
+  document.querySelector("#budgetEditClientBtn").setAttribute("aria-label", targetClient ? "Editar cliente" : "Cadastrar cliente");
 });
 document.querySelector("#budgetAddEnvironment")?.addEventListener("click", () => {
-  const row = createBudgetRow({ name: "", gross: 0, factory: 0 });
+  const row = createBudgetRow({ name: "", gross: 0, factory: 0, hardware: 0 });
   elements.budgetRows.appendChild(row);
   markBudgetDirty();
   updateBudgetSummary();
   focusEmptyEnvironmentSelect(row.querySelector('[data-budget-field="name"]'));
 });
+document.querySelector("#budgetPrintOrderBtn")?.addEventListener("click", () => previewPrintableBudgetDocument("order"));
+document.querySelector("#budgetPrintQuoteBtn")?.addEventListener("click", () => previewPrintableBudgetDocument("quote"));
+elements.budgetPreviewPrintBtn?.addEventListener("click", printBudgetPreview);
+elements.budgetPreviewCloseBtn?.addEventListener("click", closeBudgetPrintPreview);
 document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
 [
   "#budgetCreatedAt",
@@ -3056,8 +3332,11 @@ document.querySelectorAll("[data-legacy-logout]").forEach((button) => {
 elements.form.addEventListener("submit", saveClientFromDialog);
 elements.projectForm.addEventListener("submit", saveProjectFromDialog);
 window.addEventListener("resize", () => {
-  if (state.view === "dashboard") {
+  if (state.view === "clients") {
     renderDashboard();
+  }
+  if (state.view === "budget") {
+    renderBudgetDashboard();
   }
 });
 
@@ -3074,8 +3353,8 @@ async function startApp() {
   }
   refreshEnvironmentCatalog();
   state.selectedId = state.clients[0]?.id || null;
-  state.view = "dashboard";
-  showView("dashboard");
+  state.view = "clients";
+  showView("clients");
   render();
 }
 
