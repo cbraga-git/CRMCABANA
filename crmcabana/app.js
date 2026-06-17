@@ -1987,12 +1987,64 @@ function printField(label, value) {
   return `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "-")}</strong></div>`;
 }
 
+const CONTRACT_CLAUSES = [
+  "1. OBJETO E PRECO",
+  "1 - O CONTRATANTE, atraves dos pagamentos descritos no pedido anexo, integrante deste contrato, recebera os produtos descritos e de fabricacao das empresas mencionadas no pedido supracitado, bem como a prestacao dos servicos pertinentes, de acordo com os projetos, os quais, vistados pelas partes, integram e constituem compromissos unicos deste contrato.",
+  "2 - SERVICOS: Atendimento e interpretacao das necessidades do cliente, atraves da demonstracao de produtos, orientacao tecnica e comercial, desenvolvimento de projetos, conferencia das medidas do local de montagem, fornecimento de acessorios, transporte e montagem, desde a pre-venda ate a conclusao de instalacao conforme projetos integrantes deste contrato.",
+  "3 - Todos os faturamentos de produtos, transportes e servicos serao faturados direta e exclusivamente pela CONTRATADA e a ela serao pagos pelo CONTRATANTE ou Agente Financeiro por ele contratado.",
+  "4 - Nao integram o presente contrato elementos decorativos presentes nos projetos apenas a titulo de ilustracao, tais como eletrodomesticos, granitos, tapetes, cortinas, espelhos, vidros, etc., salvo nos casos de expressa opcao do CONTRATANTE pela compra de produtos de outros fornecedores.",
+  "5 - Nao farao parte do objeto deste contrato e nem sera encargo da CONTRATADA a instalacao ou alteracao de pontos eletricos ou hidraulicos, ou qualquer outra atividade nao concretamente relacionada no pedido ou adendo deste instrumento.",
+  "6 - Caso o projeto final venha a ser modificado durante sua execucao a pedido do CONTRATANTE, de forma que implique diferenca de precos do valor negociado, este autoriza a CONTRATADA a emitir titulo correspondente a diferenca de valores.",
+  "2. CONDICOES DE FORNECIMENTO E GARANTIA",
+  "7 - Apos a assinatura deste contrato pelo CONTRATANTE, as partes se obrigam ao cumprimento do presente contrato de forma irrevogavel e irretratavel, sendo vedado o cancelamento da venda por desistencia ou arrependimento de qualquer das partes.",
+  "8 - Os produtos comprados serao entregues e os servicos de montagem executados pela CONTRATADA e/ou por meio de empresas especializadas, devendo os produtos serem entregues no prazo de 45 dias uteis da data da assinatura do projeto final. Os servicos de montagem serao iniciados em ate 05 dias uteis da confirmacao da entrega dos moveis no local.",
+  "9 - E responsabilidade do CONTRATANTE deixar o local de entrega disponivel para receber os produtos e nas condicoes necessarias a realizacao da montagem, incluindo liberacao de acessos, energia eletrica e fornecimento das plantas hidraulicas e eletricas no inicio da montagem.",
+  "10 - No caso de apartamentos, se alguma peca nao couber no elevador ou escadas, a mesma devera subir por empresa especializada em mudancas, ocorrendo por conta do CONTRATANTE o custo deste servico.",
+  "11 - Em caso de reformas, as mesmas deverao estar devidamente concluidas e os ambientes completamente limpos. A desmontagem e transporte de moveis ja existentes e de responsabilidade do CONTRATANTE.",
+  "12 - Na indisponibilidade de acesso ao local da entrega na data estabelecida, o CONTRATANTE devera providenciar deposito alternativo para entrega imediata, cabendo-lhe os onus respectivos.",
+  "13 - E de responsabilidade do CONTRATANTE verificar altura dos armarios, abertura de portas, rebaixos, sancas, luminarias, cortinas e demais interferencias antes da execucao.",
+  "14 - Fica aos cuidados do CONTRATANTE a retirada, antes da entrega dos moveis, de molduras de gesso, rodapes ou qualquer acabamento que interfira na instalacao dos produtos.",
+  "15 - Ate a data de instalacao, o CONTRATANTE devera entregar no imovel os eletrodomesticos com as medidas previstas no projeto e plantas eletricas, hidraulicas, de gas, telefone e outras tubulacoes nao aparentes.",
+  "16 - Por ocasiao da instalacao, eventuais incompatibilidades, ausencia de componentes, necessidades ou conveniencia de reformulacoes e ampliacoes de projetos envolverao nova contratacao analoga ao presente.",
+  "17 - A perfeita execucao do projeto requer, durante a montagem, alguns ajustes de acabamento que poderao provocar residuos e po. Apos a conclusao, os tecnicos farao a limpeza dos residuos resultantes da montagem.",
+  "18 - Constituem obrigacoes da CONTRATADA atender, dentro dos prazos convencionados, as solicitacoes da CONTRATANTE relativas a entrega, montagem, instalacao e assistencia tecnica decorrente de defeitos de fabricacao.",
+  "19 - Na montagem, a CONTRATADA se exime de responsabilidade por sobras de obra, paredes frageis, desniveis, focos de umidade, exposicao excessiva ao sol ou luminosidade e demais condicoes do local que impecam a instalacao adequada.",
+  "20 - Os produtos da CABANA MOVEIS possuem garantia contra defeitos aparentes e de facil constatacao pelo prazo de 90 dias a contar da efetiva entrega, alem das garantias de fabricante aplicaveis a cada componente.",
+  "21 - Sao causas de exclusao da garantia: desgaste natural, descoloracao pelo tempo, diferencas de tonalidade, uso anormal, sobrecarga, fogo, umidade, contato prolongado com agua, maresia, ferrugem, fungos, cupins, brocas, montagem por terceiros e falta de manutencao periodica.",
+  "22 - A CONTRATADA nao esta autorizada a manipular tubulacoes eletricas, hidraulicas, telefonicas, etc., sendo responsabilidade do CONTRATANTE a contratacao de profissionais especializados nessas areas.",
+  "23 - A garantia contra defeitos de montagem sera prestada pela CONTRATADA por intermedio da empresa responsavel pela montagem pelo prazo de 90 dias a contar da efetiva assinatura do termo de conclusao do servico.",
+  "3. PAGAMENTOS",
+  "24 - Os pagamentos deverao ser feitos nas datas estipuladas no presente instrumento, independentemente do faturamento das mercadorias ou da finalizacao dos servicos, salvo adendo escrito em contrario.",
+  "25 - Todos os pagamentos deverao observar rigorosamente as condicoes, formas e datas estabelecidas no pedido anexo, integrante deste contrato, pois constituem compromissos assumidos com a fabrica.",
+  "26 - Eventuais greves ou falta de materias-primas nao constituirao descumprimento contratual, podendo haver atendimento com material similar disponivel ou dilatacao dos prazos de entrega e pagamento por periodo equivalente.",
+  "27 - Os pagamentos obedecerao rigorosamente as parcelas, formas, valores e datas descritas no pedido anexo, integrante deste contrato.",
+  "28 - O atraso no pagamento sujeita o inadimplente ao pagamento da parcela vencida acrescida de correcao monetaria, juros de 12% ao ano e multa contratual de 2% sobre o montante em aberto.",
+  "29 - No caso dos debitos nao serem quitados no vencimento, o CONTRATANTE ficara constituido em mora, podendo haver vencimento antecipado do total da divida e adocao das medidas de cobranca cabiveis.",
+  "30 - Fazendo o CONTRATANTE opcao por financiamento, os titulos referentes a esse contrato permanecerao sujeitos as regras do contrato firmado entre o CONTRATANTE e o Agente Financeiro.",
+  "31 - Por se tratar de mercadoria sob encomenda, nao sera admitida a desistencia da compra apos o envio do pedido ao fabricante. Cancelamentos antes do envio poderao acarretar multa de 20% sobre o valor do contrato.",
+  "4. DA CESSAO",
+  "32 - A posse dos objetos descritos no pedido anexo fica sendo do CONTRATANTE a partir desta data, mas a falta de pagamento de qualquer prestacao obriga a restituicao dos objetos condicionalmente adquiridos, amigavelmente ou conforme a lei.",
+  "5. ELEICAO DO FORO",
+  "33 - Eventual tolerancia ou concessao das partes nao implicara alteracao ou novacao contratual e nem impedira o exercicio, a qualquer momento, dos direitos assegurados.",
+  "34 - A CONTRATADA oferece assistencia tecnica permanente aos seus produtos. Os custos de reparos nao cobertos pela garantia de fabrica serao cobrados da CONTRATANTE.",
+  "35 - As partes elegem o Foro da Comarca de Taboao da Serra, SP, para dirimir eventuais duvidas e acoes judiciais envolvendo o pactuado, firmando o presente em duas vias e na presenca de duas testemunhas.",
+];
+
 function printableDocumentStyles() {
   return `<style>
     @page { size: A4; margin: 14mm; }
-    * { box-sizing: border-box; }
+    @page order-page { size: A4; margin: 3mm; }
+    @page contract-page { size: A4; margin: 11mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { margin: 0; color: #16120a; font: 12px Arial, sans-serif; }
     .print-document { color: #16120a; font: 12px Arial, sans-serif; }
+    .print-page { background: #fff; break-after: page; page-break-after: always; position: relative; }
+    .print-page:last-child { break-after: auto; page-break-after: auto; }
+    .print-page > :not(.cabana-watermark) { position: relative; z-index: 1; }
+    .cabana-watermark { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; pointer-events: none; overflow: hidden; mix-blend-mode: multiply; }
+    .cabana-watermark img { width: 72%; max-width: 460px; opacity: 0.09; filter: sepia(1) saturate(1.8) hue-rotate(4deg); transform: rotate(-18deg); }
+    .order-page { page: order-page; font-size: 8.2px; width: 100%; max-width: 100%; overflow: hidden; }
+    .contract-page { page: contract-page; font-size: 9px; line-height: 1.25; }
     .print-document header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #aa8e34; padding-bottom: 12px; margin-bottom: 16px; }
     .print-document h1 { margin: 0; font: 700 24px Georgia, "Times New Roman", serif; }
     .print-document h2 { margin: 18px 0 8px; font: 700 15px Georgia, "Times New Roman", serif; }
@@ -2010,6 +2062,41 @@ function printableDocumentStyles() {
     .print-document .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
     .print-document .totals div { border: 1px solid #d9c779; padding: 8px; background: #fffaf0; }
     .print-document .notes { white-space: pre-wrap; border: 1px solid #d9c779; padding: 8px; min-height: 42px; }
+    .excel-order { width: 100%; max-width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 7.9px; background: rgba(255, 255, 255, 0.74); }
+    .excel-order td, .excel-order th { border: 1px solid #1f1a0c; padding: 3px 2px; height: 18px; line-height: 1.12; vertical-align: middle; overflow-wrap: anywhere; background: rgba(255, 255, 255, 0.68); }
+    .excel-order .label, .excel-order th { background: rgba(242, 231, 196, 0.82); color: #4f421d; font-weight: 800; text-transform: uppercase; }
+    .excel-order .section { background: rgba(215, 189, 98, 0.88); color: #16120a; font-weight: 900; text-align: center; }
+    .excel-order .center { text-align: center; }
+    .excel-order .right { text-align: right; }
+    .excel-order .strong { font-weight: 900; }
+    .excel-order .sign { height: 44px; vertical-align: bottom; }
+    .excel-order .logo-cell { background: rgba(255, 250, 240, 0.88); text-align: center; }
+    .order-logo { display: block; width: 100px; max-height: 42px; object-fit: contain; margin: 0 auto; }
+    .order-small { font-size: 7px; line-height: 1.05; }
+    .contract-title { text-align: center; font-weight: 900; font-size: 12px; margin: 0 0 7px; text-transform: uppercase; }
+    .contract-number { text-align: center; font-weight: 900; margin: 0 0 6px; }
+    .contract-clause { margin: 2px 0; text-align: justify; }
+    .contract-clause.heading { margin-top: 7px; font-weight: 900; text-align: left; text-transform: uppercase; }
+    .contract-signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 16px; }
+    .signature-line { border-top: 1px solid #16120a; padding-top: 4px; min-height: 34px; }
+    .testimony-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+    @media print {
+      body { width: 100%; }
+      .print-document { width: 100%; max-width: 100%; }
+      .print-page { width: 100%; max-width: 100%; overflow: hidden; }
+      .order-page { font-size: 8.8px; }
+      .order-page .excel-order { font-size: 8.4px; }
+      .order-page .excel-order td, .order-page .excel-order th { padding: 4px 2px; height: 22px; }
+      .order-page .excel-order .sign { height: 56px; }
+      .order-page .order-logo { width: 112px; max-height: 48px; }
+    }
+    @media screen {
+      .print-page { padding: 10px; margin: 0 auto 18px; box-shadow: 0 0 0 1px #ddd; }
+      .order-page { width: 650px; min-height: 920px; font-size: 8.2px; }
+      .contract-page { width: 650px; min-height: 920px; font-size: 8px; }
+      .order-page .excel-order { font-size: 7.8px; }
+      .order-page .excel-order td, .order-page .excel-order th { padding: 3px 2px; height: 18px; }
+    }
   </style>`;
 }
 
@@ -2018,6 +2105,7 @@ function printableDocumentShell(title, body) {
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
+  <base href="${escapeHtml(document.baseURI)}" />
   <title>${escapeHtml(title)}</title>
   ${printableDocumentStyles()}
 </head>
@@ -2056,30 +2144,179 @@ function printableHeader(title, context) {
   </header>`;
 }
 
-function buildOrderDocument(context) {
-  const rows = context.rows
+function formatPrintDate(value, options = {}) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("pt-BR", options);
+}
+
+function formattedClientAddressParts(client) {
+  return {
+    street: [client.address?.street, client.address?.number, client.address?.complement].filter(Boolean).join(", "),
+    district: client.address?.district || "",
+    city: client.city || "",
+    state: client.state || "SP",
+    cep: client.address?.cep || "",
+  };
+}
+
+function orderPaymentRows(context) {
+  const cashRows = (context.budget.cashPayments || [])
+    .filter((payment) => payment.parcel || payment.value || payment.dueDate || payment.method)
+    .map((payment) => ({
+      parcel: payment.parcel || "",
+      value: payment.value ? BRL.format(parseMoney(payment.value)) : "",
+      dueDate: payment.dueDate ? formatPrintDate(payment.dueDate) : "",
+      method: payment.method || "",
+    }));
+  if (cashRows.length) return cashRows;
+  if (!context.settings.installments) {
+    return [{ parcel: "1", value: BRL.format(context.totals.net), dueDate: "", method: "Pix" }];
+  }
+  return Array.from({ length: Math.min(context.settings.installments, 6) }, (_, index) => ({
+    parcel: String(index + 1),
+    value: BRL.format(context.totals.installmentValue || 0),
+    dueDate: "",
+    method: "Financiamento",
+  }));
+}
+
+function buildOrderRows(context) {
+  const rows = context.rows.slice(0, 8);
+  while (rows.length < 8) rows.push({});
+  return rows
     .map(
-      (row) => `<tr>
-        <td>${escapeHtml(row.name || "-")}</td>
-        <td class="money">${BRL.format(row.net || 0)}</td>
+      (row, index) => `<tr>
+        <td colspan="2" class="center">${index + 1}</td>
+        <td class="center">1</td>
+        <td colspan="9">${escapeHtml(row.name || "")}</td>
+        <td colspan="2" class="center">45</td>
+        <td colspan="3" class="right">${row.name ? BRL.format(row.net || 0) : ""}</td>
+        <td colspan="9"></td>
       </tr>`
     )
     .join("");
-  const body = `${printableHeader("Pedido", context)}
-    ${printableClientSection(context.client)}
-    <section>
-      <h2>Ambientes</h2>
-      <table>
-        <thead><tr><th>Ambiente</th><th class="money">Valor liquido</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="2">Nenhum ambiente informado</td></tr>'}</tbody>
-        <tfoot><tr><td>Total liquido</td><td class="money">${BRL.format(context.totals.net)}</td></tr></tfoot>
-      </table>
-    </section>
-    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>`;
-  const title = `Pedido ${context.budget.code || ""}`;
-  return { title, body, html: printableDocumentShell(title, body) };
 }
 
+function buildMaterialRows(context) {
+  const rows = context.rows.slice(0, 7);
+  while (rows.length < 7) rows.push({});
+  return rows
+    .map(
+      (row, index) => `<tr>
+        <td colspan="2" class="center">${index + 1}</td>
+        <td colspan="4">${escapeHtml(row.name || "")}</td>
+        <td colspan="4"></td>
+        <td colspan="3"></td>
+        <td colspan="3"></td>
+        <td colspan="4"></td>
+        <td colspan="6"></td>
+      </tr>`
+    )
+    .join("");
+}
+
+function buildPaymentRows(context) {
+  const rows = orderPaymentRows(context).slice(0, 6);
+  while (rows.length < 6) rows.push({});
+  return [0, 1, 2]
+    .map((index) => {
+      const first = rows[index] || {};
+      const second = rows[index + 3] || {};
+      return `<tr>
+        <td colspan="2" class="center">${escapeHtml(first.parcel || "")}</td>
+        <td colspan="3" class="right">${escapeHtml(first.value || "")}</td>
+        <td colspan="4" class="center">${escapeHtml(first.dueDate || "")}</td>
+        <td colspan="4">${escapeHtml(first.method || "")}</td>
+        <td colspan="2" class="center">${escapeHtml(second.parcel || "")}</td>
+        <td colspan="3" class="right">${escapeHtml(second.value || "")}</td>
+        <td colspan="4" class="center">${escapeHtml(second.dueDate || "")}</td>
+        <td colspan="4">${escapeHtml(second.method || "")}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function buildOrderPage(context) {
+  const client = context.client;
+  const address = formattedClientAddressParts(client);
+  const contractCode = context.budget.code || "";
+  const createdAt = formatPrintDate(context.budget.createdAt);
+  return `<section class="print-page order-page">
+    <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
+    <table class="excel-order" aria-label="Pedido">
+      <colgroup>${Array.from({ length: 26 }, () => "<col />").join("")}</colgroup>
+      <tbody>
+        <tr><td colspan="4" rowspan="3" class="logo-cell"><img class="order-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" /></td><td colspan="8" class="label">Cabana Moveis Sob Medida Ltda</td><td colspan="2" class="label">CNPJ</td><td colspan="6">47.946.284/0001-77</td><td colspan="6" class="section">Contrato No</td></tr>
+        <tr><td colspan="9" class="order-small">Avenida Vida Nova, 28, Sala 806-B, Jardim Maria Rosa - Taboao da Serra, SP</td><td colspan="2" class="label">Tel.</td><td colspan="5">11 95909-3538</td><td colspan="6" class="center strong">${escapeHtml(contractCode)}</td></tr>
+        <tr><td colspan="6">cabanamoveissobmedida@gmail.com</td><td class="label">Bco</td><td colspan="3">Itau - 347</td><td class="label">Ag</td><td>0568</td><td class="label">CC</td><td colspan="3">99307-5</td><td colspan="6"></td></tr>
+        <tr><td colspan="19" class="label">Responsavel pela venda</td><td colspan="7" class="label">Data do contrato</td></tr>
+        <tr><td colspan="19">${escapeHtml(responsibleSeller(client) || "Daniela Moreira")}</td><td colspan="7" class="center">${escapeHtml(createdAt)}</td></tr>
+        <tr><td colspan="19" class="label">Cliente</td><td colspan="7" class="label">Banco / Agencia / Conta</td></tr>
+        <tr><td colspan="19" class="strong">${escapeHtml(client.name || "")}</td><td colspan="7"></td></tr>
+        <tr><td colspan="8" class="label">CPF/CNPJ</td><td colspan="10" class="label">R.G / Inscricao Estadual</td><td colspan="8" class="label">Data de nascimento</td></tr>
+        <tr><td colspan="8">${escapeHtml(client.cpf || "")}</td><td colspan="10"></td><td colspan="8"></td></tr>
+        <tr><td colspan="26" class="label">Endereco atual</td></tr>
+        <tr><td colspan="26">${escapeHtml(address.street)}</td></tr>
+        <tr><td colspan="8" class="label">Bairro</td><td colspan="10" class="label">Cidade</td><td colspan="2" class="label">UF</td><td colspan="6" class="label">CEP</td></tr>
+        <tr><td colspan="8">${escapeHtml(address.district)}</td><td colspan="10">${escapeHtml(address.city)}</td><td colspan="2" class="center">${escapeHtml(address.state)}</td><td colspan="6">${escapeHtml(address.cep)}</td></tr>
+        <tr><td colspan="8" class="label">Telefone</td><td colspan="10" class="label">Celular</td><td colspan="8" class="label">E-mail</td></tr>
+        <tr><td colspan="8">${escapeHtml(client.phone || "")}</td><td colspan="10">${escapeHtml(client.mobile || "")}</td><td colspan="8">${escapeHtml(client.email || "")}</td></tr>
+        <tr><td colspan="18" class="label">Endereco de entrega</td><td colspan="8" class="label order-small">Prazo entrega em dias uteis, apos assinatura do projeto executivo</td></tr>
+        <tr><td colspan="18">O mesmo</td><td colspan="8" class="center strong">45</td></tr>
+        <tr><th colspan="2">Item</th><th>Qtd</th><th colspan="9">Descricao ambiente / produto</th><th colspan="2">Prazo</th><th colspan="3">Valor</th><th colspan="9">Observacao</th></tr>
+        ${buildOrderRows(context)}
+        <tr><td colspan="17"></td><td colspan="5" class="label right">Total do pedido:</td><td colspan="4" class="right strong">${BRL.format(context.totals.net)}</td></tr>
+        <tr><th colspan="2">Item</th><th colspan="4">Corpo</th><th colspan="4">Porta</th><th colspan="3">Puxador</th><th colspan="3">Modelo</th><th colspan="4">Complemento</th><th colspan="6">Amb / Observacao</th></tr>
+        ${buildMaterialRows(context)}
+        <tr><td colspan="26" class="label">Amb Observacao</td></tr>
+        <tr><td colspan="26">${escapeHtml(context.budget.notes || "")}</td></tr>
+        <tr><td colspan="5" class="label">Total a vista</td><td colspan="11" class="label">Total a prazo</td><td colspan="5" class="label">Forma de pagamento</td><td colspan="5" class="label">Condicao de pagamento</td></tr>
+        <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(context.totals.financingTotal || context.totals.net)}</td><td colspan="5">Pix</td><td colspan="5">${context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
+        <tr><th colspan="2">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="4">Forma de pagamento</th><th colspan="2">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="4">Forma de pagamento</th></tr>
+        ${buildPaymentRows(context)}
+        <tr><td colspan="13" class="sign">Cabana Moveis Sob Medida</td><td colspan="13" class="sign">Contratante: ${escapeHtml(client.name || "")}</td></tr>
+      </tbody>
+    </table>
+  </section>`;
+}
+
+function buildContractPage(context) {
+  const clauses = CONTRACT_CLAUSES.map((text) => {
+    const heading = /^\d+\./.test(text);
+    return `<p class="contract-clause${heading ? " heading" : ""}">${escapeHtml(text)}</p>`;
+  }).join("");
+  return `<section class="print-page contract-page">
+    <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
+    <p class="contract-number">CONTRATO N.o ${escapeHtml(context.budget.code || "")}</p>
+    <h1 class="contract-title">Contrato de Compra e Venda de Produtos e de Prestacao de Servicos</h1>
+    ${clauses}
+    <div class="testimony-grid">
+      <div>
+        <strong>Testemunha 1</strong>
+        <p>Nome:</p>
+        <p>CPF:</p>
+        <p>RG:</p>
+      </div>
+      <div>
+        <strong>Testemunha 2</strong>
+        <p>Nome:</p>
+        <p>CPF:</p>
+        <p>RG:</p>
+      </div>
+    </div>
+    <div class="contract-signatures">
+      <div class="signature-line"><strong>CONTRATADA:</strong><br />Cabana Moveis Sob Medida Ltda</div>
+      <div class="signature-line"><strong>CONTRATANTE:</strong><br />${escapeHtml(context.client.name || "")}</div>
+    </div>
+  </section>`;
+}
+
+function buildOrderDocument(context) {
+  const body = `${buildOrderPage(context)}${buildContractPage(context)}`;
+  const title = `Pedido e Contrato ${context.budget.code || ""}`;
+  return { title, body, html: printableDocumentShell(title, body) };
+}
 function buildQuoteDocument(context) {
   const rows = context.rows
     .map(
@@ -2131,32 +2368,49 @@ function buildQuoteDocument(context) {
   return { title, body, html: printableDocumentShell(title, body) };
 }
 
-function previewPrintableBudgetDocument(type) {
-  const context = budgetPrintContext();
-  if (!context) return;
-  const documentData = type === "order" ? buildOrderDocument(context) : buildQuoteDocument(context);
-  if (!elements.budgetPrintPreview || !elements.budgetPrintPreviewContent) return;
-  elements.budgetPrintPreviewTitle.textContent = type === "order" ? "Prévia do pedido" : "Prévia do orçamento";
-  elements.budgetPrintPreviewContent.innerHTML = `${printableDocumentStyles()}<main class="print-document">${documentData.body}</main>`;
-  elements.budgetPrintPreview.dataset.printTitle = documentData.title;
-  elements.budgetPrintPreview.dataset.printHtml = documentData.html;
-  elements.budgetPrintPreview.hidden = false;
-  elements.budgetPrintPreview.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function printBudgetPreview() {
-  const html = elements.budgetPrintPreview?.dataset.printHtml;
-  if (!html) return;
+function openPrintableHtml(html) {
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     alert("Permita pop-ups para gerar o documento.");
     return;
   }
+  let closeTimer = null;
+  const closePrintWindow = () => {
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => {
+      try {
+        printWindow.close();
+      } catch (error) {
+        console.warn(error);
+      }
+    }, 300);
+  };
   printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.focus();
-  printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+  printWindow.addEventListener("afterprint", closePrintWindow, { once: true });
+  printWindow.addEventListener(
+    "load",
+    () => {
+      printWindow.print();
+      closeTimer = setTimeout(closePrintWindow, 1200);
+    },
+    { once: true }
+  );
+}
+
+function previewPrintableBudgetDocument(type) {
+  const context = budgetPrintContext();
+  if (!context) return;
+  const documentData = type === "order" ? buildOrderDocument(context) : buildQuoteDocument(context);
+  closeBudgetPrintPreview();
+  openPrintableHtml(documentData.html);
+}
+function printBudgetPreview() {
+  const html = elements.budgetPrintPreview?.dataset.printHtml;
+  if (!html) return;
+  openPrintableHtml(html);
 }
 
 function closeBudgetPrintPreview() {
