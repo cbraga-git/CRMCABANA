@@ -25,14 +25,14 @@
 html {
   width: 100%;
   min-height: 100%;
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100dvh;
-  overflow-x: hidden;
+  overflow-x: auto;
   color: var(--text);
   background:
     linear-gradient(135deg, rgba(245, 239, 216, 0.96), rgba(255, 250, 240, 0.92)),
@@ -141,6 +141,7 @@ button {
 .crm-shell {
   display: grid;
   width: 100%;
+  min-width: 1180px;
   min-height: 100dvh;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
@@ -357,6 +358,8 @@ body[data-sidebar-collapsed="true"] .logout-icon {
 
 .content {
   min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
   padding: clamp(10px, 2vh, 24px) clamp(10px, 2.4vw, 40px) clamp(18px, 3vh, 40px);
 }
 
@@ -376,6 +379,14 @@ body[data-view="projects"] .content {
   width: 100%;
   max-width: min(1440px, 100%);
   margin: 0 auto;
+}
+
+.clients-view {
+  min-width: 1580px;
+}
+
+.budget-view {
+  min-width: 1680px;
 }
 
 .view.active {
@@ -1711,7 +1722,7 @@ body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header
 
 .budget-finance-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2076,6 +2087,39 @@ dialog::backdrop {
   background: rgba(38, 20, 12, 0.35);
 }
 
+.save-choice-dialog {
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 20px 60px rgba(5, 5, 5, 0.32);
+}
+
+.save-choice-card {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+}
+
+.save-choice-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 22px;
+}
+
+.save-choice-card p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.save-choice-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
 .dialog-card {
   max-height: calc(100vh - 28px);
   overflow: auto;
@@ -2342,6 +2386,7 @@ dialog::backdrop {
 
 @media (max-width: 1050px) {
   .crm-shell {
+    min-width: 1180px;
     grid-template-columns: 1fr;
   }
 

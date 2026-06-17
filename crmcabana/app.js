@@ -28,29 +28,59 @@ const WON_STATUS = "Venda Fechada";
 const LOST_STATUS = "Não Fechou";
 const FINISHED_STATUS = [WON_STATUS, LOST_STATUS];
 const FINAL_USE_OPTIONS = ["Alugar", "Residir", "Negociar"];
-const PAYMENT_FACTORS = {
-  3: 0.37036340080909302,
-  4: 0.28267848916224497,
-  5: 0.230115936630129,
-  6: 0.19511467648419001,
-  7: 0.170148531661652,
-  8: 0.151454408719365,
-  9: 0.136941695822036,
-  10: 0.12535602194078399,
-  11: 0.115899147400871,
-  12: 0.10803890915826,
-  13: 0.1013948855344,
-  14: 0.095708193041200998,
-  15: 0.090788541049344099,
-  16: 0.086492924587185993,
-  17: 0.082711795039469599,
-  18: 0.079359816123894103,
-  19: 0.076369524337721095,
-  20: 0.073686882173234894,
-  21: 0.071268096054398405,
-  22: 0.069077298334298404,
-  23: 0.067084831472997999,
-  24: 0.065265959460575895,
+const FINANCING_RATES = {
+  30: {
+    1: { coefficient: 1.0274, retention: 0.0267 },
+    2: { coefficient: 0.52064, retention: 0.0396 },
+    3: { coefficient: 0.35176, retention: 0.0524 },
+    4: { coefficient: 0.26736, retention: 0.0649 },
+    5: { coefficient: 0.21674, retention: 0.0772 },
+    6: { coefficient: 0.18301, retention: 0.0893 },
+    7: { coefficient: 0.15804, retention: 0.096 },
+    8: { coefficient: 0.14, retention: 0.1072 },
+    9: { coefficient: 0.12599, retention: 0.1181 },
+    10: { coefficient: 0.11479, retention: 0.1288 },
+    11: { coefficient: 0.10564, retention: 0.1394 },
+    12: { coefficient: 0.09802, retention: 0.1498 },
+    13: { coefficient: 0.09307, retention: 0.1735 },
+    14: { coefficient: 0.08756, retention: 0.1843 },
+    15: { coefficient: 0.0828, retention: 0.1948 },
+    16: { coefficient: 0.07864, retention: 0.2052 },
+    17: { coefficient: 0.07498, retention: 0.2154 },
+    18: { coefficient: 0.07173, retention: 0.2255 },
+    19: { coefficient: 0.06883, retention: 0.2353 },
+    20: { coefficient: 0.06623, retention: 0.245 },
+    21: { coefficient: 0.06388, retention: 0.2545 },
+    22: { coefficient: 0.06175, retention: 0.2638 },
+    23: { coefficient: 0.05981, retention: 0.273 },
+    24: { coefficient: 0.05803, retention: 0.282 },
+  },
+  60: {
+    1: { coefficient: 1.05555, retention: 0.0526 },
+    2: { coefficient: 0.53491, retention: 0.0653 },
+    3: { coefficient: 0.3614, retention: 0.0777 },
+    4: { coefficient: 0.27468, retention: 0.0899 },
+    5: { coefficient: 0.22267, retention: 0.1018 },
+    6: { coefficient: 0.18802, retention: 0.1136 },
+    7: { coefficient: 0.16213, retention: 0.1189 },
+    8: { coefficient: 0.14363, retention: 0.1297 },
+    9: { coefficient: 0.12925, retention: 0.1404 },
+    10: { coefficient: 0.11776, retention: 0.1508 },
+    11: { coefficient: 0.10837, retention: 0.1612 },
+    12: { coefficient: 0.10056, retention: 0.1713 },
+    13: { coefficient: 0.09571, retention: 0.1963 },
+    14: { coefficient: 0.09005, retention: 0.2068 },
+    15: { coefficient: 0.08515, retention: 0.2171 },
+    16: { coefficient: 0.08087, retention: 0.2272 },
+    17: { coefficient: 0.07711, retention: 0.2371 },
+    18: { coefficient: 0.07377, retention: 0.2469 },
+    19: { coefficient: 0.07078, retention: 0.2564 },
+    20: { coefficient: 0.06811, retention: 0.2659 },
+    21: { coefficient: 0.06569, retention: 0.2751 },
+    22: { coefficient: 0.0635, retention: 0.2842 },
+    23: { coefficient: 0.06151, retention: 0.2931 },
+    24: { coefficient: 0.05968, retention: 0.3019 },
+  },
 };
 const DEFAULT_BUDGET_SETTINGS = {
   discountRate: 47,
@@ -60,6 +90,7 @@ const DEFAULT_BUDGET_SETTINGS = {
   irisRate: 2.5,
   taxRate: 4.9,
   entry: 0,
+  entryTerm: 30,
   installments: 0,
   dailyQuantity: 0,
   dailyValue: 0,
@@ -985,7 +1016,7 @@ function clientTotals(client) {
 
 function clientBudgetTotals(client) {
   if (!client.budget?.updatedAt) {
-    return { gross: 0, net: 0, cost: 0, profit: 0, margin: 0, financedBase: 0, installmentValue: 0, financingTotal: 0 };
+    return { gross: 0, net: 0, cost: 0, profit: 0, margin: 0, financedBase: 0, installmentValue: 0, retentionValue: 0, financingTotal: 0 };
   }
   return budgetSummaryForClient(client);
 }
@@ -1008,22 +1039,57 @@ function confirmDiscardClientDialogChanges() {
   return !state.clientDialogDirty || confirm("Existem alteracoes nao salvas no cadastro. Deseja sair sem salvar?");
 }
 
-function confirmDiscardBudgetChanges() {
-  return !state.budgetDirty || confirm("Existem alteracoes nao salvas no orcamento. Deseja sair sem salvar?");
+function askSaveBudgetChanges() {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    dialog.className = "save-choice-dialog";
+    dialog.innerHTML = `
+      <form method="dialog" class="save-choice-card">
+        <h2>Deseja salvar?</h2>
+        <p>Existem alteracoes nao salvas no orcamento.</p>
+        <div class="save-choice-actions">
+          <button class="button secondary" value="no" type="submit">NÃO</button>
+          <button class="button primary" value="yes" type="submit">SIM</button>
+        </div>
+      </form>
+    `;
+    document.body.appendChild(dialog);
+    dialog.addEventListener(
+      "close",
+      () => {
+        const value = dialog.returnValue;
+        dialog.remove();
+        resolve(value === "yes" ? "save" : "discard");
+      },
+      { once: true }
+    );
+    dialog.showModal();
+  });
+}
+
+async function confirmDiscardBudgetChanges() {
+  if (!state.budgetDirty) return true;
+  const choice = await askSaveBudgetChanges();
+  if (choice === "save") {
+    await saveBudget({ silent: true });
+    return !state.budgetEditing && !state.budgetDirty;
+  }
+  state.budgetDirty = false;
+  return true;
 }
 
 function markProjectDirty() {
   state.projectDirty = true;
 }
 
-function showView(view, selectedId) {
+async function showView(view, selectedId) {
   if ((view === "users" || view === "budget") && !isAdmin()) {
     view = "clients";
   }
 
   const previousView = state.view;
   if (state.projectInlineEditing && !confirmDiscardProjectChanges()) return;
-  if (state.budgetEditing && view !== "budget" && !confirmDiscardBudgetChanges()) return;
+  if (state.budgetEditing && view !== "budget" && !(await confirmDiscardBudgetChanges())) return;
 
   if (view === "detail") {
     openClientRegistration(selectedId || state.selectedId, previousView);
@@ -1877,6 +1943,7 @@ function readBudgetSettings() {
     irisRate: Number(budgetInputValue("budgetIrisRate")) || 0,
     taxRate: Number(budgetInputValue("budgetTaxRate")) || 0,
     entry: parseMoney(budgetInputValue("budgetEntry")),
+    entryTerm: Number(budgetInputValue("budgetEntryTerm")) === 60 ? 60 : 30,
     installments: Number(budgetInputValue("budgetInstallments")) || 0,
     dailyQuantity: Number(budgetInputValue("budgetDailyQuantity")) || 0,
     dailyValue: parseMoney(budgetInputValue("budgetDailyValue")),
@@ -1965,8 +2032,10 @@ function budgetTotals(calculatedRows, settings) {
     dailyTotal,
   };
   const financedBase = Math.max(0, totals.gross - totals.gross * percentToRate(settings.discountRate) - settings.entry);
-  const installmentFactor = PAYMENT_FACTORS[settings.installments] || 0;
-  const installmentValue = financedBase * installmentFactor;
+  const term = Number(settings.entryTerm) === 60 ? 60 : 30;
+  const financingRate = FINANCING_RATES[term]?.[settings.installments] || { coefficient: 0, retention: 0 };
+  const installmentValue = financedBase * financingRate.coefficient;
+  const retentionValue = financedBase * financingRate.retention;
   const financingTotal = installmentValue * settings.installments + settings.entry;
 
   return {
@@ -1974,6 +2043,8 @@ function budgetTotals(calculatedRows, settings) {
     margin: totals.net ? totals.profit / totals.net : 0,
     financedBase,
     installmentValue,
+    retentionRate: financingRate.retention,
+    retentionValue,
     financingTotal,
   };
 }
@@ -2019,6 +2090,7 @@ function updateBudgetSummary() {
   document.querySelector("#budgetMargin").textContent = formatPercent(totals.margin);
   document.querySelector("#budgetInstallmentValue").textContent = BRL.format(totals.installmentValue);
   document.querySelector("#budgetFinancedBase").textContent = BRL.format(totals.financedBase);
+  document.querySelector("#budgetRetentionValue").textContent = BRL.format(totals.retentionValue);
   document.querySelector("#budgetFinancingTotal").textContent = BRL.format(totals.financingTotal);
   document.querySelector("#budgetDailyTotal").value = BRL.format(totals.dailyTotal);
   updateBudgetTableTotals(calculatedRows, totals);
@@ -2451,6 +2523,7 @@ function buildQuoteDocument(context) {
         ${printField("Total diaria", BRL.format(context.totals.dailyTotal))}
         ${printField("Base financiada", BRL.format(context.totals.financedBase))}
         ${printField("Valor parcela", BRL.format(context.totals.installmentValue))}
+        ${printField("Retencao", BRL.format(context.totals.retentionValue))}
         ${printField("Total financiamento", BRL.format(context.totals.financingTotal))}
       </div>
     </section>
@@ -2602,6 +2675,7 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetCreatedAt").value = formatDateTimeLocal(budget.createdAt || new Date());
   document.querySelector("#budgetStatus").value = budget.status || BUDGET_STATUS[0];
   document.querySelector("#budgetEntry").value = formatMoneyInput(settings.entry);
+  document.querySelector("#budgetEntryTerm").value = String(settings.entryTerm || 30);
   document.querySelector("#budgetInstallments").value = String(settings.installments || 0);
   document.querySelector("#budgetDiscountRate").value = settings.discountRate;
   document.querySelector("#budgetReleaseRate").value = settings.releaseRate;
@@ -2620,9 +2694,9 @@ function fillBudgetForm(client) {
   updateBudgetSummary();
 }
 
-function openBudgetEditor(clientId = state.selectedId, options = {}) {
+async function openBudgetEditor(clientId = state.selectedId, options = {}) {
   if (!isAdmin()) return;
-  if (state.budgetEditing && !confirmDiscardBudgetChanges()) return;
+  if (state.budgetEditing && !(await confirmDiscardBudgetChanges())) return;
   state.budgetIsNew = Boolean(options.blank);
   state.selectedId = state.budgetIsNew && !clientId ? null : clientId || state.selectedId;
   state.budgetSourceId = state.budgetIsNew ? null : state.selectedId;
@@ -2631,8 +2705,8 @@ function openBudgetEditor(clientId = state.selectedId, options = {}) {
   renderBudget();
 }
 
-function closeBudgetEditor() {
-  if (!confirmDiscardBudgetChanges()) return;
+async function closeBudgetEditor() {
+  if (!(await confirmDiscardBudgetChanges())) return;
   closeBudgetPrintPreview();
   state.budgetEditing = false;
   state.budgetDirty = false;
@@ -2783,13 +2857,13 @@ function renderBudget() {
   if (editing) fillBudgetForm(sourceBudgetClient());
 }
 
-async function saveBudget() {
+async function saveBudget(options = {}) {
   const client = selectedBudgetClient();
   if (!isAdmin()) return;
   if (!client) {
     alert("Selecione um cliente para salvar o orcamento.");
     elements.budgetClientSelect?.focus();
-    return;
+    return false;
   }
   const settings = readBudgetSettings();
   const rows = readBudgetRows();
@@ -3696,8 +3770,8 @@ elements.authForm.addEventListener("submit", async (event) => {
   }
 });
 
-elements.logoutBtn.addEventListener("click", () => {
-  if (!confirmDiscardProjectChanges() || !confirmDiscardClientDialogChanges() || !confirmDiscardBudgetChanges()) return;
+elements.logoutBtn.addEventListener("click", async () => {
+  if (!confirmDiscardProjectChanges() || !confirmDiscardClientDialogChanges() || !(await confirmDiscardBudgetChanges())) return;
   signOut();
 });
 elements.sidebarToggle?.addEventListener("click", toggleSidebar);
@@ -3712,7 +3786,7 @@ elements.navItems.forEach((item) => {
         alert(error.message || "Nao foi possivel carregar os usuarios.");
       }
     }
-    showView(item.dataset.view);
+    await showView(item.dataset.view);
   });
 });
 
@@ -3797,15 +3871,15 @@ document.querySelector("#backToClients").addEventListener("click", () => showVie
 document.querySelector("#editClientBtn").addEventListener("click", () => {
   openProjectDialog();
 });
-document.querySelector("#clientBudgetBtn")?.addEventListener("click", () => {
+document.querySelector("#clientBudgetBtn")?.addEventListener("click", async () => {
   const client = selectedClient();
-  if (client) showView("budget", client.id);
-  openBudgetEditor(client?.id);
+  if (client) await showView("budget", client.id);
+  await openBudgetEditor(client?.id);
 });
 document.querySelector("#budgetNewBtn")?.addEventListener("click", () => openBudgetEditor(null, { blank: true }));
 document.querySelector("#budgetBackToList")?.addEventListener("click", closeBudgetEditor);
-document.querySelector("#budgetEditClientBtn")?.addEventListener("click", () => {
-  if (!confirmDiscardBudgetChanges()) return;
+document.querySelector("#budgetEditClientBtn")?.addEventListener("click", async () => {
+  if (!(await confirmDiscardBudgetChanges())) return;
   const client = selectedBudgetClient();
   if (client) {
     state.selectedId = client.id;
@@ -3839,6 +3913,7 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
 [
   "#budgetCreatedAt",
   "#budgetEntry",
+  "#budgetEntryTerm",
   "#budgetStatus",
   "#budgetInstallments",
   "#budgetDiscountRate",

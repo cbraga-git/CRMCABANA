@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=71" />
+    <link rel="stylesheet" href="styles.css?v=74" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -347,9 +347,17 @@
                   <label>Entrada
                     <input id="budgetEntry" class="money-input" inputmode="decimal" />
                   </label>
+                  <label>Entrada em
+                    <select id="budgetEntryTerm">
+                      <option value="30">30 dias</option>
+                      <option value="60">60 dias</option>
+                    </select>
+                  </label>
                   <label>Qtd Parcelas
                     <select id="budgetInstallments">
                       <option value="0">Sem financiamento</option>
+                      <option>1</option>
+                      <option>2</option>
                       <option>3</option>
                       <option>4</option>
                       <option>5</option>
@@ -376,6 +384,7 @@
                   </label>
                   <div><span>Base financiada</span><strong id="budgetFinancedBase">R$ 0,00</strong></div>
                   <div><span>Valor parcela</span><strong id="budgetInstallmentValue">R$ 0,00</strong></div>
+                  <div><span>Retenção</span><strong id="budgetRetentionValue">R$ 0,00</strong></div>
                   <div><span>Total financiamento</span><strong id="budgetFinancingTotal">R$ 0,00</strong></div>
                 </div>
               </article>
@@ -741,6 +750,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=83"></script>
+    <script src="app.js?v=85"></script>
   </body>
 </html>
