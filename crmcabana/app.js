@@ -18,10 +18,15 @@ const STATUS = [
   "Entrega Fabrica",
   "Montagem",
   "Negociação",
-  "Fechado Ganho",
-  "Fechado Perdido",
+  "Em Andamento",
+  "Venda Fechada",
+  "Não Fechou",
 ];
 const DEFAULT_STATUS = "Novo";
+const IN_PROGRESS_STATUS = "Em Andamento";
+const WON_STATUS = "Venda Fechada";
+const LOST_STATUS = "Não Fechou";
+const FINISHED_STATUS = [WON_STATUS, LOST_STATUS];
 const FINAL_USE_OPTIONS = ["Alugar", "Residir", "Negociar"];
 const PAYMENT_FACTORS = {
   3: 0.37036340080909302,
@@ -64,8 +69,10 @@ const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
   "Em negociação": "Negociação",
-  Fechado: "Fechado Ganho",
-  Cancelado: "Fechado Perdido",
+  Fechado: WON_STATUS,
+  Cancelado: LOST_STATUS,
+  "Fechado Ganho": WON_STATUS,
+  "Fechado Perdido": LOST_STATUS,
 };
 const DEFAULT_ENVIRONMENTS = [
   "AMBIENTE",
@@ -323,7 +330,7 @@ function normalizeClientActive(value, status = DEFAULT_STATUS) {
   const normalized = String(value || "").trim().toLowerCase();
   if (["nao", "nÃ£o", "não", "no", "false", "0", "n"].includes(normalized)) return "NAO";
   if (["sim", "yes", "true", "1", "s"].includes(normalized)) return "SIM";
-  return status === "Fechado Perdido" ? "NAO" : "SIM";
+  return normalizeLeadStatus(status) === LOST_STATUS ? "NAO" : "SIM";
 }
 
 function clientIsActive(client) {
@@ -365,7 +372,7 @@ function defaultClients() {
       phone: "(11) 98244-0709",
       city: "Sao Paulo",
       state: "SP",
-      status: "Fechado Ganho",
+      status: WON_STATUS,
       owner: "Daniela Moreira",
       cpf: "135.569.258-00",
       address: {
@@ -1005,7 +1012,10 @@ function filteredClients(group) {
   const search = state.search.toLowerCase();
 
   return state.clients.filter((client) => {
-    const matchesStatus = status === "Todos" || client.status === status;
+    const normalizedStatus = normalizeLeadStatus(client.status);
+    const matchesStatus =
+      status === "Todos" ||
+      (status === IN_PROGRESS_STATUS ? normalizedStatus !== DEFAULT_STATUS && !FINISHED_STATUS.includes(normalizedStatus) : normalizedStatus === status);
     const matchesSearch =
       !search ||
       [client.name, client.email, client.phone, client.cpf, client.mobile].some((value) => String(value || "").toLowerCase().includes(search));
@@ -1034,7 +1044,7 @@ function renderDashboard() {
 
   document.querySelector("#totalClients").textContent = clients.length;
   document.querySelector("#totalNegotiating").textContent = clients.filter((client) => client.status === "Negociação").length;
-  document.querySelector("#totalClosed").textContent = clients.filter((client) => client.status === "Fechado Ganho").length;
+  document.querySelector("#totalClosed").textContent = clients.filter((client) => normalizeLeadStatus(client.status) === WON_STATUS).length;
 }
 
 function renderBudgetDashboard() {
@@ -1205,7 +1215,7 @@ function renderClients() {
     statusCell.className = "client-status-cell";
     const statusBadge = document.createElement("span");
     statusBadge.className = `status-badge ${statusClass(client.status)}`;
-    statusBadge.textContent = client.status;
+    statusBadge.textContent = normalizeLeadStatus(client.status);
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
 
