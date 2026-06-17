@@ -1155,6 +1155,31 @@ button:focus-visible {
   color: rgba(255, 255, 255, 0.8);
 }
 
+.legacy-view th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.legacy-view th[data-sort]::after {
+  content: " ⇅";
+  float: right;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.legacy-view th[data-sort].sort-active::after {
+  content: " ↑";
+  color: #ffffff;
+}
+
+.legacy-view th[data-sort].sort-active[data-sort-direction="desc"]::after {
+  content: " ↓";
+}
+
+.legacy-view th[data-sort]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
 .legacy-view tbody tr:nth-child(odd) {
   background: #f5efd8;
 }

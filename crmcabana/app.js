@@ -104,6 +104,8 @@ const state = {
   search: "",
   projectSearch: "",
   budgetSearch: "",
+  clientSort: { key: "created", direction: "desc" },
+  budgetSort: { key: "updatedAt", direction: "desc" },
   budgetEditing: false,
   budgetDirty: false,
   budgetIsNew: false,
@@ -1068,11 +1070,98 @@ function setStatusFilter(group, status) {
   render();
 }
 
+function parseSortableDate(value) {
+  if (!value) return 0;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? 0 : value.getTime();
+  const text = String(value).trim();
+  const brDateTime = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:,\s*|\s+)?(\d{2})?:?(\d{2})?:?(\d{2})?$/);
+  if (brDateTime) {
+    const [, day, month, year, hour = "00", minute = "00", second = "00"] = brDateTime;
+    return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)).getTime() || 0;
+  }
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function compareSortableValues(first, second, direction = "asc") {
+  const multiplier = direction === "desc" ? -1 : 1;
+  const firstEmpty = first === undefined || first === null || first === "";
+  const secondEmpty = second === undefined || second === null || second === "";
+  if (firstEmpty && secondEmpty) return 0;
+  if (firstEmpty) return 1;
+  if (secondEmpty) return -1;
+  if (typeof first === "number" && typeof second === "number") return (first - second) * multiplier;
+  return String(first).localeCompare(String(second), "pt-BR", { numeric: true, sensitivity: "base" }) * multiplier;
+}
+
+function setTableSort(type, key) {
+  const sort = type === "budget" ? state.budgetSort : state.clientSort;
+  const nextDirection = sort.key === key && sort.direction === "asc" ? "desc" : "asc";
+  if (type === "budget") state.budgetSort = { key, direction: nextDirection };
+  else state.clientSort = { key, direction: nextDirection };
+  render();
+}
+
+function updateSortHeaders(type) {
+  const selector = type === "budget" ? "#budgetListCard th[data-sort]" : "#clientsView th[data-sort]";
+  const sort = type === "budget" ? state.budgetSort : state.clientSort;
+  document.querySelectorAll(selector).forEach((header) => {
+    const active = header.dataset.sort === sort.key;
+    header.classList.toggle("sort-active", active);
+    header.dataset.sortDirection = active ? sort.direction : "";
+    header.setAttribute("aria-sort", active ? (sort.direction === "asc" ? "ascending" : "descending") : "none");
+  });
+}
+
+function clientSortValue(client, key) {
+  const values = {
+    name: client.name || "",
+    mobile: client.mobile || "",
+    phone: client.phone || "",
+    status: normalizeLeadStatus(client.status),
+    leadHunter: client.leadHunter || "",
+    street: client.address?.street || "",
+    number: Number(client.address?.number) || client.address?.number || "",
+    complement: client.address?.complement || "",
+    district: client.address?.district || "",
+    finalUse: client.finalUse || "",
+    email: client.email || "",
+    created: parseSortableDate(client.project?.created || client.createdAt || client.updatedAt),
+  };
+  return values[key] ?? "";
+}
+
+function sortClients(clients) {
+  const { key, direction } = state.clientSort;
+  return [...clients].sort((first, second) => compareSortableValues(clientSortValue(first, key), clientSortValue(second, key), direction));
+}
+
+function budgetSortValue(item, key) {
+  const totals = budgetSummary(item.budget);
+  const values = {
+    code: budgetCodeSequence(item.budget.code),
+    client: item.client.name || "",
+    seller: responsibleSeller(item.client),
+    status: item.budget.status || "",
+    gross: totals.gross,
+    cost: totals.cost,
+    profit: totals.profit,
+    margin: totals.margin,
+    updatedAt: parseSortableDate(item.budget.updatedAt || item.budget.createdAt),
+  };
+  return values[key] ?? "";
+}
+
+function sortBudgets(budgets) {
+  const { key, direction } = state.budgetSort;
+  return [...budgets].sort((first, second) => compareSortableValues(budgetSortValue(first, key), budgetSortValue(second, key), direction));
+}
+
 function filteredClients(group) {
   const status = group === "dashboard" ? state.dashboardStatus : state.clientStatus;
   const search = state.search.toLowerCase();
 
-  return state.clients.filter((client) => {
+  const clients = state.clients.filter((client) => {
     const normalizedStatus = normalizeLeadStatus(client.status);
     const matchesStatus =
       status === "Todos" ||
@@ -1083,6 +1172,7 @@ function filteredClients(group) {
 
     return matchesStatus && (group === "clients" ? matchesSearch : true);
   });
+  return group === "clients" ? sortClients(clients) : clients;
 }
 
 function renderStatusFilters(container, activeStatus, group) {
@@ -1202,6 +1292,7 @@ function renderChart(budgets) {
 
 function renderClients() {
   const clients = filteredClients("clients");
+  updateSortHeaders("clients");
   document.querySelector("#clientCount").textContent = state.clients.length;
   elements.clientRows.innerHTML = "";
 
@@ -2589,7 +2680,7 @@ function dateInRange(value, startDate, endDate) {
 
 function filteredBudgets() {
   const search = state.budgetSearch.toLowerCase();
-  return state.clients
+  const budgets = state.clients
     .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
     .filter(({ client, budget }) => {
       const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
@@ -2598,8 +2689,8 @@ function filteredBudgets() {
       const matchesStatus = state.budgetStatus === "Todos" || budget.status === state.budgetStatus;
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
-    })
-    .sort((first, second) => budgetCodeSequence(first.budget.code) - budgetCodeSequence(second.budget.code));
+    });
+  return sortBudgets(budgets);
 }
 
 function renderBudgetClientOptions() {
@@ -2625,6 +2716,7 @@ function renderBudgetList() {
   const rows = elements.budgetListRows;
   if (!rows) return;
   const budgets = filteredBudgets();
+  updateSortHeaders("budget");
 
   document.querySelector("#budgetCount").textContent = budgets.length;
   rows.innerHTML = "";
@@ -3621,6 +3713,17 @@ elements.navItems.forEach((item) => {
       }
     }
     showView(item.dataset.view);
+  });
+});
+
+document.querySelectorAll("#clientsView th[data-sort], #budgetListCard th[data-sort]").forEach((header) => {
+  const type = header.closest("#budgetListCard") ? "budget" : "clients";
+  const sort = () => setTableSort(type, header.dataset.sort);
+  header.addEventListener("click", sort);
+  header.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    sort();
   });
 });
 

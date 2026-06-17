@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=70" />
+    <link rel="stylesheet" href="styles.css?v=71" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -136,18 +136,18 @@
               <thead>
                 <tr>
                   <th class="folder-column">▲</th>
-                  <th>Nome</th>
-                  <th>Celular</th>
-                  <th>Telefone</th>
-                  <th>Status</th>
-                  <th>Head Lead</th>
-                  <th>Logradouro</th>
-                  <th>Número</th>
-                  <th>Complemento</th>
-                  <th>Bairro</th>
-                  <th>Uso Final</th>
-                  <th>E-mail</th>
-                  <th>Data de cadastro</th>
+                  <th data-sort="name" tabindex="0">Nome</th>
+                  <th data-sort="mobile" tabindex="0">Celular</th>
+                  <th data-sort="phone" tabindex="0">Telefone</th>
+                  <th data-sort="status" tabindex="0">Status</th>
+                  <th data-sort="leadHunter" tabindex="0">Head Lead</th>
+                  <th data-sort="street" tabindex="0">Logradouro</th>
+                  <th data-sort="number" tabindex="0">Número</th>
+                  <th data-sort="complement" tabindex="0">Complemento</th>
+                  <th data-sort="district" tabindex="0">Bairro</th>
+                  <th data-sort="finalUse" tabindex="0">Uso Final</th>
+                  <th data-sort="email" tabindex="0">E-mail</th>
+                  <th data-sort="created" tabindex="0">Data de cadastro</th>
                 </tr>
               </thead>
               <tbody id="clientRows"></tbody>
@@ -256,15 +256,15 @@
               <thead>
                 <tr>
                   <th class="folder-column">▲</th>
-                  <th>ID Orçamento</th>
-                  <th>Cliente</th>
-                  <th>Vendedor</th>
-                  <th>Status</th>
-                  <th>Total ambientes</th>
-                  <th>Custo total</th>
-                  <th>Lucro</th>
-                  <th>Margem</th>
-                  <th>Atualizado em</th>
+                  <th data-sort="code" tabindex="0">ID Orçamento</th>
+                  <th data-sort="client" tabindex="0">Cliente</th>
+                  <th data-sort="seller" tabindex="0">Vendedor</th>
+                  <th data-sort="status" tabindex="0">Status</th>
+                  <th data-sort="gross" tabindex="0">Total ambientes</th>
+                  <th data-sort="cost" tabindex="0">Custo total</th>
+                  <th data-sort="profit" tabindex="0">Lucro</th>
+                  <th data-sort="margin" tabindex="0">Margem</th>
+                  <th data-sort="updatedAt" tabindex="0">Atualizado em</th>
                 </tr>
               </thead>
               <tbody id="budgetListRows"></tbody>
@@ -741,6 +741,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=82"></script>
+    <script src="app.js?v=83"></script>
   </body>
 </html>
