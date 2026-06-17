@@ -99,7 +99,7 @@
             </div>
           </header>
 
-          <section class="filters-card clients-dashboard-filters" aria-label="Filtros do dashboard de clientes">
+          <section class="filters-card clients-dashboard-filters" id="clientsDashboardFilters" aria-label="Filtros do dashboard de clientes">
             <div>
               <span class="filter-title">Status</span>
               <div class="status-filters" data-filter-group="dashboard"></div>
@@ -116,7 +116,7 @@
             </div>
           </section>
 
-          <section class="stats-grid" aria-label="Indicadores principais">
+          <section class="stats-grid" id="clientsDashboardStats" aria-label="Indicadores principais">
             <article class="stat-card">
               <span class="stat-icon brown">@</span>
               <div><span>Clientes</span><strong id="totalClients">0</strong></div>
@@ -140,7 +140,6 @@
                   <th>Celular</th>
                   <th>Telefone</th>
                   <th>Status</th>
-                  <th>Ativo</th>
                   <th>Head Lead</th>
                   <th>Logradouro</th>
                   <th>Número</th>
@@ -572,6 +571,12 @@
               <option>Fechado Perdido</option>
             </select>
           </label>
+          <label>Ativo
+            <select id="formActive">
+              <option>SIM</option>
+              <option value="NAO">NÃO</option>
+            </select>
+          </label>
           <label>Uso Final
             <select id="formFinalUse">
               <option value="">Selecione</option>
@@ -632,6 +637,12 @@
                 <option>Negociação</option>
                 <option>Fechado Ganho</option>
                 <option>Fechado Perdido</option>
+              </select>
+            </label>
+            <label>Ativo
+              <select id="editActive">
+                <option>SIM</option>
+                <option value="NAO">NÃO</option>
               </select>
             </label>
             <label>Uso Final

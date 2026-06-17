@@ -107,6 +107,8 @@ const state = {
   projectAction: "stay",
   projectReturnView: "clients",
   projectInlineEditing: false,
+  projectDirty: false,
+  clientDialogDirty: false,
   returnView: "clients",
   clients: [],
   environments: [],
@@ -138,6 +140,8 @@ const elements = {
   budgetStartDate: document.querySelector("#budgetStartDate"),
   budgetEndDate: document.querySelector("#budgetEndDate"),
   clientsHeader: document.querySelector("#clientsHeader"),
+  clientsDashboardFilters: document.querySelector("#clientsDashboardFilters"),
+  clientsDashboardStats: document.querySelector("#clientsDashboardStats"),
   clientsListCard: document.querySelector("#clientsListCard"),
   clientInlineEditor: document.querySelector("#clientInlineEditor"),
   clientRows: document.querySelector("#clientRows"),
@@ -314,10 +318,28 @@ function normalizeFinalUse(value) {
   return "";
 }
 
+function normalizeClientActive(value, status = DEFAULT_STATUS) {
+  if (typeof value === "boolean") return value ? "SIM" : "NAO";
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["nao", "nÃ£o", "não", "no", "false", "0", "n"].includes(normalized)) return "NAO";
+  if (["sim", "yes", "true", "1", "s"].includes(normalized)) return "SIM";
+  return status === "Fechado Perdido" ? "NAO" : "SIM";
+}
+
+function clientIsActive(client) {
+  return normalizeClientActive(client?.active, client?.status) === "SIM";
+}
+
+function clientCanHaveBudget(client) {
+  return clientIsActive(client) && normalizeLeadStatus(client?.status) !== DEFAULT_STATUS;
+}
+
 function normalizeClientStatus(client) {
+  const status = normalizeLeadStatus(client.status);
   return {
     ...client,
-    status: normalizeLeadStatus(client.status),
+    status,
+    active: normalizeClientActive(client.active, status),
     finalUse: FINAL_USE_OPTIONS.includes(client.finalUse) ? client.finalUse : normalizeFinalUse(client.finalUse),
     leadHunter: client.leadHunter || "",
   };
@@ -908,18 +930,47 @@ function statusClass(status) {
   return `status-${normalized}`;
 }
 
+function confirmDiscardProjectChanges() {
+  return !state.projectDirty || confirm("Existem alteracoes nao salvas no cadastro. Deseja sair sem salvar?");
+}
+
+function confirmDiscardClientDialogChanges() {
+  return !state.clientDialogDirty || confirm("Existem alteracoes nao salvas no cadastro. Deseja sair sem salvar?");
+}
+
+function confirmDiscardBudgetChanges() {
+  return !state.budgetDirty || confirm("Existem alteracoes nao salvas no orcamento. Deseja sair sem salvar?");
+}
+
+function markProjectDirty() {
+  state.projectDirty = true;
+}
+
 function showView(view, selectedId) {
   if ((view === "users" || view === "budget") && !isAdmin()) {
     view = "clients";
   }
 
   const previousView = state.view;
+  if (state.projectInlineEditing && !confirmDiscardProjectChanges()) return;
+  if (state.budgetEditing && view !== "budget" && !confirmDiscardBudgetChanges()) return;
+
   if (view === "detail") {
     openClientRegistration(selectedId || state.selectedId, previousView);
     return;
   }
   if (state.projectInlineEditing) {
+    state.projectDirty = false;
     setClientInlineEditing(false);
+  }
+  if (state.budgetEditing && view !== "budget") {
+    closeBudgetPrintPreview();
+    state.budgetEditing = false;
+    state.budgetDirty = false;
+    state.budgetIsNew = false;
+    state.budgetSourceId = null;
+    state.budgetEditingId = null;
+    state.budgetDraft = null;
   }
 
   state.view = view;
@@ -940,7 +991,10 @@ function showView(view, selectedId) {
 }
 
 function setStatusFilter(group, status) {
-  if (group === "dashboard") state.dashboardStatus = status;
+  if (group === "dashboard") {
+    state.dashboardStatus = status;
+    state.clientStatus = status;
+  }
   if (group === "clients") state.clientStatus = status;
   if (group === "budget") state.budgetStatus = status;
   render();
@@ -1119,7 +1173,7 @@ function renderClients() {
   elements.clientRows.innerHTML = "";
 
   if (!clients.length) {
-    elements.clientRows.innerHTML = '<tr><td colspan="14" class="empty-state">Nenhum cliente encontrado</td></tr>';
+    elements.clientRows.innerHTML = '<tr><td colspan="13" class="empty-state">Nenhum cliente encontrado</td></tr>';
     return;
   }
 
@@ -1154,14 +1208,6 @@ function renderClients() {
     statusBadge.textContent = client.status;
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
-
-    const activeCell = document.createElement("td");
-    activeCell.className = "client-active-cell";
-    const activeBadge = document.createElement("span");
-    activeBadge.className = "active-badge";
-    activeBadge.textContent = client.status === "Fechado Perdido" ? "Não" : "Sim";
-    activeCell.appendChild(activeBadge);
-    row.appendChild(activeCell);
 
     [
       { className: "client-lead-cell", value: client.leadHunter || "-" },
@@ -1410,7 +1456,8 @@ function currentBudgetDraft() {
 
 function selectedBudgetClient() {
   const id = elements.budgetClientSelect?.value || state.selectedId;
-  return state.clients.find((client) => client.id === id) || null;
+  const client = state.clients.find((item) => item.id === id) || null;
+  return client && clientCanHaveBudget(client) ? client : null;
 }
 
 function sourceBudgetClient() {
@@ -2080,6 +2127,7 @@ function fillBudgetForm(client) {
 
 function openBudgetEditor(clientId = state.selectedId, options = {}) {
   if (!isAdmin()) return;
+  if (state.budgetEditing && !confirmDiscardBudgetChanges()) return;
   state.budgetIsNew = Boolean(options.blank);
   state.selectedId = state.budgetIsNew && !clientId ? null : clientId || state.selectedId;
   state.budgetSourceId = state.budgetIsNew ? null : state.selectedId;
@@ -2089,7 +2137,7 @@ function openBudgetEditor(clientId = state.selectedId, options = {}) {
 }
 
 function closeBudgetEditor() {
-  if (state.budgetDirty && !confirm("Descartar alteracoes do orçamento atual?")) return;
+  if (!confirmDiscardBudgetChanges()) return;
   closeBudgetPrintPreview();
   state.budgetEditing = false;
   state.budgetDirty = false;
@@ -2159,13 +2207,14 @@ function renderBudgetClientOptions() {
   placeholderOption.textContent = "Selecione um cliente";
   placeholderOption.selected = !selectedId;
   elements.budgetClientSelect.appendChild(placeholderOption);
-  state.clients.forEach((client) => {
+  const availableClients = state.clients.filter(clientCanHaveBudget);
+  availableClients.forEach((client) => {
     const option = document.createElement("option");
     option.value = client.id;
     option.textContent = client.name || client.id;
     elements.budgetClientSelect.appendChild(option);
   });
-  elements.budgetClientSelect.value = state.clients.some((client) => client.id === selectedId) ? selectedId : "";
+  elements.budgetClientSelect.value = availableClients.some((client) => client.id === selectedId) ? selectedId : "";
 }
 
 function renderBudgetList() {
@@ -2354,10 +2403,12 @@ function openClientDialog(client) {
   document.querySelector("#formPhone").value = client ? client.phone : "";
   document.querySelector("#formCity").value = client ? client.city : "";
   document.querySelector("#formStatus").value = client ? normalizeLeadStatus(client.status) : DEFAULT_STATUS;
+  document.querySelector("#formActive").value = client ? normalizeClientActive(client.active, client.status) : "SIM";
   document.querySelector("#formFinalUse").value = client ? client.finalUse || "" : "";
   document.querySelector("#formLeadHunter").value = client ? client.leadHunter || "" : "";
   document.querySelector("#formCreated").value = client ? client.project.created || "" : registrationDateTime();
   document.querySelector("#formCreatedBy").value = client ? registeredBy(client) : currentUserName();
+  state.clientDialogDirty = false;
   elements.dialog.showModal();
 }
 
@@ -2453,6 +2504,7 @@ function createEnvironmentRow(environment = { name: "", budget: 0, factory: 0, a
   removeButton.addEventListener("click", () => {
     if (elements.projectRows.children.length > 1) {
       row.remove();
+      markProjectDirty();
     }
   });
   actionCell.appendChild(removeButton);
@@ -2507,6 +2559,7 @@ function blankClient() {
     city: "",
     state: "",
     status: DEFAULT_STATUS,
+    active: "SIM",
     createdBy: currentUserName(),
     owner: currentUserName(),
     cpf: "",
@@ -2523,18 +2576,23 @@ function blankClient() {
 function setClientInlineEditing(editing) {
   state.projectInlineEditing = editing;
   elements.clientsHeader.hidden = editing;
+  elements.clientsDashboardFilters.hidden = editing;
+  elements.clientsDashboardStats.hidden = editing;
   elements.clientsListCard.hidden = editing;
   elements.clientInlineEditor.hidden = !editing;
 }
 
 function closeProjectForm() {
+  if (!confirmDiscardProjectChanges()) return false;
+  state.projectDirty = false;
   if (state.projectInlineEditing) {
     setClientInlineEditing(false);
     state.projectAction = "stay";
     renderClients();
-    return;
+    return true;
   }
   elements.projectDialog.close();
+  return true;
 }
 
 function mountProjectForm(inline = false) {
@@ -2573,6 +2631,7 @@ function openProjectDialog(client = selectedClient(), options = {}) {
   document.querySelector("#editMobile").value = editableClient.mobile || "";
   document.querySelector("#editEmail").value = editableClient.email || "";
   document.querySelector("#editStatus").value = normalizeLeadStatus(editableClient.status || DEFAULT_STATUS);
+  document.querySelector("#editActive").value = normalizeClientActive(editableClient.active, editableClient.status);
   document.querySelector("#editFinalUse").value = editableClient.finalUse || "";
   document.querySelector("#editLeadHunter").value = editableClient.leadHunter || "";
   document.querySelector("#editOwner").value = editableClient.owner || "";
@@ -2594,6 +2653,7 @@ function openProjectDialog(client = selectedClient(), options = {}) {
     : [{ name: "", budget: 0, factory: 0, assembly: 0 }];
   environments.forEach((environment) => elements.projectRows.appendChild(createEnvironmentRow(environment)));
 
+  state.projectDirty = false;
   if (!inline) elements.projectDialog.showModal();
 }
 
@@ -2693,6 +2753,7 @@ async function saveProjectFromDialog(event) {
     mobile: document.querySelector("#editMobile").value.trim(),
     email: document.querySelector("#editEmail").value.trim(),
     status: document.querySelector("#editStatus").value,
+    active: normalizeClientActive(document.querySelector("#editActive").value, document.querySelector("#editStatus").value),
     finalUse: document.querySelector("#editFinalUse").value,
     leadHunter: document.querySelector("#editLeadHunter").value.trim(),
     owner: document.querySelector("#editOwner").value.trim() || currentUserName(),
@@ -2724,6 +2785,7 @@ async function saveProjectFromDialog(event) {
   state.selectedId = savedClient.id;
   await saveClients();
   refreshEnvironmentCatalog(environments.map((environment) => environment.name));
+  state.projectDirty = false;
   render();
 
   if (state.projectReturnView === "budget" && state.budgetEditing && state.budgetDraft) {
@@ -2790,6 +2852,7 @@ async function saveClientFromDialog(event) {
         phone: document.querySelector("#formPhone").value.trim(),
         city: document.querySelector("#formCity").value.trim(),
         status: document.querySelector("#formStatus").value,
+        active: normalizeClientActive(document.querySelector("#formActive").value, document.querySelector("#formStatus").value),
         finalUse: document.querySelector("#formFinalUse").value,
         leadHunter: document.querySelector("#formLeadHunter").value.trim(),
         createdBy: client.createdBy || document.querySelector("#formCreatedBy").value.trim() || currentUserName(),
@@ -2800,6 +2863,7 @@ async function saveClientFromDialog(event) {
       };
     });
     await saveClients();
+    state.clientDialogDirty = false;
     elements.dialog.close();
     render();
     return;
@@ -2814,6 +2878,7 @@ async function saveClientFromDialog(event) {
     city: document.querySelector("#formCity").value.trim(),
     state: "",
     status: document.querySelector("#formStatus").value,
+    active: normalizeClientActive(document.querySelector("#formActive").value, document.querySelector("#formStatus").value),
     finalUse: document.querySelector("#formFinalUse").value,
     leadHunter: document.querySelector("#formLeadHunter").value.trim(),
     createdBy: document.querySelector("#formCreatedBy").value.trim() || currentUserName(),
@@ -2831,15 +2896,16 @@ async function saveClientFromDialog(event) {
   state.clients.unshift(client);
   state.selectedId = client.id;
   await saveClients();
+  state.clientDialogDirty = false;
   elements.dialog.close();
   openClientRegistration(client.id, "clients");
 }
 
 function exportCsv() {
-  const rows = [["Nome", "Email", "Telefone", "Cidade", "Status", "Faturamento", "Lucro"]];
+  const rows = [["Nome", "Email", "Telefone", "Cidade", "Status", "Ativo", "Faturamento", "Lucro"]];
   state.clients.forEach((client) => {
     const totals = clientTotals(client);
-    rows.push([client.name, client.email, client.phone, client.city, client.status, totals.revenue, totals.profit]);
+    rows.push([client.name, client.email, client.phone, client.city, client.status, normalizeClientActive(client.active, client.status), totals.revenue, totals.profit]);
   });
 
   const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")).join("\n");
@@ -2951,6 +3017,7 @@ function importedLeadToClient(record, index) {
     city: (record.cidade || "").trim(),
     state: (record.estado || "").trim(),
     status: normalizeLeadStatus((record.status || "").trim()),
+    active: normalizeClientActive(record.ativo, (record.status || "").trim()),
     createdBy: "Importacao LEADS",
     owner: (record.vendedor_responsavel || "").trim() || currentUserName(),
     cpf: (record.cpf_cnpj || "").trim(),
@@ -3059,9 +3126,15 @@ document.addEventListener("keydown", (event) => {
   focusNextEditableField(event.target);
 });
 
+window.addEventListener("beforeunload", (event) => {
+  if (!state.projectDirty && !state.budgetDirty && !state.clientDialogDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
-  renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
+  renderStatusFilters(elements.clientFilters, state.dashboardStatus, "clients");
   renderStatusFilters(elements.budgetFilters, state.budgetStatus, "budget");
   renderDashboard();
   renderClients();
@@ -3127,7 +3200,10 @@ elements.authForm.addEventListener("submit", async (event) => {
   }
 });
 
-elements.logoutBtn.addEventListener("click", signOut);
+elements.logoutBtn.addEventListener("click", () => {
+  if (!confirmDiscardProjectChanges() || !confirmDiscardClientDialogChanges() || !confirmDiscardBudgetChanges()) return;
+  signOut();
+});
 elements.sidebarToggle?.addEventListener("click", toggleSidebar);
 
 elements.navItems.forEach((item) => {
@@ -3139,9 +3215,6 @@ elements.navItems.forEach((item) => {
         console.warn(error);
         alert(error.message || "Nao foi possivel carregar os usuarios.");
       }
-    }
-    if (item.dataset.view === "budget") {
-      state.budgetEditing = false;
     }
     showView(item.dataset.view);
   });
@@ -3206,6 +3279,7 @@ document.querySelector("#clientBudgetBtn")?.addEventListener("click", () => {
 document.querySelector("#budgetNewBtn")?.addEventListener("click", () => openBudgetEditor(null, { blank: true }));
 document.querySelector("#budgetBackToList")?.addEventListener("click", closeBudgetEditor);
 document.querySelector("#budgetEditClientBtn")?.addEventListener("click", () => {
+  if (!confirmDiscardBudgetChanges()) return;
   const client = selectedBudgetClient();
   if (client) {
     state.selectedId = client.id;
@@ -3269,17 +3343,43 @@ document.querySelector("#budgetDailyValue")?.addEventListener("blur", (event) =>
   event.target.value = formatMoneyInput(event.target.value);
   updateBudgetSummary();
 });
+["input", "change"].forEach((eventName) => {
+  elements.projectForm.addEventListener(eventName, markProjectDirty);
+  elements.form.addEventListener(eventName, () => {
+    state.clientDialogDirty = true;
+  });
+});
+elements.projectDialog.addEventListener("cancel", (event) => {
+  if (confirmDiscardProjectChanges()) {
+    state.projectDirty = false;
+    return;
+  }
+  event.preventDefault();
+});
+elements.dialog.addEventListener("cancel", (event) => {
+  if (confirmDiscardClientDialogChanges()) {
+    state.clientDialogDirty = false;
+    state.editingId = null;
+    return;
+  }
+  event.preventDefault();
+});
 document.querySelector("#addEnvironmentBtn").addEventListener("click", () => {
   const row = createEnvironmentRow({ name: "", budget: 0, factory: 0, assembly: 0 });
   elements.projectRows.appendChild(row);
+  markProjectDirty();
   focusEmptyEnvironmentSelect(row.querySelector('select[data-field="name"]'));
 });
 document.querySelector("#closeDialog").addEventListener("click", () => {
+  if (!confirmDiscardClientDialogChanges()) return;
   state.editingId = null;
+  state.clientDialogDirty = false;
   elements.dialog.close();
 });
 document.querySelector("#cancelDialog").addEventListener("click", () => {
+  if (!confirmDiscardClientDialogChanges()) return;
   state.editingId = null;
+  state.clientDialogDirty = false;
   elements.dialog.close();
 });
 document.querySelector("#closeProjectDialog").addEventListener("click", closeProjectForm);
@@ -3305,6 +3405,7 @@ document.querySelector("#deleteProjectBtn").addEventListener("click", async () =
     state.clients = state.clients.filter((item) => item.id !== client.id);
     state.selectedId = state.clients[0]?.id || null;
     await saveClients();
+    state.projectDirty = false;
     closeProjectForm();
     showView(state.projectReturnView || "clients");
     render();
