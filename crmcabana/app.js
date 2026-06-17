@@ -9,6 +9,7 @@ const ENVIRONMENT_STORAGE_KEY = "movelcrm-environments";
 const SIDEBAR_COLLAPSED_KEY = "movelcrm-sidebar-collapsed";
 const STATUS = [
   "Todos",
+  "Em Andamento",
   "Novo",
   "Contato Realizado",
   "Visita Agendada",
@@ -18,7 +19,6 @@ const STATUS = [
   "Entrega Fabrica",
   "Montagem",
   "Negociação",
-  "Em Andamento",
   "Venda Fechada",
   "Não Fechou",
 ];
