@@ -93,6 +93,7 @@ const state = {
   session: null,
   userRole: "user",
   userProfiles: [],
+  userLogs: [],
   authMode: "signin",
   view: "clients",
   dashboardStatus: "Todos",
@@ -139,6 +140,11 @@ const elements = {
   usersNavItem: document.querySelector("#usersNavItem"),
   budgetNavItem: document.querySelector("#budgetNavItem"),
   userRows: document.querySelector("#userRows"),
+  userLogRows: document.querySelector("#userLogRows"),
+  userAdminForm: document.querySelector("#userAdminForm"),
+  newUserEmail: document.querySelector("#newUserEmail"),
+  newUserPassword: document.querySelector("#newUserPassword"),
+  newUserRole: document.querySelector("#newUserRole"),
   navItems: document.querySelectorAll(".nav-item"),
   views: document.querySelectorAll(".view"),
   dashboardFilters: document.querySelector('[data-filter-group="dashboard"]'),
@@ -224,6 +230,16 @@ function supabaseEndpoint(path = "") {
 function supabaseProfilesEndpoint(path = "") {
   const baseUrl = CONFIG.supabaseUrl.replace(/\/$/, "");
   return `${baseUrl}/rest/v1/${CONFIG.profilesTable || "crm_profiles"}${path}`;
+}
+
+function supabaseTableEndpoint(table, path = "") {
+  const baseUrl = CONFIG.supabaseUrl.replace(/\/$/, "");
+  return `${baseUrl}/rest/v1/${table}${path}`;
+}
+
+function supabaseRpcEndpoint(functionName) {
+  const baseUrl = CONFIG.supabaseUrl.replace(/\/$/, "");
+  return `${baseUrl}/rest/v1/rpc/${functionName}`;
 }
 
 function authHeaders() {
@@ -756,13 +772,23 @@ async function ensureUserProfile() {
 
   const email = state.session?.user?.email || "";
   try {
-    const response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,updated_at`), {
+    let response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,blocked,updated_at`), {
       headers: supabaseHeaders(),
     });
+    if (!response.ok) {
+      response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,updated_at`), {
+        headers: supabaseHeaders(),
+      });
+    }
     if (!response.ok) throw new Error("profiles_unavailable");
 
     const rows = await response.json();
     if (rows[0]) {
+      if (rows[0].blocked) {
+        alert("Usuario bloqueado. Fale com um administrador.");
+        await signOut();
+        return;
+      }
       state.userRole = rows[0].role === "admin" ? "admin" : "user";
       return;
     }
@@ -770,7 +796,7 @@ async function ensureUserProfile() {
     const createResponse = await fetch(supabaseProfilesEndpoint(), {
       method: "POST",
       headers: supabaseHeaders(),
-      body: JSON.stringify({ id: currentUserId(), email, role: "user" }),
+      body: JSON.stringify({ id: currentUserId(), email, role: "user", blocked: false }),
     });
     if (!createResponse.ok) throw new Error("profile_create_failed");
     state.userRole = "user";
@@ -783,31 +809,66 @@ async function ensureUserProfile() {
 async function loadUserProfiles() {
   if (!remoteDatabaseEnabled() || !currentUserId() || !isAdmin()) {
     state.userProfiles = [];
+    state.userLogs = [];
     return;
   }
 
-  const response = await fetch(supabaseProfilesEndpoint("?select=id,email,role,updated_at&order=email.asc"), {
+  let response = await fetch(supabaseProfilesEndpoint("?select=id,email,role,blocked,updated_at&order=email.asc"), {
     headers: supabaseHeaders(),
   });
+  if (!response.ok) {
+    response = await fetch(supabaseProfilesEndpoint("?select=id,email,role,updated_at&order=email.asc"), {
+      headers: supabaseHeaders(),
+    });
+  }
   if (!response.ok) throw new Error("Nao foi possivel carregar os usuarios.");
   state.userProfiles = await response.json();
+
+  const logsResponse = await fetch(supabaseTableEndpoint("crm_audit_logs", "?select=created_at,action,target_user_id,target_email,details,actor_email&order=created_at.desc&limit=50"), {
+    headers: supabaseHeaders(),
+  });
+  state.userLogs = logsResponse.ok ? await logsResponse.json() : [];
 }
 
-async function updateUserRole(userId, role) {
-  if (!isAdmin()) return;
-
-  const response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(userId)}`), {
-    method: "PATCH",
-    headers: supabaseHeaders(),
-    body: JSON.stringify({ role, updated_at: new Date().toISOString() }),
+async function callAdminRpc(functionName, payload) {
+  const response = await fetch(supabaseRpcEndpoint(functionName), {
+    method: "POST",
+    headers: supabaseHeaders("return=representation"),
+    body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error("Nao foi possivel atualizar o perfil do usuario.");
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const details = [data?.message, data?.hint, data?.details].filter(Boolean).join(" ");
+    const schemaCacheMissing = data?.code === "PGRST202" || /schema cache|Could not find the function/i.test(details);
+    const message = schemaCacheMissing
+      ? "Funcao administrativa nao encontrada no Supabase. Rode o supabase-schema.sql atualizado no SQL Editor e tente novamente."
+      : data?.message || data?.error_description || data?.hint || "Nao foi possivel executar a acao.";
+    throw new Error(message);
+  }
+  return data;
+}
+
+async function createManagedUser(email, password, role) {
+  await callAdminRpc("crm_admin_create_user", { user_email: email, user_password: password, user_role: role });
+  await loadUserProfiles();
+  renderUsers();
+}
+
+async function updateUserProfile(userId, role, blocked, email) {
+  if (!isAdmin()) return;
+  await callAdminRpc("crm_admin_update_user", { target_user_id: userId, user_email: email, user_role: role, user_blocked: blocked });
 
   if (userId === currentUserId()) {
     state.userRole = role;
     showAuthenticatedApp();
     if (!isAdmin()) showView("clients");
   }
+  await loadUserProfiles();
+  renderUsers();
+}
+
+async function updateUserPassword(userId, password) {
+  await callAdminRpc("crm_admin_set_password", { target_user_id: userId, user_password: password });
   await loadUserProfiles();
   renderUsers();
 }
@@ -1316,22 +1377,26 @@ function renderProjects() {
 function renderUsers() {
   if (!elements.userRows) return;
   elements.userRows.innerHTML = "";
+  if (elements.userLogRows) elements.userLogRows.innerHTML = "";
 
   if (!isAdmin()) {
-    elements.userRows.innerHTML = '<tr><td colspan="3" class="empty-state">Acesso restrito a administradores</td></tr>';
+    elements.userRows.innerHTML = '<tr><td colspan="5" class="empty-state">Acesso restrito a administradores</td></tr>';
     return;
   }
 
   if (!state.userProfiles.length) {
-    elements.userRows.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhum usuario encontrado</td></tr>';
-    return;
+    elements.userRows.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum usuario encontrado</td></tr>';
   }
 
   state.userProfiles.forEach((profile) => {
     const row = document.createElement("tr");
 
     const emailCell = document.createElement("td");
-    emailCell.textContent = profile.email || profile.id;
+    const emailInput = document.createElement("input");
+    emailInput.type = "email";
+    emailInput.value = profile.email || "";
+    emailInput.disabled = profile.id === currentUserId();
+    emailCell.appendChild(emailInput);
     row.appendChild(emailCell);
 
     const roleCell = document.createElement("td");
@@ -1347,26 +1412,101 @@ function renderUsers() {
       roleSelect.appendChild(option);
     });
     roleSelect.value = profile.role === "admin" ? "admin" : "user";
-    roleSelect.addEventListener("change", async () => {
-      roleSelect.disabled = true;
-      try {
-        await updateUserRole(profile.id, roleSelect.value);
-      } catch (error) {
-        console.warn(error);
-        alert(error.message || "Nao foi possivel atualizar o usuario.");
-        roleSelect.value = profile.role === "admin" ? "admin" : "user";
-      } finally {
-        roleSelect.disabled = false;
-      }
-    });
     roleCell.appendChild(roleSelect);
     row.appendChild(roleCell);
+
+    const statusCell = document.createElement("td");
+    const blocked = Boolean(profile.blocked);
+    statusCell.textContent = blocked ? "Bloqueado" : "Ativo";
+    row.appendChild(statusCell);
 
     const updatedCell = document.createElement("td");
     updatedCell.textContent = profile.updated_at ? new Date(profile.updated_at).toLocaleString("pt-BR") : "-";
     row.appendChild(updatedCell);
 
+    const actionsCell = document.createElement("td");
+    actionsCell.className = "user-actions";
+
+    const saveButton = document.createElement("button");
+    saveButton.className = "button secondary compact";
+    saveButton.type = "button";
+    saveButton.textContent = "Salvar";
+    saveButton.addEventListener("click", async () => {
+      saveButton.disabled = true;
+      try {
+        await updateUserProfile(profile.id, roleSelect.value, blocked, emailInput.value.trim());
+      } catch (error) {
+        console.warn(error);
+        alert(error.message || "Nao foi possivel atualizar o usuario.");
+      } finally {
+        saveButton.disabled = false;
+      }
+    });
+
+    const blockButton = document.createElement("button");
+    blockButton.className = "button secondary compact";
+    blockButton.type = "button";
+    blockButton.textContent = blocked ? "Desbloquear" : "Bloquear";
+    blockButton.disabled = profile.id === currentUserId();
+    blockButton.addEventListener("click", async () => {
+      if (!confirm(`${blocked ? "Desbloquear" : "Bloquear"} este usuario?`)) return;
+      blockButton.disabled = true;
+      try {
+        await updateUserProfile(profile.id, roleSelect.value, !blocked, emailInput.value.trim());
+      } catch (error) {
+        console.warn(error);
+        alert(error.message || "Nao foi possivel atualizar o usuario.");
+      }
+    });
+
+    const passwordButton = document.createElement("button");
+    passwordButton.className = "button secondary compact";
+    passwordButton.type = "button";
+    passwordButton.textContent = "Senha";
+    passwordButton.addEventListener("click", async () => {
+      const password = prompt("Digite a nova senha (minimo 6 caracteres):");
+      if (password === null) return;
+      if (password.length < 6) {
+        alert("A senha deve ter pelo menos 6 caracteres.");
+        return;
+      }
+      passwordButton.disabled = true;
+      try {
+        await updateUserPassword(profile.id, password);
+        alert("Senha atualizada.");
+      } catch (error) {
+        console.warn(error);
+        alert(error.message || "Nao foi possivel alterar a senha.");
+      } finally {
+        passwordButton.disabled = false;
+      }
+    });
+
+    actionsCell.append(saveButton, blockButton, passwordButton);
+    row.appendChild(actionsCell);
+
     elements.userRows.appendChild(row);
+  });
+
+  if (!elements.userLogRows) return;
+  if (!state.userLogs.length) {
+    elements.userLogRows.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma acao registrada</td></tr>';
+    return;
+  }
+  state.userLogs.forEach((log) => {
+    const row = document.createElement("tr");
+    [
+      log.created_at ? new Date(log.created_at).toLocaleString("pt-BR") : "-",
+      log.actor_email || "-",
+      log.action || "-",
+      log.target_email || log.target_user_id || "-",
+      log.details ? JSON.stringify(log.details) : "-",
+    ].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+    elements.userLogRows.appendChild(row);
   });
 }
 
@@ -3248,6 +3388,25 @@ elements.environmentForm?.addEventListener("submit", (event) => {
     return;
   }
   elements.environmentNameInput?.focus();
+});
+
+elements.userAdminForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = elements.newUserEmail.value.trim();
+  const password = elements.newUserPassword.value;
+  const role = elements.newUserRole.value === "admin" ? "admin" : "user";
+  if (!email || password.length < 6) return;
+  const submitButton = elements.userAdminForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  try {
+    await createManagedUser(email, password, role);
+    elements.userAdminForm.reset();
+  } catch (error) {
+    console.warn(error);
+    alert(error.message || "Nao foi possivel cadastrar o usuario.");
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 elements.clientSearch.addEventListener("input", (event) => {

@@ -459,16 +459,48 @@
             </div>
           </header>
 
+          <form class="user-admin-form" id="userAdminForm">
+            <label>E-mail<input id="newUserEmail" type="email" autocomplete="off" required /></label>
+            <label>Senha inicial<input id="newUserPassword" type="password" minlength="6" autocomplete="new-password" required /></label>
+            <label>Perfil
+              <select id="newUserRole">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <button class="button primary" type="submit">Cadastrar usuario</button>
+          </form>
+
           <section class="table-card">
             <table>
               <thead>
                 <tr>
                   <th>E-mail</th>
                   <th>Perfil</th>
+                  <th>Status</th>
                   <th>Atualizado em</th>
+                  <th>Acoes</th>
                 </tr>
               </thead>
               <tbody id="userRows"></tbody>
+            </table>
+          </section>
+
+          <section class="table-card user-log-card">
+            <header class="section-heading">
+              <h2>Log de acoes</h2>
+            </header>
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Administrador</th>
+                  <th>Acao</th>
+                  <th>Usuario</th>
+                  <th>Detalhes</th>
+                </tr>
+              </thead>
+              <tbody id="userLogRows"></tbody>
             </table>
           </section>
         </section>
