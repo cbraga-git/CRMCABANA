@@ -23,6 +23,7 @@ const STATUS = [
   "Não Fechou",
 ];
 const DEFAULT_STATUS = "Novo";
+const BUDGET_CLIENT_STATUS = "Orçamento";
 const IN_PROGRESS_STATUS = "Em Andamento";
 const WON_STATUS = "Venda Fechada";
 const LOST_STATUS = "Não Fechou";
@@ -3114,7 +3115,7 @@ function openProjectDialog() {
   elements.projectDialog.showModal();
 }
 
-function blankClient() {
+function blankClient(status = DEFAULT_STATUS) {
   return {
     id: createId(),
     _recordUserId: currentUserId(),
@@ -3128,7 +3129,7 @@ function blankClient() {
     leadHunter: "",
     city: "",
     state: "",
-    status: DEFAULT_STATUS,
+    status,
     active: "SIM",
     createdBy: currentUserName(),
     owner: currentUserName(),
@@ -3180,12 +3181,12 @@ function mountProjectForm(inline = false) {
 
 function openProjectDialog(client = selectedClient(), options = {}) {
   const isNew = !client;
-  const editableClient = client || blankClient();
   const editingProject = state.view === "projects";
   const inline = Boolean(options.inline);
   state.selectedId = client ? client.id : null;
   state.projectAction = "stay";
   state.projectReturnView = ["projects", "budget"].includes(state.view) ? state.view : "clients";
+  const editableClient = client || blankClient(state.projectReturnView === "budget" ? BUDGET_CLIENT_STATUS : DEFAULT_STATUS);
   mountProjectForm(inline);
 
   document.querySelector("#projectForm").reset();
@@ -3306,9 +3307,10 @@ async function saveProjectFromDialog(event) {
 
 async function saveProjectFromDialog(event) {
   event.preventDefault();
-  const client = selectedClient();
+  const client = state.selectedId ? state.clients.find((item) => item.id === state.selectedId) : null;
   const isNew = !client;
-  const baseClient = client || blankClient();
+  const budgetClientRegistration = isNew && state.projectReturnView === "budget";
+  const baseClient = client || blankClient(budgetClientRegistration ? BUDGET_CLIENT_STATUS : DEFAULT_STATUS);
   const name = document.querySelector("#editName").value.trim();
   if (!name) return;
 
@@ -3322,8 +3324,11 @@ async function saveProjectFromDialog(event) {
     phone: document.querySelector("#editPhone").value.trim(),
     mobile: document.querySelector("#editMobile").value.trim(),
     email: document.querySelector("#editEmail").value.trim(),
-    status: document.querySelector("#editStatus").value,
-    active: normalizeClientActive(document.querySelector("#editActive").value, document.querySelector("#editStatus").value),
+    status: budgetClientRegistration ? BUDGET_CLIENT_STATUS : document.querySelector("#editStatus").value,
+    active: normalizeClientActive(
+      document.querySelector("#editActive").value,
+      budgetClientRegistration ? BUDGET_CLIENT_STATUS : document.querySelector("#editStatus").value
+    ),
     finalUse: document.querySelector("#editFinalUse").value,
     leadHunter: document.querySelector("#editLeadHunter").value.trim(),
     owner: document.querySelector("#editOwner").value.trim() || currentUserName(),
