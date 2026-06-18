@@ -2197,8 +2197,8 @@ const CONTRACT_CLAUSES = [
 function printableDocumentStyles() {
   return `<style>
     @page { size: A4; margin: 14mm; }
-    @page order-page { size: A4; margin: 3mm; }
-    @page contract-page { size: A4; margin: 11mm; }
+    @page order-page { size: A4; margin: 3mm 7mm; }
+    @page contract-page { size: A4; margin: 11mm 14mm; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { margin: 0; color: #16120a; font: 12px Arial, sans-serif; }
     .print-document { color: #16120a; font: 12px Arial, sans-serif; }
