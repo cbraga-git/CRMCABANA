@@ -2197,8 +2197,8 @@ const CONTRACT_CLAUSES = [
 function printableDocumentStyles() {
   return `<style>
     @page { size: A4; margin: 14mm; }
-    @page order-page { size: A4; margin: 3mm 7mm; }
-    @page contract-page { size: A4; margin: 11mm 14mm; }
+    @page order-page { size: A4; margin: 3mm 4mm; }
+    @page contract-page { size: A4; margin: 11mm 12mm; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { margin: 0; color: #16120a; font: 12px Arial, sans-serif; }
     .print-document { color: #16120a; font: 12px Arial, sans-serif; }
@@ -2207,8 +2207,8 @@ function printableDocumentStyles() {
     .print-page > :not(.cabana-watermark) { position: relative; z-index: 1; }
     .cabana-watermark { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; pointer-events: none; overflow: hidden; mix-blend-mode: multiply; }
     .cabana-watermark img { width: 72%; max-width: 460px; opacity: 0.09; filter: sepia(1) saturate(1.8) hue-rotate(4deg); transform: rotate(-18deg); }
-    .order-page { page: order-page; font-size: 8.2px; width: 100%; max-width: 100%; overflow: hidden; }
-    .contract-page { page: contract-page; font-size: 9px; line-height: 1.25; }
+    .order-page { page: order-page; font-size: 8.2px; width: 100%; max-width: 100%; overflow: hidden; padding: 0 6mm 0 3mm; }
+    .contract-page { page: contract-page; font-size: 9px; line-height: 1.25; padding: 0 4mm 0 2mm; }
     .print-document header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #aa8e34; padding-bottom: 12px; margin-bottom: 16px; }
     .print-document h1 { margin: 0; font: 700 24px Georgia, "Times New Roman", serif; }
     .print-document h2 { margin: 18px 0 8px; font: 700 15px Georgia, "Times New Roman", serif; }
