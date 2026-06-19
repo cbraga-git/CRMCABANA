@@ -412,7 +412,8 @@ body[data-sidebar-collapsed="true"] .logout-icon {
 }
 
 body[data-view="clients"] .content,
-body[data-view="budget"]:not([data-budget-editing="true"]) .content {
+body[data-view="budget"]:not([data-budget-editing="true"]) .content,
+body[data-view="order"]:not([data-budget-editing="true"]) .content {
   overflow-x: hidden;
   overflow-y: hidden;
 }
@@ -1577,22 +1578,26 @@ button.status-badge:hover {
   max-width: 1680px;
 }
 
-body[data-view="budget"] .content {
+body[data-view="budget"] .content,
+body[data-view="order"] .content {
   padding-top: 8px;
 }
 
-body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard {
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard,
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard {
   width: 100%;
   min-height: 0;
   overflow: auto;
 }
 
-body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard table {
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard table,
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard table {
   min-width: 1260px;
   table-layout: fixed;
 }
 
-body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th {
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th,
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard th {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -1604,7 +1609,9 @@ body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th {
 }
 
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th,
-body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard td {
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard td,
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard th,
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard td {
   min-height: 26px;
   padding: 4px 7px;
   font-size: 11px;
@@ -1614,7 +1621,8 @@ body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard td {
   overflow-wrap: anywhere;
 }
 
-body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header {
+body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header,
+body[data-view="order"][data-budget-editing="true"] .budget-view > .page-header {
   display: none !important;
 }
 
@@ -1739,6 +1747,43 @@ body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header
   display: block;
   margin-top: 2px;
   font-size: 15px;
+}
+
+body[data-view="order"] .budget-dashboard-stats article:nth-child(1),
+body[data-view="order"] .budget-dashboard-stats article:nth-child(3),
+body[data-view="order"] .budget-dashboard .chart-card,
+body[data-view="order"] .budget-finance-grid > div:nth-child(6),
+body[data-view="order"] #budgetListCard th:nth-child(7),
+body[data-view="order"] #budgetListCard td:nth-child(7),
+body[data-view="order"] #budgetListCard th:nth-child(8),
+body[data-view="order"] #budgetListCard td:nth-child(8),
+body[data-view="order"] #budgetListCard th:nth-child(9),
+body[data-view="order"] #budgetListCard td:nth-child(9),
+body[data-view="order"] .budget-summary article:nth-child(3),
+body[data-view="order"] .budget-summary article:nth-child(4),
+body[data-view="order"] .budget-summary article:nth-child(5),
+body[data-view="order"] .budget-table tr > :nth-child(3),
+body[data-view="order"] .budget-table tr > :nth-child(5),
+body[data-view="order"] .budget-table tr > :nth-child(6),
+body[data-view="order"] .budget-table tr > :nth-child(7),
+body[data-view="order"] .budget-table tr > :nth-child(8),
+body[data-view="order"] .budget-table tr > :nth-child(10),
+body[data-view="order"] .budget-table tr > :nth-child(12),
+body[data-view="order"] .budget-table tr > :nth-child(13),
+body[data-view="order"] .budget-rate-row > :nth-child(11) {
+  display: none;
+}
+
+body[data-view="order"] .budget-summary {
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+}
+
+body[data-view="order"] .budget-dashboard-stats {
+  grid-template-columns: minmax(220px, 1fr);
+}
+
+body[data-view="order"] .budget-table {
+  min-width: 980px;
 }
 
 .payments-grid {
@@ -2553,7 +2598,7 @@ dialog::backdrop {
   }
 
   .nav-list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .user-chip {

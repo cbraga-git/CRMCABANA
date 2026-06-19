@@ -173,6 +173,7 @@ const elements = {
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
   budgetNavItem: document.querySelector("#budgetNavItem"),
+  orderNavItem: document.querySelector("#orderNavItem"),
   userRows: document.querySelector("#userRows"),
   userLogRows: document.querySelector("#userLogRows"),
   userAdminForm: document.querySelector("#userAdminForm"),
@@ -337,6 +338,9 @@ function showAuthenticatedApp() {
   }
   if (elements.budgetNavItem) {
     elements.budgetNavItem.hidden = !isAdmin();
+  }
+  if (elements.orderNavItem) {
+    elements.orderNavItem.hidden = !isAdmin();
   }
 }
 
@@ -795,6 +799,7 @@ async function signOut() {
   state.clients = [];
   state.selectedId = null;
   if (elements.budgetNavItem) elements.budgetNavItem.hidden = true;
+  if (elements.orderNavItem) elements.orderNavItem.hidden = true;
   showAuthScreen();
 }
 
@@ -1084,14 +1089,14 @@ function markProjectDirty() {
 }
 
 async function showView(view, selectedId) {
-  if ((view === "users" || view === "budget") && !isAdmin()) {
+  if ((view === "users" || view === "budget" || view === "order") && !isAdmin()) {
     view = "clients";
   }
 
   const previousView = state.view;
   if (state.projectInlineEditing && !confirmDiscardProjectChanges()) return;
-  if (state.budgetEditing && view !== "budget" && !(await confirmDiscardBudgetChanges())) return;
-  if (state.budgetEditing && view === "budget") {
+  if (state.budgetEditing && view !== "budget" && view !== "order" && !(await confirmDiscardBudgetChanges())) return;
+  if (state.budgetEditing && (view === "budget" || view === "order")) {
     if (!(await confirmDiscardBudgetChanges())) return;
     resetBudgetEditorState();
   }
@@ -1104,14 +1109,8 @@ async function showView(view, selectedId) {
     state.projectDirty = false;
     setClientInlineEditing(false);
   }
-  if (state.budgetEditing && view !== "budget") {
-    closeBudgetPrintPreview();
-    state.budgetEditing = false;
-    state.budgetDirty = false;
-    state.budgetIsNew = false;
-    state.budgetSourceId = null;
-    state.budgetEditingId = null;
-    state.budgetDraft = null;
+  if (state.budgetEditing && !["budget", "order"].includes(view)) {
+    resetBudgetEditorState();
   }
 
   state.view = view;
@@ -1122,7 +1121,8 @@ async function showView(view, selectedId) {
   }
 
   elements.views.forEach((viewElement) => viewElement.classList.remove("active"));
-  document.querySelector(`#${view}View`).classList.add("active");
+  const viewElementId = view === "order" ? "budgetView" : `${view}View`;
+  document.querySelector(`#${viewElementId}`).classList.add("active");
 
   elements.navItems.forEach((item) => {
     item.classList.toggle("active", item.dataset.view === view);
@@ -2687,7 +2687,8 @@ function fillBudgetForm(client) {
   state.budgetEditingId = budgetIdentity(budget) || state.budgetEditingId;
   const settings = budget.settings;
   const targetClient = selectedBudgetClient();
-  document.querySelector("#budgetEditorTitle").textContent = state.budgetIsNew ? "Novo Orçamento" : "Cadastro Orçamento";
+  const documentLabel = state.view === "order" ? "Pedido" : "Orçamento";
+  document.querySelector("#budgetEditorTitle").textContent = state.budgetIsNew ? `Novo ${documentLabel}` : `Cadastro ${documentLabel}`;
   renderBudgetEditorSubtitle(targetClient);
   document.querySelector("#budgetEditClientBtn").disabled = false;
   document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";
@@ -2815,13 +2816,15 @@ function renderBudgetList() {
   const rows = elements.budgetListRows;
   if (!rows) return;
   const budgets = filteredBudgets();
+  const documentLabel = state.view === "order" ? "pedido" : "orçamento";
   updateSortHeaders("budget");
 
   document.querySelector("#budgetCount").textContent = budgets.length;
+  document.querySelector("#budgetHeader p").lastChild.textContent = ` ${documentLabel}s disponíveis`;
   rows.innerHTML = "";
 
   if (!budgets.length) {
-    rows.innerHTML = '<tr><td colspan="10" class="empty-state">Nenhum orçamento encontrado</td></tr>';
+    rows.innerHTML = `<tr><td colspan="10" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
     return;
   }
 
@@ -2833,7 +2836,7 @@ function renderBudgetList() {
     folderCell.className = "folder-column";
     folderButton.className = "folder-button";
     folderButton.type = "button";
-    folderButton.title = "Abrir orçamento";
+    folderButton.title = `Abrir ${documentLabel}`;
     folderButton.textContent = "▰";
     folderButton.addEventListener("click", () => openBudgetEditor(client.id, { budgetId: budgetIdentity(budget) }));
     folderCell.appendChild(folderButton);
@@ -2873,7 +2876,11 @@ function renderBudget() {
   renderBudgetList();
   renderBudgetDashboard();
 
-  const editing = state.view === "budget" && state.budgetEditing;
+  const isBudgetArea = state.view === "budget" || state.view === "order";
+  const orderMode = state.view === "order";
+  const editing = isBudgetArea && state.budgetEditing;
+  document.body.dataset.budgetViewMode = orderMode ? "order" : "budget";
+  document.querySelector("#budgetHeader h1").textContent = orderMode ? "Pedido" : "Orçamento";
   document.body.dataset.budgetEditing = editing ? "true" : "false";
   document.querySelector("#budgetHeader").hidden = editing;
   document.querySelector("#budgetDashboard").hidden = editing;
@@ -3209,8 +3216,8 @@ function openProjectDialog(client = selectedClient(), options = {}) {
   const inline = Boolean(options.inline);
   state.selectedId = client ? client.id : null;
   state.projectAction = "stay";
-  state.projectReturnView = ["projects", "budget"].includes(state.view) ? state.view : "clients";
-  const editableClient = client || blankClient(state.projectReturnView === "budget" ? BUDGET_CLIENT_STATUS : DEFAULT_STATUS);
+  state.projectReturnView = ["projects", "budget", "order"].includes(state.view) ? state.view : "clients";
+  const editableClient = client || blankClient(["budget", "order"].includes(state.projectReturnView) ? BUDGET_CLIENT_STATUS : DEFAULT_STATUS);
   mountProjectForm(inline);
 
   document.querySelector("#projectForm").reset();
@@ -3333,7 +3340,7 @@ async function saveProjectFromDialog(event) {
   event.preventDefault();
   const client = state.selectedId ? state.clients.find((item) => item.id === state.selectedId) : null;
   const isNew = !client;
-  const budgetClientRegistration = isNew && state.projectReturnView === "budget";
+  const budgetClientRegistration = isNew && ["budget", "order"].includes(state.projectReturnView);
   const baseClient = client || blankClient(budgetClientRegistration ? BUDGET_CLIENT_STATUS : DEFAULT_STATUS);
   const name = document.querySelector("#editName").value.trim();
   if (!name) return;
@@ -3387,7 +3394,7 @@ async function saveProjectFromDialog(event) {
   state.projectDirty = false;
   render();
 
-  if (state.projectReturnView === "budget" && state.budgetEditing && state.budgetDraft) {
+  if (["budget", "order"].includes(state.projectReturnView) && state.budgetEditing && state.budgetDraft) {
     const budgetPayload = {
       ...state.budgetDraft,
       id: budgetIdentity(state.budgetDraft) || `budget-${Date.now()}`,
@@ -3916,7 +3923,7 @@ document.querySelector("#budgetEditClientBtn")?.addEventListener("click", async 
     return;
   }
   state.budgetDraft = currentBudgetDraft();
-  state.projectReturnView = "budget";
+  state.projectReturnView = state.view === "order" ? "order" : "budget";
   openProjectDialog(null);
 });
 elements.budgetClientSelect?.addEventListener("change", () => {
@@ -4066,7 +4073,7 @@ window.addEventListener("resize", () => {
   if (state.view === "clients") {
     renderDashboard();
   }
-  if (state.view === "budget") {
+  if (state.view === "budget" || state.view === "order") {
     renderBudgetDashboard();
   }
 });
