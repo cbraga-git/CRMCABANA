@@ -2027,6 +2027,57 @@ body[data-view="order"] .budget-table {
   font-size: 12px;
 }
 
+.order-material-editor {
+  display: none;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+body[data-view="order"] .order-material-editor {
+  display: grid;
+}
+
+.order-material-table-card {
+  overflow-x: auto;
+}
+
+.order-material-table {
+  width: 100%;
+  min-width: 980px;
+  table-layout: fixed;
+}
+
+.order-material-table th,
+.order-material-table td {
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.order-material-table th {
+  background: rgba(242, 231, 196, 0.88);
+}
+
+.order-material-table th:first-child,
+.order-material-table td:first-child {
+  width: 48px;
+}
+
+.order-material-table th:nth-child(2),
+.order-material-table td:nth-child(2) {
+  width: 180px;
+}
+
+.order-material-table input {
+  width: 100%;
+  min-height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fffdf7;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
 .budget-table th,
 .budget-table td {
   padding: 3px 7px;

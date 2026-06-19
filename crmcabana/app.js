@@ -220,6 +220,8 @@ const elements = {
   leadImportFile: document.querySelector("#leadImportFile"),
   budgetClientSelect: document.querySelector("#budgetClientSelect"),
   budgetRows: document.querySelector("#budgetRows"),
+  orderMaterialEditor: document.querySelector("#orderMaterialEditor"),
+  orderMaterialRows: document.querySelector("#orderMaterialRows"),
 };
 
 function createId() {
@@ -1761,6 +1763,7 @@ function currentBudgetDraft() {
     createdAt: readBudgetCreatedAt(),
     settings: readBudgetSettings(),
     rows: readBudgetRows(),
+    orderMaterials: readOrderMaterialRows(),
     cashPayments: readCashPaymentRows(),
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
   };
@@ -1856,6 +1859,7 @@ function clientBudget(client) {
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     settings: { ...DEFAULT_BUDGET_SETTINGS, ...(saved.settings || {}) },
     rows: Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client),
+    orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
     notes: saved.notes || "",
   };
@@ -1869,6 +1873,7 @@ function blankBudget() {
     createdAt: new Date().toISOString(),
     settings: { ...DEFAULT_BUDGET_SETTINGS },
     rows: [{ name: "", gross: 0, factory: 0, hardware: 0 }],
+    orderMaterials: [],
     cashPayments: defaultCashPaymentRows(),
     notes: "",
   };
@@ -2002,6 +2007,53 @@ function readBudgetRows() {
     .filter((row) => row.name || row.gross || row.factory || row.hardware);
 }
 
+function orderMaterialKey(item, index) {
+  return `${index + 1}|${String(item?.name || "").trim().toLowerCase()}`;
+}
+
+function readOrderMaterialRows() {
+  if (!elements.orderMaterialRows) return [];
+  return Array.from(elements.orderMaterialRows.querySelectorAll("tr")).map((row) => ({
+    item: Number(row.dataset.itemIndex) || 0,
+    name: row.querySelector('[data-order-material-field="name"]')?.textContent.trim() || "",
+    body: row.querySelector('[data-order-material-field="body"]')?.value.trim() || "",
+    door: row.querySelector('[data-order-material-field="door"]')?.value.trim() || "",
+    handle: row.querySelector('[data-order-material-field="handle"]')?.value.trim() || "",
+    model: row.querySelector('[data-order-material-field="model"]')?.value.trim() || "",
+    complement: row.querySelector('[data-order-material-field="complement"]')?.value.trim() || "",
+    observation: row.querySelector('[data-order-material-field="observation"]')?.value.trim() || "",
+  }));
+}
+
+function renderOrderMaterialRows(materials = [], budgetRows = readBudgetRows()) {
+  if (!elements.orderMaterialRows) return;
+  const materialByKey = new Map(materials.map((material, index) => [orderMaterialKey(material, index), material]));
+  elements.orderMaterialRows.innerHTML = "";
+  budgetRows.forEach((budgetRow, index) => {
+    const material = materialByKey.get(orderMaterialKey(budgetRow, index)) || materials[index] || {};
+    const row = document.createElement("tr");
+    row.dataset.itemIndex = String(index + 1);
+    row.innerHTML = `
+      <td class="center">${index + 1}</td>
+      <td data-order-material-field="name">${escapeHtml(budgetRow.name || material.name || "")}</td>
+      <td><input data-order-material-field="body" /></td>
+      <td><input data-order-material-field="door" /></td>
+      <td><input data-order-material-field="handle" /></td>
+      <td><input data-order-material-field="model" /></td>
+      <td><input data-order-material-field="complement" /></td>
+      <td><input data-order-material-field="observation" /></td>
+    `;
+    row.querySelector('[data-order-material-field="body"]').value = material.body || "";
+    row.querySelector('[data-order-material-field="door"]').value = material.door || "";
+    row.querySelector('[data-order-material-field="handle"]').value = material.handle || "";
+    row.querySelector('[data-order-material-field="model"]').value = material.model || "";
+    row.querySelector('[data-order-material-field="complement"]').value = material.complement || "";
+    row.querySelector('[data-order-material-field="observation"]').value = material.observation || "";
+    row.querySelectorAll("input").forEach((input) => input.addEventListener("input", markBudgetDirty));
+    elements.orderMaterialRows.appendChild(row);
+  });
+}
+
 function calculateBudgetRows(rows, settings) {
   const rates = {
     discount: percentToRate(settings.discountRate),
@@ -2112,6 +2164,9 @@ function updateBudgetSummary() {
   const settings = readBudgetSettings();
   const calculatedRows = calculateBudgetRows(readBudgetRows(), settings);
   const totals = budgetTotals(calculatedRows, settings);
+  if (state.view === "order") {
+    renderOrderMaterialRows(readOrderMaterialRows(), calculatedRows);
+  }
 
   document.querySelector("#budgetTotalGross").textContent = BRL.format(totals.gross);
   document.querySelector("#budgetTotalNet").textContent = BRL.format(totals.net);
@@ -2402,21 +2457,22 @@ function buildOrderRows(rows, startIndex = 0) {
     .join("");
 }
 
-function buildMaterialRows(rows, startIndex = 0) {
+function buildMaterialRows(rows, materials = [], startIndex = 0) {
   const materialRows = rows.slice(0, ORDER_MATERIAL_ROWS_PER_PAGE);
   while (materialRows.length < ORDER_MATERIAL_ROWS_PER_PAGE) materialRows.push({});
   return materialRows
-    .map(
-      (row, index) => `<tr>
+    .map((row, index) => {
+      const material = materials[startIndex + index] || {};
+      return `<tr>
         <td colspan="2" class="center">${row.name ? startIndex + index + 1 : ""}</td>
-        <td colspan="4">${escapeHtml(row.name || "")}</td>
-        <td colspan="4"></td>
-        <td colspan="3"></td>
-        <td colspan="3"></td>
-        <td colspan="4"></td>
-        <td colspan="6"></td>
-      </tr>`
-    )
+        <td colspan="4">${escapeHtml(material.body || row.name || "")}</td>
+        <td colspan="4">${escapeHtml(material.door || "")}</td>
+        <td colspan="3">${escapeHtml(material.handle || "")}</td>
+        <td colspan="3">${escapeHtml(material.model || "")}</td>
+        <td colspan="4">${escapeHtml(material.complement || "")}</td>
+        <td colspan="6">${escapeHtml(material.observation || "")}</td>
+      </tr>`;
+    })
     .join("");
 }
 
@@ -2447,7 +2503,7 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
   const contractCode = context.budget.code || "";
   const createdAt = formatPrintDate(context.budget.createdAt);
   const orderRows = buildOrderRows([...rows], startIndex);
-  const materialRows = buildMaterialRows([...rows], startIndex);
+  const materialRows = buildMaterialRows([...rows], context.budget.orderMaterials || [], startIndex);
   return `<section class="print-page order-page">
     <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
     <table class="excel-order" aria-label="Pedido">
@@ -2737,6 +2793,7 @@ function fillBudgetForm(client) {
 
   elements.budgetRows.innerHTML = "";
   budget.rows.forEach((row) => elements.budgetRows.appendChild(createBudgetRow(row)));
+  renderOrderMaterialRows(budget.orderMaterials || [], budget.rows);
   state.budgetDirty = false;
   updateBudgetSummary();
 }
@@ -2933,6 +2990,7 @@ async function saveBudget(options = {}) {
     createdAt: readBudgetCreatedAt(),
     settings,
     rows,
+    orderMaterials: readOrderMaterialRows(),
     cashPayments: readCashPaymentRows(),
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
