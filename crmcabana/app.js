@@ -2345,13 +2345,24 @@ function orderPaymentRows(context) {
   }));
 }
 
-function buildOrderRows(context) {
-  const rows = context.rows.slice(0, 8);
+const ORDER_ITEMS_PER_PAGE = 8;
+const ORDER_MATERIAL_ROWS_PER_PAGE = 7;
+
+function orderPageChunks(rows) {
+  const filledRows = rows.length ? rows : [{}];
+  const chunks = [];
+  for (let index = 0; index < filledRows.length; index += ORDER_ITEMS_PER_PAGE) {
+    chunks.push(filledRows.slice(index, index + ORDER_ITEMS_PER_PAGE));
+  }
+  return chunks;
+}
+
+function buildOrderRows(rows, startIndex = 0) {
   while (rows.length < 8) rows.push({});
   return rows
     .map(
       (row, index) => `<tr>
-        <td colspan="2" class="center">${index + 1}</td>
+        <td colspan="2" class="center">${row.name ? startIndex + index + 1 : ""}</td>
         <td class="center">1</td>
         <td colspan="9">${escapeHtml(row.name || "")}</td>
         <td colspan="2" class="center">45</td>
@@ -2362,13 +2373,13 @@ function buildOrderRows(context) {
     .join("");
 }
 
-function buildMaterialRows(context) {
-  const rows = context.rows.slice(0, 7);
-  while (rows.length < 7) rows.push({});
-  return rows
+function buildMaterialRows(rows, startIndex = 0) {
+  const materialRows = rows.slice(0, ORDER_MATERIAL_ROWS_PER_PAGE);
+  while (materialRows.length < ORDER_MATERIAL_ROWS_PER_PAGE) materialRows.push({});
+  return materialRows
     .map(
       (row, index) => `<tr>
-        <td colspan="2" class="center">${index + 1}</td>
+        <td colspan="2" class="center">${row.name ? startIndex + index + 1 : ""}</td>
         <td colspan="4">${escapeHtml(row.name || "")}</td>
         <td colspan="4"></td>
         <td colspan="3"></td>
@@ -2401,11 +2412,13 @@ function buildPaymentRows(context) {
     .join("");
 }
 
-function buildOrderPage(context) {
+function buildOrderPage(context, rows = context.rows, startIndex = 0) {
   const client = context.client;
   const address = formattedClientAddressParts(client);
   const contractCode = context.budget.code || "";
   const createdAt = formatPrintDate(context.budget.createdAt);
+  const orderRows = buildOrderRows([...rows], startIndex);
+  const materialRows = buildMaterialRows([...rows], startIndex);
   return `<section class="print-page order-page">
     <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
     <table class="excel-order" aria-label="Pedido">
@@ -2429,10 +2442,10 @@ function buildOrderPage(context) {
         <tr><td colspan="18" class="label">Endereco de entrega</td><td colspan="8" class="label order-small">Prazo entrega em dias uteis, apos assinatura do projeto executivo</td></tr>
         <tr><td colspan="18">O mesmo</td><td colspan="8" class="center strong">45</td></tr>
         <tr><th colspan="2">Item</th><th>Qtd</th><th colspan="9">Descricao ambiente / produto</th><th colspan="2">Prazo</th><th colspan="3">Valor</th><th colspan="9">Observacao</th></tr>
-        ${buildOrderRows(context)}
+        ${orderRows}
         <tr><td colspan="17"></td><td colspan="5" class="label right">Total do pedido:</td><td colspan="4" class="right strong">${BRL.format(context.totals.net)}</td></tr>
         <tr><th colspan="2">Item</th><th colspan="4">Corpo</th><th colspan="4">Porta</th><th colspan="3">Puxador</th><th colspan="3">Modelo</th><th colspan="4">Complemento</th><th colspan="6">Amb / Observacao</th></tr>
-        ${buildMaterialRows(context)}
+        ${materialRows}
         <tr><td colspan="26" class="label">Amb Observacao</td></tr>
         <tr><td colspan="26">${escapeHtml(context.budget.notes || "")}</td></tr>
         <tr><td colspan="5" class="label">Total a vista</td><td colspan="11" class="label">Total a prazo</td><td colspan="5" class="label">Forma de pagamento</td><td colspan="5" class="label">Condicao de pagamento</td></tr>
@@ -2477,7 +2490,10 @@ function buildContractPage(context) {
 }
 
 function buildOrderDocument(context) {
-  const body = `${buildOrderPage(context)}${buildContractPage(context)}`;
+  const orderPages = orderPageChunks(context.rows)
+    .map((rows, index) => buildOrderPage(context, rows, index * ORDER_ITEMS_PER_PAGE))
+    .join("");
+  const body = `${orderPages}${buildContractPage(context)}`;
   const title = `Pedido e Contrato ${context.budget.code || ""}`;
   return { title, body, html: printableDocumentShell(title, body) };
 }
