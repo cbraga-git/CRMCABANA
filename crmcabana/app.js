@@ -205,6 +205,7 @@ const elements = {
   budgetPrintPreviewContent: document.querySelector("#budgetPrintPreviewContent"),
   budgetPreviewPrintBtn: document.querySelector("#budgetPreviewPrintBtn"),
   budgetPreviewCloseBtn: document.querySelector("#budgetPreviewCloseBtn"),
+  budgetDeleteBtn: document.querySelector("#budgetDeleteBtn"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
   dialog: document.querySelector("#clientDialog"),
@@ -2968,7 +2969,12 @@ function renderBudget() {
   document.querySelector("#budgetDashboard").hidden = editing;
   elements.budgetListCard.hidden = editing;
   elements.budgetEditor.hidden = !editing;
-  if (editing) fillBudgetForm(sourceBudgetClient());
+  if (editing) {
+    fillBudgetForm(sourceBudgetClient());
+    if (elements.budgetDeleteBtn) {
+      elements.budgetDeleteBtn.hidden = state.budgetIsNew || !state.budgetEditingId;
+    }
+  }
 }
 
 async function saveBudget(options = {}) {
@@ -3033,6 +3039,30 @@ async function saveBudget(options = {}) {
   state.budgetDraft = null;
   render();
   alert("Orçamento salvo com sucesso.");
+}
+
+async function deleteCurrentBudget() {
+  if (!isAdmin() || !state.budgetEditingId || state.budgetIsNew) return;
+  const client = sourceBudgetClient();
+  if (!client) return;
+  const budget = budgetForEditing(client);
+  const label = budget.code || state.budgetEditingId;
+  if (!confirm(`Excluir o orcamento ${label}? Esta acao nao pode ser desfeita.`)) return;
+
+  const identity = state.budgetEditingId;
+  state.clients = state.clients.map((item) => {
+    if (item.id !== client.id) return item;
+    const budgets = clientBudgetHistory(item).filter((savedBudget) => budgetIdentity(savedBudget) !== identity);
+    return {
+      ...item,
+      budget: budgets[0],
+      budgets,
+    };
+  });
+  state.selectedId = client.id;
+  await saveClients();
+  resetBudgetEditorState();
+  render();
 }
 
 function renderDetail() {
@@ -4038,6 +4068,7 @@ document.querySelector("#budgetPrintOrderBtn")?.addEventListener("click", () => 
 document.querySelector("#budgetPrintQuoteBtn")?.addEventListener("click", () => previewPrintableBudgetDocument("quote"));
 elements.budgetPreviewPrintBtn?.addEventListener("click", printBudgetPreview);
 elements.budgetPreviewCloseBtn?.addEventListener("click", closeBudgetPrintPreview);
+elements.budgetDeleteBtn?.addEventListener("click", deleteCurrentBudget);
 document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
 [
   "#budgetCreatedAt",

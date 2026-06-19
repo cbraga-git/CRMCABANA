@@ -1949,6 +1949,15 @@ body[data-view="order"] .budget-table {
   line-height: 1;
 }
 
+.budget-action-button.danger {
+  border-color: rgba(244, 63, 104, 0.62);
+  color: #b42343;
+}
+
+.budget-action-button.danger:hover {
+  background: #fee2e2;
+}
+
 .budget-editor-header > div:first-child {
   display: flex;
   align-items: center;
