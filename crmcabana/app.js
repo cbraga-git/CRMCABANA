@@ -1274,7 +1274,7 @@ function renderDashboard() {
 
 function renderBudgetDashboard() {
   if (!isAdmin()) return;
-  const budgets = filteredBudgets();
+  const budgets = dashboardBudgets();
   const totals = budgets.reduce(
     (summary, { budget }) => {
       const total = budgetSummary(budget);
@@ -1291,6 +1291,12 @@ function renderBudgetDashboard() {
   document.querySelector("#totalCost").textContent = BRL.format(totals.cost);
   document.querySelector("#totalProfit").textContent = BRL.format(totals.profit);
   renderChart(budgets);
+}
+
+function dashboardBudgets() {
+  const budgets = filteredBudgets();
+  if (state.budgetStatus === "Recusado") return budgets;
+  return budgets.filter(({ budget }) => budget.status !== "Recusado");
 }
 
 function renderChart(budgets) {
