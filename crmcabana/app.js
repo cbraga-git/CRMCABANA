@@ -1091,6 +1091,10 @@ async function showView(view, selectedId) {
   const previousView = state.view;
   if (state.projectInlineEditing && !confirmDiscardProjectChanges()) return;
   if (state.budgetEditing && view !== "budget" && !(await confirmDiscardBudgetChanges())) return;
+  if (state.budgetEditing && view === "budget") {
+    if (!(await confirmDiscardBudgetChanges())) return;
+    resetBudgetEditorState();
+  }
 
   if (view === "detail") {
     openClientRegistration(selectedId || state.selectedId, previousView);
@@ -2722,8 +2726,7 @@ async function openBudgetEditor(clientId = state.selectedId, options = {}) {
   renderBudget();
 }
 
-async function closeBudgetEditor() {
-  if (!(await confirmDiscardBudgetChanges())) return;
+function resetBudgetEditorState() {
   closeBudgetPrintPreview();
   state.budgetEditing = false;
   state.budgetDirty = false;
@@ -2731,6 +2734,11 @@ async function closeBudgetEditor() {
   state.budgetSourceId = null;
   state.budgetEditingId = null;
   state.budgetDraft = null;
+}
+
+async function closeBudgetEditor() {
+  if (!(await confirmDiscardBudgetChanges())) return;
+  resetBudgetEditorState();
   renderBudget();
 }
 
