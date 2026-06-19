@@ -2363,9 +2363,9 @@ function buildOrderRows(rows, startIndex = 0) {
     .map(
       (row, index) => `<tr>
         <td colspan="2" class="center">${row.name ? startIndex + index + 1 : ""}</td>
-        <td class="center">1</td>
-        <td colspan="9">${escapeHtml(row.name || "")}</td>
-        <td colspan="2" class="center">45</td>
+        <td colspan="2" class="center">${row.name ? "1" : ""}</td>
+        <td colspan="8">${escapeHtml(row.name || "")}</td>
+        <td colspan="2" class="center">${row.name ? "45" : ""}</td>
         <td colspan="3" class="right">${row.name ? BRL.format(row.net || 0) : ""}</td>
         <td colspan="9"></td>
       </tr>`
@@ -2399,14 +2399,14 @@ function buildPaymentRows(context) {
       const first = rows[index] || {};
       const second = rows[index + 3] || {};
       return `<tr>
-        <td colspan="2" class="center">${escapeHtml(first.parcel || "")}</td>
+        <td colspan="3" class="center">${escapeHtml(first.parcel || "")}</td>
         <td colspan="3" class="right">${escapeHtml(first.value || "")}</td>
         <td colspan="4" class="center">${escapeHtml(first.dueDate || "")}</td>
-        <td colspan="4">${escapeHtml(first.method || "")}</td>
-        <td colspan="2" class="center">${escapeHtml(second.parcel || "")}</td>
+        <td colspan="3">${escapeHtml(first.method || "")}</td>
+        <td colspan="3" class="center">${escapeHtml(second.parcel || "")}</td>
         <td colspan="3" class="right">${escapeHtml(second.value || "")}</td>
         <td colspan="4" class="center">${escapeHtml(second.dueDate || "")}</td>
-        <td colspan="4">${escapeHtml(second.method || "")}</td>
+        <td colspan="3">${escapeHtml(second.method || "")}</td>
       </tr>`;
     })
     .join("");
@@ -2441,7 +2441,7 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
         <tr><td colspan="8">${escapeHtml(client.phone || "")}</td><td colspan="10">${escapeHtml(client.mobile || "")}</td><td colspan="8">${escapeHtml(client.email || "")}</td></tr>
         <tr><td colspan="18" class="label">Endereco de entrega</td><td colspan="8" class="label order-small">Prazo entrega em dias uteis, apos assinatura do projeto executivo</td></tr>
         <tr><td colspan="18">O mesmo</td><td colspan="8" class="center strong">45</td></tr>
-        <tr><th colspan="2">Item</th><th>Qtd</th><th colspan="9">Descricao ambiente / produto</th><th colspan="2">Prazo</th><th colspan="3">Valor</th><th colspan="9">Observacao</th></tr>
+        <tr><th colspan="2">Item</th><th colspan="2">Qtd</th><th colspan="8">Descricao ambiente / produto</th><th colspan="2">Prazo</th><th colspan="3">Valor</th><th colspan="9">Observacao</th></tr>
         ${orderRows}
         <tr><td colspan="17"></td><td colspan="5" class="label right">Total do pedido:</td><td colspan="4" class="right strong">${BRL.format(context.totals.net)}</td></tr>
         <tr><th colspan="2">Item</th><th colspan="4">Corpo</th><th colspan="4">Porta</th><th colspan="3">Puxador</th><th colspan="3">Modelo</th><th colspan="4">Complemento</th><th colspan="6">Amb / Observacao</th></tr>
@@ -2450,7 +2450,7 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
         <tr><td colspan="26">${escapeHtml(context.budget.notes || "")}</td></tr>
         <tr><td colspan="5" class="label">Total a vista</td><td colspan="11" class="label">Total a prazo</td><td colspan="5" class="label">Forma de pagamento</td><td colspan="5" class="label">Condicao de pagamento</td></tr>
         <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(context.totals.financingTotal || context.totals.net)}</td><td colspan="5">Pix</td><td colspan="5">${context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
-        <tr><th colspan="2">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="4">Forma de pagamento</th><th colspan="2">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="4">Forma de pagamento</th></tr>
+        <tr><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th></tr>
         ${buildPaymentRows(context)}
         <tr><td colspan="13" class="sign">Cabana Moveis Sob Medida</td><td colspan="13" class="sign">Contratante: ${escapeHtml(client.name || "")}</td></tr>
       </tbody>
