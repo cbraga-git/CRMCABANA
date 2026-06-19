@@ -413,7 +413,7 @@ body[data-sidebar-collapsed="true"] .logout-icon {
 
 body[data-view="clients"] .content,
 body[data-view="budget"]:not([data-budget-editing="true"]) .content {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 
@@ -437,13 +437,15 @@ body[data-view="projects"] .content {
 .clients-view {
   grid-template-rows: auto auto auto minmax(0, 1fr);
   height: 100%;
-  min-width: 1580px;
+  min-width: 0;
+  max-width: none;
 }
 
 .budget-view {
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
-  min-width: 1680px;
+  min-width: 0;
+  max-width: none;
 }
 
 .view.active {
@@ -1006,6 +1008,7 @@ button:focus-visible {
 }
 
 .clients-view .table-card {
+  width: 100%;
   min-height: 0;
   overflow: auto;
 }
@@ -1579,6 +1582,7 @@ body[data-view="budget"] .content {
 }
 
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard {
+  width: 100%;
   min-height: 0;
   overflow: auto;
 }
