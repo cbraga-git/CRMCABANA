@@ -24,15 +24,17 @@
 
 html {
   width: 100%;
+  height: 100%;
   min-height: 100%;
   overflow-x: auto;
 }
 
 body {
   margin: 0;
+  height: 100%;
   min-width: 320px;
   min-height: 100dvh;
-  overflow-x: auto;
+  overflow: hidden;
   color: var(--text);
   background:
     linear-gradient(135deg, rgba(245, 239, 216, 0.96), rgba(255, 250, 240, 0.92)),
@@ -142,13 +144,16 @@ button {
   display: grid;
   width: 100%;
   min-width: 1180px;
+  height: 100dvh;
   min-height: 100dvh;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .sidebar {
   position: relative;
   display: flex;
+  height: 100dvh;
   min-height: 100dvh;
   overflow-y: auto;
   flex-direction: column;
@@ -399,15 +404,21 @@ body[data-sidebar-collapsed="true"] .logout-icon {
 }
 
 .content {
+  height: 100dvh;
   min-width: 0;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: auto;
   padding: clamp(10px, 2vh, 24px) clamp(10px, 2.4vw, 40px) clamp(18px, 3vh, 40px);
 }
 
 body[data-view="clients"] .content,
+body[data-view="budget"]:not([data-budget-editing="true"]) .content {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+body[data-view="clients"] .content,
 body[data-view="projects"] .content {
-  min-height: 100vh;
   padding: 4px 4px 22px;
   background:
     linear-gradient(120deg, rgba(255, 250, 240, 0.95), rgba(245, 239, 216, 0.84)),
@@ -424,15 +435,24 @@ body[data-view="projects"] .content {
 }
 
 .clients-view {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  height: 100%;
   min-width: 1580px;
 }
 
 .budget-view {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
   min-width: 1680px;
 }
 
 .view.active {
   display: block;
+}
+
+.clients-view.active,
+.budget-view.active {
+  display: grid;
 }
 
 .page-header {
@@ -986,7 +1006,8 @@ button:focus-visible {
 }
 
 .clients-view .table-card {
-  overflow-x: auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .clients-view .client-list-table {
@@ -1006,6 +1027,9 @@ button:focus-visible {
 }
 
 .clients-view .client-list-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   font-size: 12px;
 }
 
@@ -1548,6 +1572,17 @@ button.status-badge:hover {
 
 body[data-view="budget"] .content {
   padding-top: 8px;
+}
+
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard {
+  min-height: 0;
+  overflow: auto;
+}
+
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header {
@@ -2427,14 +2462,28 @@ dialog::backdrop {
 }
 
 @media (max-width: 1050px) {
+  body {
+    overflow: auto;
+  }
+
   .crm-shell {
+    height: auto;
     min-width: 1180px;
+    min-height: 100dvh;
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .sidebar {
     position: static;
     height: auto;
+  }
+
+  .content,
+  body[data-view="clients"] .content,
+  body[data-view="budget"]:not([data-budget-editing="true"]) .content {
+    height: auto;
+    overflow: visible;
   }
 
   .sidebar-toggle {
