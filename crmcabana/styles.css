@@ -1017,10 +1017,10 @@ button:focus-visible {
 
 .clients-view .client-list-table th,
 .clients-view .client-list-table td {
-  min-height: 32px;
-  padding: 7px 9px;
-  font-size: 13px;
-  line-height: 1.25;
+  min-height: 26px;
+  padding: 4px 7px;
+  font-size: 11px;
+  line-height: 1.15;
   vertical-align: middle;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -1030,7 +1030,7 @@ button:focus-visible {
   position: sticky;
   top: 0;
   z-index: 2;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .clients-view .client-list-table th:nth-child(1) {
@@ -1579,10 +1579,27 @@ body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard {
   overflow: auto;
 }
 
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard table {
+  min-width: 1260px;
+  table-layout: fixed;
+}
+
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th {
   position: sticky;
   top: 0;
   z-index: 2;
+  font-size: 10px;
+}
+
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th,
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard td {
+  min-height: 26px;
+  padding: 4px 7px;
+  font-size: 11px;
+  line-height: 1.15;
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 body[data-view="budget"][data-budget-editing="true"] .budget-view > .page-header {
