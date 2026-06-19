@@ -1780,6 +1780,25 @@ function budgetIdentity(budget) {
   return budget?.id || budget?.code || budget?.createdAt || budget?.updatedAt || "";
 }
 
+function normalizedBudgetCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function allSavedBudgets() {
+  return state.clients.flatMap((client) =>
+    clientBudgetHistory(client).map((budget) => ({
+      client,
+      budget,
+    }))
+  );
+}
+
+function budgetCodeExists(code, ignoredIdentity = "") {
+  const normalizedCode = normalizedBudgetCode(code);
+  if (!normalizedCode) return false;
+  return allSavedBudgets().some(({ budget }) => normalizedBudgetCode(budget.code) === normalizedCode && budgetIdentity(budget) !== ignoredIdentity);
+}
+
 function budgetPeriod(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = String(date.getFullYear());
@@ -1796,7 +1815,13 @@ function nextBudgetCode(date = new Date()) {
       if (!match || `${match[2]}${match[3]}` !== period) return max;
       return Math.max(max, Number(match[1]) || 0);
     }, 0);
-  return `${String(maxSequence + 1).padStart(3, "0")}-${period}`;
+  let sequence = maxSequence + 1;
+  let code = `${String(sequence).padStart(3, "0")}-${period}`;
+  while (budgetCodeExists(code)) {
+    sequence += 1;
+    code = `${String(sequence).padStart(3, "0")}-${period}`;
+  }
+  return code;
 }
 
 function fallbackBudgetCode(client) {
@@ -2900,9 +2925,10 @@ async function saveBudget(options = {}) {
   const settings = readBudgetSettings();
   const rows = readBudgetRows();
   const sourceId = state.budgetSourceId;
+  const budgetCode = budgetInputValue("budgetCode") || nextBudgetCode();
   const budgetPayload = {
     id: state.budgetEditingId || `budget-${Date.now()}`,
-    code: budgetInputValue("budgetCode") || nextBudgetCode(),
+    code: budgetCode,
     status: BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0],
     createdAt: readBudgetCreatedAt(),
     settings,
@@ -2911,6 +2937,11 @@ async function saveBudget(options = {}) {
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
   };
+  if (budgetCodeExists(budgetPayload.code, budgetIdentity(budgetPayload))) {
+    alert(`Ja existe um orcamento com o numero ${budgetPayload.code}. Altere o ID do orcamento antes de salvar.`);
+    document.querySelector("#budgetCode")?.focus();
+    return false;
+  }
   state.clients = state.clients.map((item) =>
     item.id === client.id
       ? (() => {
@@ -3401,6 +3432,10 @@ async function saveProjectFromDialog(event) {
       updatedAt: new Date().toISOString(),
     };
     const payloadIdentity = budgetIdentity(budgetPayload);
+    if (budgetCodeExists(budgetPayload.code, payloadIdentity)) {
+      alert(`Ja existe um orcamento com o numero ${budgetPayload.code}. Altere o ID do orcamento antes de salvar.`);
+      return;
+    }
     state.clients = state.clients.map((item) => {
       if (item.id !== savedClient.id) return item;
       const budgets = clientBudgetHistory(item);
@@ -3419,7 +3454,7 @@ async function saveProjectFromDialog(event) {
     state.budgetIsNew = false;
     state.budgetDraft = null;
     closeProjectForm();
-    showView("budget", savedClient.id);
+    showView(state.projectReturnView || "budget", savedClient.id);
     state.projectAction = "stay";
     return;
   }
