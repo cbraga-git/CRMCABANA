@@ -982,12 +982,15 @@ async function deleteRemoteClient(clientId) {
 
 async function saveClients() {
   localStorage.setItem(userStorageKey(), JSON.stringify(state.clients));
-  if (!remoteDatabaseEnabled() || !currentUserId()) return;
+  if (!remoteDatabaseEnabled() || !currentUserId()) return true;
 
   try {
     await saveRemoteClients(state.clients);
+    return true;
   } catch (error) {
     console.warn(error);
+    alert("Nao foi possivel confirmar a gravacao no banco. Os dados ficaram salvos neste navegador, mas podem nao aparecer em outro dispositivo. Verifique a conexao e tente salvar novamente.");
+    return false;
   }
 }
 
@@ -3066,7 +3069,7 @@ async function saveBudget(options = {}) {
       : item
   );
   state.selectedId = client.id;
-  await saveClients();
+  if (!(await saveClients())) return false;
   refreshEnvironmentCatalog(rows.map((row) => row.name));
   state.budgetEditing = false;
   state.budgetDirty = false;
@@ -3097,7 +3100,7 @@ async function deleteCurrentBudget() {
     };
   });
   state.selectedId = client.id;
-  await saveClients();
+  if (!(await saveClients())) return;
   resetBudgetEditorState();
   render();
 }
@@ -3486,7 +3489,7 @@ async function saveProjectFromDialog(event) {
     };
   });
 
-  await saveClients();
+  if (!(await saveClients())) return;
   refreshEnvironmentCatalog(environments.map((environment) => environment.name));
   elements.projectDialog.close();
   render();
@@ -3545,7 +3548,7 @@ async function saveProjectFromDialog(event) {
   }
 
   state.selectedId = savedClient.id;
-  await saveClients();
+  if (!(await saveClients())) return;
   refreshEnvironmentCatalog(environments.map((environment) => environment.name));
   state.projectDirty = false;
   render();
@@ -3573,7 +3576,7 @@ async function saveProjectFromDialog(event) {
         budgets,
       };
     });
-    await saveClients();
+    if (!(await saveClients())) return;
     state.budgetEditingId = payloadIdentity;
     state.budgetSourceId = savedClient.id;
     state.budgetDirty = false;
@@ -3630,7 +3633,7 @@ async function saveClientFromDialog(event) {
         },
       };
     });
-    await saveClients();
+    if (!(await saveClients())) return;
     state.clientDialogDirty = false;
     elements.dialog.close();
     render();
@@ -3663,7 +3666,7 @@ async function saveClientFromDialog(event) {
 
   state.clients.unshift(client);
   state.selectedId = client.id;
-  await saveClients();
+  if (!(await saveClients())) return;
   state.clientDialogDirty = false;
   elements.dialog.close();
   openClientRegistration(client.id, "clients");
@@ -3829,7 +3832,7 @@ async function importLeadsFile(file) {
   state.clients = Array.from(clientsById.values());
   state.selectedId = importedClients[0].id;
 
-  await saveClients();
+  if (!(await saveClients())) return;
   render();
   alert(`${importedClients.length} lead(s) importado(s) com sucesso.`);
 }
@@ -4180,7 +4183,7 @@ document.querySelector("#deleteProjectBtn").addEventListener("click", async () =
     await deleteRemoteClient(client.id);
     state.clients = state.clients.filter((item) => item.id !== client.id);
     state.selectedId = state.clients[0]?.id || null;
-    await saveClients();
+    if (!(await saveClients())) return;
     state.projectDirty = false;
     closeProjectForm();
     showView(state.projectReturnView || "clients");
