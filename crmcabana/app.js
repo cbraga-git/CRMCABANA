@@ -2698,6 +2698,28 @@ function markBudgetDirty() {
   state.budgetDirty = true;
 }
 
+function focusBudgetRowField(row, fieldName, options = {}) {
+  const field = row?.querySelector(`[data-budget-field="${fieldName}"]`);
+  if (!(field instanceof HTMLElement)) return;
+  window.setTimeout(() => {
+    if (options.openPicker && field instanceof HTMLSelectElement) {
+      focusAndOpenSelect(field);
+      return;
+    }
+    field.focus();
+    if (field instanceof HTMLInputElement) field.select();
+  }, 0);
+}
+
+function focusNextBudgetEnvironmentRow(row) {
+  let nextRow = row.nextElementSibling;
+  if (!nextRow) {
+    nextRow = createBudgetRow({ name: "", gross: 0, factory: 0, hardware: 0 });
+    row.after(nextRow);
+  }
+  focusBudgetRowField(nextRow, "name", { openPicker: true });
+}
+
 function createBudgetRow(rowData = {}) {
   const row = document.createElement("tr");
   row.innerHTML = `
@@ -2717,7 +2739,7 @@ function createBudgetRow(rowData = {}) {
     <td><button class="icon-button danger" type="button" data-budget-remove aria-label="Remover ambiente" title="Remover ambiente">🗑</button></td>
   `;
   const focusBudgetGross = () => {
-    window.setTimeout(() => row.querySelector('[data-budget-field="gross"]')?.focus(), 0);
+    focusBudgetRowField(row, "gross");
   };
   const environmentPicker = createEnvironmentPicker(rowData.name || "", () => {
     markBudgetDirty();
@@ -2747,19 +2769,28 @@ function createBudgetRow(rowData = {}) {
       });
     }
   });
+  row.querySelector('[data-budget-field="gross"]').addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+    focusBudgetRowField(row, "factory");
+  });
+  row.querySelector('[data-budget-field="factory"]').addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+    focusBudgetRowField(row, "hardware");
+  });
   row.querySelector('[data-budget-field="hardware"]').addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
-    let nextRow = row.nextElementSibling;
-    if (!nextRow) {
-      nextRow = createBudgetRow({ name: "", gross: 0, factory: 0, hardware: 0 });
-      row.after(nextRow);
-    }
     markBudgetDirty();
     updateBudgetSummary();
-    focusAfterEnterRelease(() => nextRow.querySelector('[data-budget-field="name"]') || nextRow.querySelector('[data-budget-field="gross"]'));
+    focusNextBudgetEnvironmentRow(row);
   });
   row.querySelector("[data-budget-remove]").addEventListener("click", () => {
     row.remove();
@@ -3544,11 +3575,13 @@ async function saveProjectFromDialog(event) {
     });
     await saveClients();
     state.budgetEditingId = payloadIdentity;
+    state.budgetSourceId = savedClient.id;
     state.budgetDirty = false;
     state.budgetIsNew = false;
     state.budgetDraft = null;
     closeProjectForm();
-    showView(state.projectReturnView || "budget", savedClient.id);
+    state.view = state.projectReturnView || "budget";
+    renderBudget();
     state.projectAction = "stay";
     return;
   }
@@ -3832,29 +3865,6 @@ function focusNextEditableField(currentField) {
   if (nextField instanceof HTMLInputElement) nextField.select();
 }
 
-function focusAfterEnterRelease(resolveField) {
-  let handled = false;
-  const focusTarget = () => {
-    if (handled) return;
-    handled = true;
-    document.removeEventListener("keyup", onKeyUp);
-    const target = resolveField();
-    if (!(target instanceof HTMLElement)) return;
-    target.focus();
-    if (target instanceof HTMLInputElement) target.select();
-  };
-  const fallback = window.setTimeout(() => {
-    document.removeEventListener("keyup", onKeyUp);
-    focusTarget();
-  }, 120);
-  function onKeyUp(event) {
-    if (event.key !== "Enter") return;
-    window.clearTimeout(fallback);
-    focusTarget();
-  }
-  document.addEventListener("keyup", onKeyUp);
-}
-
 document.addEventListener("keydown", (event) => {
   if (!editableEnterShouldMoveFocus(event)) return;
   event.preventDefault();
@@ -4044,15 +4054,14 @@ document.querySelector("#clientBudgetBtn")?.addEventListener("click", async () =
 document.querySelector("#budgetNewBtn")?.addEventListener("click", () => openBudgetEditor(null, { blank: true }));
 document.querySelector("#budgetBackToList")?.addEventListener("click", closeBudgetEditor);
 document.querySelector("#budgetEditClientBtn")?.addEventListener("click", async () => {
-  if (!(await confirmDiscardBudgetChanges())) return;
+  state.budgetDraft = currentBudgetDraft();
+  state.projectReturnView = state.view === "order" ? "order" : "budget";
   const client = selectedBudgetClient();
   if (client) {
     state.selectedId = client.id;
     openProjectDialog(client);
     return;
   }
-  state.budgetDraft = currentBudgetDraft();
-  state.projectReturnView = state.view === "order" ? "order" : "budget";
   openProjectDialog(null);
 });
 elements.budgetClientSelect?.addEventListener("change", () => {
