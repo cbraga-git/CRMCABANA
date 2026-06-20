@@ -84,7 +84,7 @@ const FINANCING_RATES = {
   },
 };
 const DEFAULT_BUDGET_SETTINGS = {
-  discountRate: 47,
+  discountRate: 0,
   releaseRate: 2,
   assemblyRate: 12,
   lelaRate: 2.5,
