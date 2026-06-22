@@ -61,6 +61,10 @@
             </span>
             <span class="nav-label">Usuarios</span>
           </button>
+          <button class="nav-item" id="maintenanceNavItem" type="button" data-view="maintenance" title="Manutencao" hidden>
+            <span class="nav-icon">!</span>
+            <span class="nav-label">Manutencao</span>
+          </button>
         </nav>
 
         <div class="app-version" title="Versao publicada">
@@ -546,6 +550,31 @@
           </section>
         </section>
 
+        <section class="view maintenance-view" id="maintenanceView">
+          <header class="page-header">
+            <div>
+              <h1>Manutencao</h1>
+              <p>Rotinas administrativas de seguranca e backup.</p>
+            </div>
+          </header>
+
+          <section class="maintenance-grid">
+            <article class="maintenance-panel">
+              <header>
+                <h2>Backup completo</h2>
+                <p>Gera um arquivo com os dados do banco e uma copia dos arquivos publicados do site.</p>
+              </header>
+              <div class="maintenance-actions">
+                <button class="button primary" id="backupSiteDataBtn" type="button">
+                  <span class="button-icon">BK</span>
+                  Gerar backup
+                </button>
+                <span class="maintenance-status" id="backupStatus" role="status"></span>
+              </div>
+            </article>
+          </section>
+        </section>
+
         <section class="view detail-view" id="detailView">
           <div class="detail-shell">
             <button class="back-button" id="backToClients" type="button">&lt;</button>
@@ -782,6 +811,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=97"></script>
+    <script src="app.js?v=98"></script>
   </body>
 </html>

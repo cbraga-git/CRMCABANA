@@ -87,8 +87,8 @@ const DEFAULT_BUDGET_SETTINGS = {
   discountRate: 0,
   releaseRate: 2,
   assemblyRate: 12,
-  lelaRate: 2.5,
-  irisRate: 2.5,
+  lelaRate: 0,
+  irisRate: 0,
   taxRate: 4.9,
   entry: 0,
   entryTerm: 30,
@@ -172,8 +172,11 @@ const elements = {
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
+  maintenanceNavItem: document.querySelector("#maintenanceNavItem"),
   budgetNavItem: document.querySelector("#budgetNavItem"),
   orderNavItem: document.querySelector("#orderNavItem"),
+  backupSiteDataBtn: document.querySelector("#backupSiteDataBtn"),
+  backupStatus: document.querySelector("#backupStatus"),
   userRows: document.querySelector("#userRows"),
   userLogRows: document.querySelector("#userLogRows"),
   userAdminForm: document.querySelector("#userAdminForm"),
@@ -338,6 +341,9 @@ function showAuthenticatedApp() {
   elements.userEmail.textContent = `${email} - ${isAdmin() ? "Admin" : "User"}`;
   if (elements.usersNavItem) {
     elements.usersNavItem.hidden = !isAdmin();
+  }
+  if (elements.maintenanceNavItem) {
+    elements.maintenanceNavItem.hidden = !isAdmin();
   }
   if (elements.budgetNavItem) {
     elements.budgetNavItem.hidden = !isAdmin();
@@ -803,6 +809,7 @@ async function signOut() {
   state.selectedId = null;
   if (elements.budgetNavItem) elements.budgetNavItem.hidden = true;
   if (elements.orderNavItem) elements.orderNavItem.hidden = true;
+  if (elements.maintenanceNavItem) elements.maintenanceNavItem.hidden = true;
   showAuthScreen();
 }
 
@@ -1095,7 +1102,8 @@ function markProjectDirty() {
 }
 
 async function showView(view, selectedId) {
-  if ((view === "users" || view === "budget" || view === "order") && !isAdmin()) {
+  if ((view === "users" || view === "maintenance" || view === "budget" || view === "order") && !isAdmin()) {
+    alert("Acesso restrito a administradores.");
     view = "clients";
   }
 
@@ -1128,7 +1136,7 @@ async function showView(view, selectedId) {
 
   elements.views.forEach((viewElement) => viewElement.classList.remove("active"));
   const viewElementId = view === "order" ? "budgetView" : `${view}View`;
-  document.querySelector(`#${viewElementId}`).classList.add("active");
+  document.querySelector(`#${viewElementId}`)?.classList.add("active");
 
   elements.navItems.forEach((item) => {
     item.classList.toggle("active", item.dataset.view === view);
@@ -2909,7 +2917,7 @@ function filteredBudgets() {
       const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
         String(value || "").toLowerCase().includes(search)
       );
-      const matchesStatus = state.budgetStatus === "Todos" || budget.status === state.budgetStatus;
+      const matchesStatus = state.budgetStatus === "Todos" ? budget.status !== "Recusado" : budget.status === state.budgetStatus;
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
     });
@@ -3689,6 +3697,188 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
+function backupFileName() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `crm-cabana-backup-${timestamp}.json`;
+}
+
+function setBackupStatus(message = "") {
+  if (elements.backupStatus) elements.backupStatus.textContent = message;
+}
+
+async function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function fetchSiteBackupFile(path, type = "text") {
+  const response = await fetch(path, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  if (type === "dataUrl") {
+    const blob = await response.blob();
+    return {
+      path,
+      type,
+      contentType: blob.type || "application/octet-stream",
+      content: await blobToDataUrl(blob),
+    };
+  }
+
+  return {
+    path,
+    type,
+    contentType: response.headers.get("content-type") || "text/plain",
+    content: await response.text(),
+  };
+}
+
+async function collectSiteBackupFiles() {
+  const files = [
+    ["index.html", "text"],
+    ["styles.css", "text"],
+    ["app.js", "text"],
+    ["config.js", "text"],
+    ["assets/cabana-logo.png", "dataUrl"],
+    ["assets/assinatura-final-cabana.png", "dataUrl"],
+    ["assets/cozinha-planejada.svg", "text"],
+    ["../supabase-schema.sql", "text"],
+  ];
+
+  const results = [];
+  for (const [path, type] of files) {
+    try {
+      results.push(await fetchSiteBackupFile(path, type));
+    } catch (error) {
+      results.push({ path, type, error: error.message || "Nao foi possivel ler o arquivo." });
+    }
+  }
+  return results;
+}
+
+async function fetchSupabaseTableBackup(table) {
+  if (!remoteDatabaseEnabled() || !currentUserId()) return { table, rows: [], skipped: "Banco remoto nao configurado." };
+
+  const rows = [];
+  const pageSize = 1000;
+  let offset = 0;
+
+  while (true) {
+    const response = await fetch(supabaseTableEndpoint(table, `?select=*&limit=${pageSize}&offset=${offset}`), {
+      headers: supabaseHeaders(),
+    });
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.message || `Nao foi possivel ler a tabela ${table}.`);
+    }
+
+    const page = await response.json();
+    rows.push(...page);
+    if (page.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return { table, rows };
+}
+
+async function collectDatabaseBackup() {
+  const tables = [CONFIG.clientsTable || "crm_clients", CONFIG.profilesTable || "crm_profiles", "crm_audit_logs"];
+  const results = [];
+
+  for (const table of tables) {
+    try {
+      results.push(await fetchSupabaseTableBackup(table));
+    } catch (error) {
+      results.push({ table, rows: [], error: error.message || "Nao foi possivel ler a tabela." });
+    }
+  }
+
+  return results;
+}
+
+async function saveBackupFile(fileName, content) {
+  const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+
+  if (window.showSaveFilePicker) {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: fileName,
+      types: [
+        {
+          description: "Backup JSON",
+          accept: { "application/json": [".json"] },
+        },
+      ],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function createFullBackup() {
+  if (!isAdmin()) {
+    alert("Acesso restrito a administradores.");
+    return;
+  }
+
+  const button = elements.backupSiteDataBtn;
+  if (button) button.disabled = true;
+  setBackupStatus("Preparando backup...");
+
+  try {
+    const backup = {
+      version: 1,
+      app: "CRM Cabana",
+      generatedAt: new Date().toISOString(),
+      generatedBy: {
+        id: currentUserId(),
+        email: state.session?.user?.email || "",
+        role: state.userRole,
+      },
+      location: window.location.href,
+      site: {
+        files: await collectSiteBackupFiles(),
+      },
+      database: {
+        supabaseUrl: CONFIG.supabaseUrl || "",
+        tables: await collectDatabaseBackup(),
+      },
+      localStorage: {
+        clientsKey: userStorageKey(),
+        clients: state.clients,
+        environmentsKey: environmentStorageKey(),
+        environments: state.environments,
+      },
+    };
+
+    const fileName = backupFileName();
+    await saveBackupFile(fileName, JSON.stringify(backup, null, 2));
+    setBackupStatus(`Backup salvo: ${fileName}`);
+  } catch (error) {
+    console.warn(error);
+    if (error.name === "AbortError") {
+      setBackupStatus("Backup cancelado.");
+      return;
+    }
+    setBackupStatus("");
+    alert(error.message || "Nao foi possivel gerar o backup.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 function parseCsv(text, delimiter = ";") {
   const rows = [];
   let row = [];
@@ -4194,6 +4384,7 @@ document.querySelector("#deleteProjectBtn").addEventListener("click", async () =
   }
 });
 document.querySelectorAll("[data-export]").forEach((button) => button.addEventListener("click", exportCsv));
+elements.backupSiteDataBtn?.addEventListener("click", createFullBackup);
 document.querySelectorAll("[data-import-leads]").forEach((button) => button.addEventListener("click", openLeadImportFilePicker));
 elements.leadImportFile.addEventListener("change", async (event) => {
   const file = event.target.files[0];

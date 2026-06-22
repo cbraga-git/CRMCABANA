@@ -1376,6 +1376,44 @@ button:focus-visible {
   margin-top: 12px;
 }
 
+.maintenance-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 520px);
+  gap: 16px;
+}
+
+.maintenance-panel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.maintenance-panel header {
+  display: grid;
+  gap: 6px;
+}
+
+.maintenance-panel p {
+  color: var(--muted);
+}
+
+.maintenance-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.maintenance-status {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .section-heading {
   padding: 12px 16px 0;
 }
@@ -2660,7 +2698,7 @@ dialog::backdrop {
   }
 
   .nav-list {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
   .user-chip {
