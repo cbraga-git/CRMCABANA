@@ -7,6 +7,8 @@ const STORAGE_KEY = "movelcrm-clients";
 const SESSION_KEY = "movelcrm-session";
 const ENVIRONMENT_STORAGE_KEY = "movelcrm-environments";
 const SIDEBAR_COLLAPSED_KEY = "movelcrm-sidebar-collapsed";
+const CLIENT_COLUMNS_WIDTH_KEY = "movelcrm-client-column-widths";
+const BUDGET_COLUMNS_WIDTH_KEY = "movelcrm-budget-column-widths";
 const STATUS = [
   "Todos",
   "Em Andamento",
@@ -1198,6 +1200,102 @@ function updateSortHeaders(type) {
   });
 }
 
+function loadColumnWidths(storageKey) {
+  try {
+    const widths = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    return Array.isArray(widths) ? widths.map(Number).filter((width) => Number.isFinite(width) && width > 0) : [];
+  } catch {
+    localStorage.removeItem(storageKey);
+    return [];
+  }
+}
+
+function saveColumnWidths(storageKey, table) {
+  const widths = Array.from(table.querySelectorAll('colgroup[data-resizable-columns] col')).map((col) => Math.round(parseFloat(col.style.width) || 0));
+  localStorage.setItem(storageKey, JSON.stringify(widths));
+}
+
+function syncResizableTableWidth(table) {
+  const columns = Array.from(table.querySelectorAll('colgroup[data-resizable-columns] col'));
+  const totalWidth = columns.reduce((total, col) => total + (parseFloat(col.style.width) || 0), 0);
+  if (totalWidth > 0) {
+    table.style.minWidth = `${Math.max(760, totalWidth)}px`;
+  }
+}
+
+function ensureResizableColGroup(table, storageKey) {
+  const headers = Array.from(table.querySelectorAll("thead th"));
+  const savedWidths = loadColumnWidths(storageKey);
+  const hasSavedWidths = savedWidths.length === headers.length;
+  const tableWidth = table.getBoundingClientRect().width;
+  if (!hasSavedWidths && tableWidth <= 0) return null;
+
+  let colgroup = table.querySelector('colgroup[data-resizable-columns]');
+  if (!colgroup) {
+    colgroup = document.createElement("colgroup");
+    colgroup.dataset.resizableColumns = "true";
+    table.insertBefore(colgroup, table.tHead || table.firstChild);
+  }
+
+  while (colgroup.children.length < headers.length) colgroup.appendChild(document.createElement("col"));
+  while (colgroup.children.length > headers.length) colgroup.lastElementChild.remove();
+
+  headers.forEach((header, index) => {
+    const width = hasSavedWidths ? savedWidths[index] : Math.round(header.getBoundingClientRect().width);
+    colgroup.children[index].style.width = `${Math.max(56, width || 120)}px`;
+  });
+  syncResizableTableWidth(table);
+  return colgroup;
+}
+
+function setupResizableTable(table, storageKey) {
+  if (!table) return;
+  const colgroup = ensureResizableColGroup(table, storageKey);
+  if (!colgroup || table.dataset.resizableColumnsReady === "true") return;
+
+  table.dataset.resizableColumnsReady = "true";
+  table.classList.add("resizable-table");
+  Array.from(table.querySelectorAll("thead th")).forEach((header, index) => {
+    header.classList.add("resizable-header");
+    const handle = document.createElement("span");
+    handle.className = "column-resizer";
+    handle.setAttribute("aria-hidden", "true");
+    handle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    handle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const column = colgroup.children[index];
+      const startX = event.clientX;
+      const startWidth = parseFloat(column.style.width) || header.getBoundingClientRect().width;
+
+      const onPointerMove = (moveEvent) => {
+        const nextWidth = Math.max(56, startWidth + moveEvent.clientX - startX);
+        column.style.width = `${Math.round(nextWidth)}px`;
+        syncResizableTableWidth(table);
+      };
+      const onPointerUp = () => {
+        document.body.classList.remove("is-resizing-columns");
+        document.removeEventListener("pointermove", onPointerMove);
+        document.removeEventListener("pointerup", onPointerUp);
+        saveColumnWidths(storageKey, table);
+      };
+
+      document.body.classList.add("is-resizing-columns");
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", onPointerUp, { once: true });
+    });
+    header.appendChild(handle);
+  });
+}
+
+function setupResizableTables() {
+  setupResizableTable(document.querySelector("#clientsListCard table"), CLIENT_COLUMNS_WIDTH_KEY);
+  setupResizableTable(document.querySelector("#budgetListCard table"), BUDGET_COLUMNS_WIDTH_KEY);
+}
+
 function clientSortValue(client, key) {
   const values = {
     name: client.name || "",
@@ -1386,6 +1484,7 @@ function renderClients() {
   updateSortHeaders("clients");
   document.querySelector("#clientCount").textContent = state.clients.length;
   elements.clientRows.innerHTML = "";
+  setupResizableTables();
 
   if (!clients.length) {
     elements.clientRows.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum cliente encontrado</td></tr>';
@@ -1422,8 +1521,10 @@ function renderClients() {
 
 function renderClients() {
   const clients = filteredClients("clients");
+  updateSortHeaders("clients");
   document.querySelector("#clientCount").textContent = state.clients.length;
   elements.clientRows.innerHTML = "";
+  setupResizableTables();
 
   if (!clients.length) {
     elements.clientRows.innerHTML = '<tr><td colspan="13" class="empty-state">Nenhum cliente encontrado</td></tr>';
@@ -2958,6 +3059,7 @@ function renderBudgetList() {
   const budgets = filteredBudgets();
   const documentLabel = state.view === "order" ? "pedido" : "orçamento";
   updateSortHeaders("budget");
+  setupResizableTables();
 
   document.querySelector("#budgetCount").textContent = budgets.length;
   document.querySelector("#budgetHeader p").lastChild.textContent = ` ${documentLabel}s disponíveis`;
