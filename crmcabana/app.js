@@ -128,8 +128,8 @@ const state = {
   userLogs: [],
   authMode: "signin",
   view: "clients",
-  dashboardStatus: "Todos",
-  clientStatus: "Todos",
+  dashboardStatus: IN_PROGRESS_STATUS,
+  clientStatus: IN_PROGRESS_STATUS,
   budgetStatus: "Todos",
   budgetStartDate: "",
   budgetEndDate: "",
@@ -4081,7 +4081,7 @@ window.addEventListener("beforeunload", (event) => {
 
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
-  renderStatusFilters(elements.clientFilters, state.dashboardStatus, "clients");
+  renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
   renderStatusFilters(elements.budgetFilters, state.budgetStatus, "budget");
   renderDashboard();
   renderClients();
