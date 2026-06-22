@@ -2731,6 +2731,15 @@ function focusNextBudgetEnvironmentRow(row) {
   focusBudgetRowField(nextRow, "name", { openPicker: true });
 }
 
+function focusNextBudgetRowFieldOrEnvironment(row, fieldName) {
+  const nextRow = row.nextElementSibling;
+  if (nextRow) {
+    focusBudgetRowField(nextRow, fieldName);
+    return;
+  }
+  focusNextBudgetEnvironmentRow(row);
+}
+
 function createBudgetRow(rowData = {}) {
   const row = document.createElement("tr");
   row.innerHTML = `
@@ -2801,7 +2810,7 @@ function createBudgetRow(rowData = {}) {
     event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
     markBudgetDirty();
     updateBudgetSummary();
-    focusNextBudgetEnvironmentRow(row);
+    focusNextBudgetRowFieldOrEnvironment(row, "gross");
   });
   row.querySelector("[data-budget-remove]").addEventListener("click", () => {
     row.remove();
