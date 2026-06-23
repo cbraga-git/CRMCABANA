@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=86" />
+    <link rel="stylesheet" href="styles.css?v=87" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -69,7 +69,7 @@
 
         <div class="app-version" title="Versao publicada">
           <span class="app-version-label">Versao</span>
-          <strong>v2026.06.23.01</strong>
+          <strong>v2026.06.23.06</strong>
         </div>
 
         <div class="user-chip">
@@ -329,6 +329,9 @@
               <label>Cliente do orçamento
                 <select id="budgetClientSelect"></select>
               </label>
+              <label class="budget-sale-field" id="budgetSaleAtField" hidden>Data da Venda
+                <input id="budgetSaleAt" type="datetime-local" />
+              </label>
               <label class="order-only-field">Previsao de Entrega
                 <input id="orderDeliveryForecastAt" type="datetime-local" />
               </label>
@@ -417,7 +420,7 @@
                   <thead>
                     <tr class="budget-rate-row">
                       <th></th>
-                      <th><label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th data-budget-column="gross"><label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th></th>
                       <th></th>
                       <th><label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label></th>
@@ -426,14 +429,14 @@
                       <th><label>IRIS (%)<input id="budgetIrisRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Qtd diária<input id="budgetDailyQuantity" type="number" min="0" step="0.01" /></label></th>
-                      <th><label>Vr diária<input id="budgetDailyValue" class="money-input" inputmode="decimal" /></label></th>
+                      <th data-budget-column="net"><label>Vr diária<input id="budgetDailyValue" class="money-input" inputmode="decimal" /></label></th>
                       <th><label>Total diária<input id="budgetDailyTotal" readonly /></label></th>
                       <th></th>
                       <th></th>
                     </tr>
                     <tr>
                       <th>Ambiente</th>
-                      <th>VITTA</th>
+                      <th data-budget-column="gross">VITTA</th>
                       <th>Fábrica</th>
                       <th>Ferragens</th>
                       <th>Liberação</th>
@@ -442,7 +445,7 @@
                       <th>IRIS</th>
                       <th>Impostos</th>
                       <th>Custo total</th>
-                      <th>Liquido</th>
+                      <th data-budget-column="net">Liquido</th>
                       <th>Lucro</th>
                       <th>Margem</th>
                       <th></th>
@@ -452,7 +455,7 @@
                   <tfoot>
                     <tr>
                       <th>Total</th>
-                      <td id="budgetRowsTotalGross">R$ 0,00</td>
+                      <td id="budgetRowsTotalGross" data-budget-column="gross">R$ 0,00</td>
                       <td id="budgetRowsTotalFactory">R$ 0,00</td>
                       <td id="budgetRowsTotalHardware">R$ 0,00</td>
                       <td id="budgetRowsTotalRelease">R$ 0,00</td>
@@ -461,7 +464,7 @@
                       <td id="budgetRowsTotalIris">R$ 0,00</td>
                       <td id="budgetRowsTotalTax">R$ 0,00</td>
                       <td id="budgetRowsTotalCost">R$ 0,00</td>
-                      <td id="budgetRowsTotalNet">R$ 0,00</td>
+                      <td id="budgetRowsTotalNet" data-budget-column="net">R$ 0,00</td>
                       <td id="budgetRowsTotalProfit">R$ 0,00</td>
                       <td id="budgetRowsTotalMargin">0%</td>
                       <td></td>
@@ -814,6 +817,6 @@
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=102"></script>
+    <script src="app.js?v=107"></script>
   </body>
 </html>

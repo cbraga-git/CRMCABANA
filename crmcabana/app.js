@@ -145,6 +145,7 @@ const state = {
   budgetIsNew: false,
   budgetSourceId: null,
   budgetEditingId: null,
+  budgetLastStatus: "",
   budgetDraft: null,
   selectedId: null,
   editingId: null,
@@ -211,6 +212,8 @@ const elements = {
   budgetPreviewPrintBtn: document.querySelector("#budgetPreviewPrintBtn"),
   budgetPreviewCloseBtn: document.querySelector("#budgetPreviewCloseBtn"),
   budgetDeleteBtn: document.querySelector("#budgetDeleteBtn"),
+  budgetSaleAt: document.querySelector("#budgetSaleAt"),
+  budgetSaleAtField: document.querySelector("#budgetSaleAtField"),
   orderDeliveryForecastAt: document.querySelector("#orderDeliveryForecastAt"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
@@ -1328,9 +1331,11 @@ function budgetSortValue(item, key) {
     seller: responsibleSeller(item.client),
     status: item.budget.status || "",
     gross: totals.gross,
+    net: totals.net,
     cost: totals.cost,
     profit: totals.profit,
     margin: totals.margin,
+    deliveryForecastAt: parseSortableDate(item.budget.deliveryForecastAt),
     updatedAt: parseSortableDate(item.budget.updatedAt || item.budget.createdAt),
   };
   return values[key] ?? "";
@@ -1875,19 +1880,43 @@ function readBudgetCreatedAt() {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
-function readOrderDeliveryForecastAt() {
-  const value = elements.orderDeliveryForecastAt?.value || "";
+function readDateTimeInputAsIso(input) {
+  const value = input?.value || "";
   if (!value) return "";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
 
+function readBudgetSaleAt() {
+  return readDateTimeInputAsIso(elements.budgetSaleAt);
+}
+
+function readOrderDeliveryForecastAt() {
+  return readDateTimeInputAsIso(elements.orderDeliveryForecastAt);
+}
+
+function updateBudgetSaleAtFieldVisibility() {
+  if (!elements.budgetSaleAtField) return;
+  elements.budgetSaleAtField.hidden = state.view === "order" || budgetInputValue("budgetStatus") !== "Aprovado";
+}
+
+function handleBudgetStatusDateFields() {
+  const status = budgetInputValue("budgetStatus");
+  if (state.view !== "order" && status === "Aprovado" && state.budgetLastStatus !== "Aprovado" && elements.budgetSaleAt && !elements.budgetSaleAt.value) {
+    elements.budgetSaleAt.value = formatDateTimeLocal(new Date());
+  }
+  state.budgetLastStatus = status;
+  updateBudgetSaleAtFieldVisibility();
+}
+
 function currentBudgetDraft() {
+  const status = BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
   return {
     id: state.budgetEditingId || `budget-${Date.now()}`,
     code: budgetInputValue("budgetCode") || nextBudgetCode(),
-    status: BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0],
+    status,
     createdAt: readBudgetCreatedAt(),
+    saleAt: status === "Aprovado" ? readBudgetSaleAt() : "",
     settings: readBudgetSettings(),
     rows: readBudgetRows(),
     orderMaterials: readOrderMaterialRows(),
@@ -1985,6 +2014,7 @@ function clientBudget(client) {
     code: saved.code || (saved.updatedAt ? fallbackBudgetCode(client) : ""),
     status: BUDGET_STATUS.includes(saved.status) ? saved.status : BUDGET_STATUS[0],
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
+    saleAt: saved.saleAt || "",
     settings: { ...DEFAULT_BUDGET_SETTINGS, ...(saved.settings || {}) },
     rows: Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client),
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
@@ -2000,6 +2030,7 @@ function blankBudget() {
     code: nextBudgetCode(),
     status: BUDGET_STATUS[0],
     createdAt: new Date().toISOString(),
+    saleAt: "",
     settings: { ...DEFAULT_BUDGET_SETTINGS },
     rows: [{ name: "", gross: 0, factory: 0, hardware: 0 }],
     orderMaterials: [],
@@ -2866,11 +2897,29 @@ function focusNextBudgetRowFieldOrEnvironment(row, fieldName) {
   focusNextBudgetEnvironmentRow(row);
 }
 
+function setBudgetTableOrderMode(orderMode) {
+  document.querySelectorAll(".budget-table tr").forEach((row) => {
+    if (row.classList.contains("budget-rate-row")) return;
+    const grossCell = row.querySelector('[data-budget-column="gross"]');
+    const netCell = row.querySelector('[data-budget-column="net"]');
+    if (!grossCell || !netCell) return;
+    const grossIndex = Array.from(row.children).indexOf(grossCell);
+    const netIndex = Array.from(row.children).indexOf(netCell);
+    const shouldSwap = orderMode ? grossIndex < netIndex : grossIndex > netIndex;
+    if (!shouldSwap) return;
+    const marker = document.createTextNode("");
+    row.insertBefore(marker, grossCell);
+    row.insertBefore(grossCell, netCell);
+    row.insertBefore(netCell, marker);
+    marker.remove();
+  });
+}
+
 function createBudgetRow(rowData = {}) {
   const row = document.createElement("tr");
   row.innerHTML = `
     <td data-budget-environment></td>
-    <td><input class="money-input" data-budget-field="gross" inputmode="decimal" /></td>
+    <td data-budget-column="gross"><input class="money-input" data-budget-field="gross" inputmode="decimal" /></td>
     <td><input class="money-input" data-budget-field="factory" inputmode="decimal" /></td>
     <td><input class="money-input" data-budget-field="hardware" inputmode="decimal" /></td>
     <td data-budget-result="release"></td>
@@ -2879,7 +2928,7 @@ function createBudgetRow(rowData = {}) {
     <td data-budget-result="iris"></td>
     <td data-budget-result="tax"></td>
     <td data-budget-result="totalCost"></td>
-    <td data-budget-result="net"></td>
+    <td data-budget-column="net" data-budget-result="net"></td>
     <td data-budget-result="profit"></td>
     <td data-budget-result="margin"></td>
     <td><button class="icon-button danger" type="button" data-budget-remove aria-label="Remover ambiente" title="Remover ambiente">🗑</button></td>
@@ -2972,6 +3021,11 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetTaxRate").value = settings.taxRate;
   document.querySelector("#budgetDailyQuantity").value = settings.dailyQuantity || "";
   document.querySelector("#budgetDailyValue").value = formatMoneyInput(settings.dailyValue || 0);
+  if (elements.budgetSaleAt) {
+    elements.budgetSaleAt.value = budget.saleAt ? formatDateTimeLocal(budget.saleAt) : "";
+  }
+  state.budgetLastStatus = document.querySelector("#budgetStatus").value;
+  updateBudgetSaleAtFieldVisibility();
   if (elements.orderDeliveryForecastAt) {
     elements.orderDeliveryForecastAt.value = budget.deliveryForecastAt ? formatDateTimeLocal(budget.deliveryForecastAt) : "";
   }
@@ -2980,6 +3034,7 @@ function fillBudgetForm(client) {
 
   elements.budgetRows.innerHTML = "";
   budget.rows.forEach((row) => elements.budgetRows.appendChild(createBudgetRow(row)));
+  setBudgetTableOrderMode(state.view === "order");
   renderOrderMaterialRows(budget.orderMaterials || [], budget.rows);
   state.budgetDirty = false;
   updateBudgetSummary();
@@ -3055,7 +3110,7 @@ function filteredBudgets() {
       const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
         String(value || "").toLowerCase().includes(search)
       );
-      const matchesStatus = state.budgetStatus === "Todos" ? budget.status !== "Recusado" : budget.status === state.budgetStatus;
+      const matchesStatus = state.view === "order" ? budget.status === "Aprovado" : state.budgetStatus === "Todos" ? budget.status !== "Recusado" : budget.status === state.budgetStatus;
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
     });
@@ -3085,6 +3140,19 @@ function renderBudgetList() {
   const rows = elements.budgetListRows;
   if (!rows) return;
   const budgets = filteredBudgets();
+  const orderMode = state.view === "order";
+  const grossHeader = document.querySelector('#budgetListCard th[data-sort="gross"], #budgetListCard th[data-sort="net"]');
+  const costHeader = document.querySelector('#budgetListCard th[data-sort="cost"], #budgetListCard th[data-sort="deliveryForecastAt"]');
+  if (grossHeader) {
+    grossHeader.dataset.sort = orderMode ? "net" : "gross";
+    grossHeader.textContent = orderMode ? "Total liquido" : "Total ambientes";
+    grossHeader.tabIndex = 0;
+  }
+  if (costHeader) {
+    costHeader.dataset.sort = orderMode ? "deliveryForecastAt" : "cost";
+    costHeader.textContent = orderMode ? "Previsao de entrega" : "Custo total";
+    costHeader.tabIndex = 0;
+  }
   const documentLabel = state.view === "order" ? "pedido" : "orçamento";
   updateSortHeaders("budget");
   setupResizableTables();
@@ -3124,8 +3192,8 @@ function renderBudgetList() {
     });
 
     [
-      BRL.format(totals.gross),
-      BRL.format(totals.cost),
+      BRL.format(orderMode ? totals.net : totals.gross),
+      orderMode ? formatPrintDateTime(budget.deliveryForecastAt) || "-" : BRL.format(totals.cost),
       BRL.format(totals.profit),
       formatPercent(totals.margin),
       budget.updatedAt ? new Date(budget.updatedAt).toLocaleString("pt-BR") : "-",
@@ -3176,11 +3244,13 @@ async function saveBudget(options = {}) {
   const rows = readBudgetRows();
   const sourceId = state.budgetSourceId;
   const budgetCode = budgetInputValue("budgetCode") || nextBudgetCode();
+  const budgetStatus = BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
   const budgetPayload = {
     id: state.budgetEditingId || `budget-${Date.now()}`,
     code: budgetCode,
-    status: BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0],
+    status: budgetStatus,
     createdAt: readBudgetCreatedAt(),
+    saleAt: budgetStatus === "Aprovado" ? readBudgetSaleAt() : "",
     settings,
     rows,
     orderMaterials: readOrderMaterialRows(),
@@ -4408,6 +4478,7 @@ elements.budgetClientSelect?.addEventListener("change", () => {
 document.querySelector("#budgetAddEnvironment")?.addEventListener("click", () => {
   const row = createBudgetRow({ name: "", gross: 0, factory: 0, hardware: 0 });
   elements.budgetRows.appendChild(row);
+  setBudgetTableOrderMode(state.view === "order");
   markBudgetDirty();
   updateBudgetSummary();
   focusEmptyEnvironmentSelect(row.querySelector('[data-budget-field="name"]'));
@@ -4418,8 +4489,10 @@ elements.budgetPreviewPrintBtn?.addEventListener("click", printBudgetPreview);
 elements.budgetPreviewCloseBtn?.addEventListener("click", closeBudgetPrintPreview);
 elements.budgetDeleteBtn?.addEventListener("click", deleteCurrentBudget);
 document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
+document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
 [
   "#budgetCreatedAt",
+  "#budgetSaleAt",
   "#budgetEntry",
   "#budgetEntryTerm",
   "#budgetStatus",
