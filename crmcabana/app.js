@@ -211,6 +211,7 @@ const elements = {
   budgetPreviewPrintBtn: document.querySelector("#budgetPreviewPrintBtn"),
   budgetPreviewCloseBtn: document.querySelector("#budgetPreviewCloseBtn"),
   budgetDeleteBtn: document.querySelector("#budgetDeleteBtn"),
+  orderDeliveryForecastAt: document.querySelector("#orderDeliveryForecastAt"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
   dialog: document.querySelector("#clientDialog"),
@@ -1874,6 +1875,13 @@ function readBudgetCreatedAt() {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
+function readOrderDeliveryForecastAt() {
+  const value = elements.orderDeliveryForecastAt?.value || "";
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
 function currentBudgetDraft() {
   return {
     id: state.budgetEditingId || `budget-${Date.now()}`,
@@ -1883,6 +1891,7 @@ function currentBudgetDraft() {
     settings: readBudgetSettings(),
     rows: readBudgetRows(),
     orderMaterials: readOrderMaterialRows(),
+    deliveryForecastAt: readOrderDeliveryForecastAt(),
     cashPayments: readCashPaymentRows(),
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
   };
@@ -1979,6 +1988,7 @@ function clientBudget(client) {
     settings: { ...DEFAULT_BUDGET_SETTINGS, ...(saved.settings || {}) },
     rows: Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client),
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
+    deliveryForecastAt: saved.deliveryForecastAt || "",
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
     notes: saved.notes || "",
   };
@@ -1993,6 +2003,7 @@ function blankBudget() {
     settings: { ...DEFAULT_BUDGET_SETTINGS },
     rows: [{ name: "", gross: 0, factory: 0, hardware: 0 }],
     orderMaterials: [],
+    deliveryForecastAt: "",
     cashPayments: defaultCashPaymentRows(),
     notes: "",
   };
@@ -2517,6 +2528,19 @@ function formatPrintDate(value, options = {}) {
   return date.toLocaleDateString("pt-BR", options);
 }
 
+function formatPrintDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formattedClientAddressParts(client) {
   return {
     street: [client.address?.street, client.address?.number, client.address?.complement].filter(Boolean).join(", "),
@@ -2621,6 +2645,7 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
   const address = formattedClientAddressParts(client);
   const contractCode = context.budget.code || "";
   const createdAt = formatPrintDate(context.budget.createdAt);
+  const deliveryForecastAt = formatPrintDateTime(context.budget.deliveryForecastAt);
   const orderRows = buildOrderRows([...rows], startIndex);
   const materialRows = buildMaterialRows([...rows], context.budget.orderMaterials || [], startIndex);
   return `<section class="print-page order-page">
@@ -2643,8 +2668,8 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
         <tr><td colspan="8">${escapeHtml(address.district)}</td><td colspan="10">${escapeHtml(address.city)}</td><td colspan="2" class="center">${escapeHtml(address.state)}</td><td colspan="6">${escapeHtml(address.cep)}</td></tr>
         <tr><td colspan="8" class="label">Telefone</td><td colspan="10" class="label">Celular</td><td colspan="8" class="label">E-mail</td></tr>
         <tr><td colspan="8">${escapeHtml(client.phone || "")}</td><td colspan="10">${escapeHtml(client.mobile || "")}</td><td colspan="8">${escapeHtml(client.email || "")}</td></tr>
-        <tr><td colspan="18" class="label">Endereco de entrega</td><td colspan="8" class="label order-small">Prazo entrega em dias uteis, apos assinatura do projeto executivo</td></tr>
-        <tr><td colspan="18">O mesmo</td><td colspan="8" class="center strong">45</td></tr>
+        <tr><td colspan="18" class="label">Endereco de entrega</td><td colspan="8" class="label order-small">Previsao de entrega</td></tr>
+        <tr><td colspan="18">O mesmo</td><td colspan="8" class="center strong">${escapeHtml(deliveryForecastAt || "45 dias uteis")}</td></tr>
         <tr><th colspan="2">Item</th><th colspan="2">Qtd</th><th colspan="8">Descricao ambiente / produto</th><th colspan="2">Prazo</th><th colspan="3">Valor</th><th colspan="9">Observacao</th></tr>
         ${orderRows}
         <tr><td colspan="17"></td><td colspan="5" class="label right">Total do pedido:</td><td colspan="4" class="right strong">${BRL.format(context.totals.net)}</td></tr>
@@ -2947,6 +2972,9 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetTaxRate").value = settings.taxRate;
   document.querySelector("#budgetDailyQuantity").value = settings.dailyQuantity || "";
   document.querySelector("#budgetDailyValue").value = formatMoneyInput(settings.dailyValue || 0);
+  if (elements.orderDeliveryForecastAt) {
+    elements.orderDeliveryForecastAt.value = budget.deliveryForecastAt ? formatDateTimeLocal(budget.deliveryForecastAt) : "";
+  }
   document.querySelector("#budgetNotes").value = budget.notes || "";
   renderCashPaymentRows(budget.cashPayments);
 
@@ -3156,6 +3184,7 @@ async function saveBudget(options = {}) {
     settings,
     rows,
     orderMaterials: readOrderMaterialRows(),
+    deliveryForecastAt: readOrderDeliveryForecastAt(),
     cashPayments: readCashPaymentRows(),
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
@@ -4403,6 +4432,7 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
   "#budgetTaxRate",
   "#budgetDailyQuantity",
   "#budgetDailyValue",
+  "#orderDeliveryForecastAt",
   "#budgetNotes",
 ].forEach((selector) => {
   const input = document.querySelector(selector);

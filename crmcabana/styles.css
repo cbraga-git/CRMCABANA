@@ -1736,10 +1736,18 @@ body[data-view="order"][data-budget-editing="true"] .budget-view > .page-header 
 
 .budget-toolbar {
   display: grid;
-  grid-template-columns: 150px 210px 190px minmax(260px, 420px);
+  grid-template-columns: 150px 210px 190px minmax(260px, 420px) 210px;
   justify-content: start;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.budget-toolbar .order-only-field {
+  display: none;
+}
+
+body[data-view="order"] .budget-toolbar .order-only-field {
+  display: grid;
 }
 
 .budget-toolbar label,
