@@ -3084,6 +3084,7 @@ function budgetCodeSequence(code) {
 }
 
 function budgetDateValue(budget) {
+  if (state.view === "order") return budget.saleAt || budget.updatedAt || budget.createdAt || "";
   return budget.createdAt || budget.updatedAt || "";
 }
 
@@ -3104,13 +3105,13 @@ function dateInRange(value, startDate, endDate) {
 
 function filteredBudgets() {
   const search = state.budgetSearch.toLowerCase();
+  const orderMode = state.view === "order";
   const budgets = state.clients
     .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
     .filter(({ client, budget }) => {
-      const matchesSearch = [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id].some((value) =>
-        String(value || "").toLowerCase().includes(search)
-      );
-      const matchesStatus = state.view === "order" ? budget.status === "Aprovado" : state.budgetStatus === "Todos" ? budget.status !== "Recusado" : budget.status === state.budgetStatus;
+      const searchableValues = orderMode ? [client.name] : [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id];
+      const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
+      const matchesStatus = orderMode ? budget.status === "Aprovado" : state.budgetStatus === "Todos" ? budget.status !== "Recusado" : budget.status === state.budgetStatus;
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
     });
@@ -3218,6 +3219,11 @@ function renderBudget() {
   const orderMode = state.view === "order";
   const editing = isBudgetArea && state.budgetEditing;
   document.body.dataset.budgetViewMode = orderMode ? "order" : "budget";
+  if (elements.budgetSearch) {
+    elements.budgetSearch.placeholder = orderMode ? "Buscar por nome do cliente..." : "Buscar por cliente, vendedor ou status...";
+  }
+  const dateFilterTitle = document.querySelector(".budget-dashboard-filters .date-filter .filter-title");
+  if (dateFilterTitle) dateFilterTitle.textContent = orderMode ? "Data da venda" : "Data do orcamento";
   document.querySelector("#budgetHeader h1").textContent = orderMode ? "Pedido" : "Orçamento";
   document.body.dataset.budgetEditing = editing ? "true" : "false";
   document.querySelector("#budgetHeader").hidden = editing;
