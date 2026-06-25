@@ -1304,7 +1304,6 @@ function clientSortValue(client, key) {
   const values = {
     name: client.name || "",
     mobile: client.mobile || "",
-    phone: client.phone || "",
     status: normalizeLeadStatus(client.status),
     leadHunter: client.leadHunter || "",
     street: client.address?.street || "",
@@ -1533,7 +1532,7 @@ function renderClients() {
   setupResizableTables();
 
   if (!clients.length) {
-    elements.clientRows.innerHTML = '<tr><td colspan="13" class="empty-state">Nenhum cliente encontrado</td></tr>';
+    elements.clientRows.innerHTML = '<tr><td colspan="12" class="empty-state">Nenhum cliente encontrado</td></tr>';
     return;
   }
 
@@ -1553,7 +1552,6 @@ function renderClients() {
     [
       { className: "client-name-cell", value: client.name },
       { className: "client-phone-cell", value: client.mobile || "-" },
-      { className: "client-phone-cell", value: client.phone || "-" },
     ].forEach(({ className, value }) => {
       const cell = document.createElement("td");
       cell.className = className;
@@ -2530,7 +2528,7 @@ function printableClientSection(client) {
     <div class="info-grid">
       ${printField("Cliente", client.name)}
       ${printField("CPF/CNPJ", client.cpf)}
-      ${printField("Telefone", client.phone || client.mobile)}
+      ${printField("Telefone", client.mobile || client.phone)}
       ${printField("E-mail", client.email)}
       ${printField("Endereço", clientAddressLine(client))}
       ${printField("Vendedor", responsibleSeller(client))}
@@ -2697,8 +2695,8 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
         <tr><td colspan="26">${escapeHtml(address.street)}</td></tr>
         <tr><td colspan="8" class="label">Bairro</td><td colspan="10" class="label">Cidade</td><td colspan="2" class="label">UF</td><td colspan="6" class="label">CEP</td></tr>
         <tr><td colspan="8">${escapeHtml(address.district)}</td><td colspan="10">${escapeHtml(address.city)}</td><td colspan="2" class="center">${escapeHtml(address.state)}</td><td colspan="6">${escapeHtml(address.cep)}</td></tr>
-        <tr><td colspan="8" class="label">Telefone</td><td colspan="10" class="label">Celular</td><td colspan="8" class="label">E-mail</td></tr>
-        <tr><td colspan="8">${escapeHtml(client.phone || "")}</td><td colspan="10">${escapeHtml(client.mobile || "")}</td><td colspan="8">${escapeHtml(client.email || "")}</td></tr>
+        <tr><td colspan="18" class="label">Telefone</td><td colspan="8" class="label">E-mail</td></tr>
+        <tr><td colspan="18">${escapeHtml(client.mobile || client.phone || "")}</td><td colspan="8">${escapeHtml(client.email || "")}</td></tr>
         <tr><td colspan="18" class="label">Endereco de entrega</td><td colspan="8" class="label order-small">Previsao de entrega</td></tr>
         <tr><td colspan="18">O mesmo</td><td colspan="8" class="center strong">${escapeHtml(deliveryForecastAt || "45 dias uteis")}</td></tr>
         <tr><th colspan="2">Item</th><th colspan="2">Qtd</th><th colspan="8">Descricao ambiente / produto</th><th colspan="2">Prazo</th><th colspan="3">Valor</th><th colspan="9">Observacao</th></tr>
@@ -3339,7 +3337,7 @@ function renderDetail() {
   document.querySelector("#detailStatus").className = `badge ${statusClass(client.status)}`;
   document.querySelector("#clientBudgetBtn").hidden = !isAdmin();
   document.querySelector("#detailCpf").textContent = client.cpf || "—";
-  document.querySelector("#detailPhone").textContent = client.phone || "—";
+  document.querySelector("#detailPhone").textContent = client.mobile || client.phone || "—";
   document.querySelector("#detailEmail").textContent = client.email || "—";
   document.querySelector("#detailFinalUse").textContent = client.finalUse || "—";
   document.querySelector("#detailCep").textContent = client.address.cep || "—";
@@ -3385,7 +3383,7 @@ function openClientDialog(client) {
   document.querySelector("#dialogTitle").textContent = client ? "Editar Cliente" : "Novo Cliente";
   document.querySelector("#formName").value = client ? client.name : "";
   document.querySelector("#formEmail").value = client ? client.email : "";
-  document.querySelector("#formPhone").value = client ? client.phone : "";
+  document.querySelector("#formPhone").value = client ? client.mobile || client.phone || "" : "";
   document.querySelector("#formCity").value = client ? client.city : "";
   document.querySelector("#formStatus").value = client ? normalizeLeadStatus(client.status) : DEFAULT_STATUS;
   document.querySelector("#formActive").value = client ? normalizeClientActive(client.active, client.status) : "SIM";
@@ -3504,7 +3502,7 @@ function openProjectDialog() {
 
   document.querySelector("#editName").value = client.name || "";
   document.querySelector("#editCpf").value = client.cpf || "";
-  document.querySelector("#editPhone").value = client.phone || "";
+  document.querySelector("#editMobile").value = client.mobile || client.phone || "";
   document.querySelector("#editEmail").value = client.email || "";
   document.querySelector("#editStatus").value = normalizeLeadStatus(client.status || DEFAULT_STATUS);
   document.querySelector("#editOwner").value = client.owner || "";
@@ -3612,7 +3610,6 @@ function openProjectDialog(client = selectedClient(), options = {}) {
   document.querySelector("#editPersonType").value = editableClient.personType || "Física";
   document.querySelector("#editCpf").value = editableClient.cpf || "";
   document.querySelector("#editContact").value = editableClient.contact || "";
-  document.querySelector("#editPhone").value = editableClient.phone || "";
   document.querySelector("#editMobile").value = editableClient.mobile || "";
   document.querySelector("#editEmail").value = editableClient.email || "";
   document.querySelector("#editStatus").value = normalizeLeadStatus(editableClient.status || DEFAULT_STATUS);
@@ -3687,7 +3684,7 @@ async function saveProjectFromDialog(event) {
       ...item,
       name,
       cpf: document.querySelector("#editCpf").value.trim(),
-      phone: document.querySelector("#editPhone").value.trim(),
+      phone: item.phone || "",
       email: document.querySelector("#editEmail").value.trim(),
       status: document.querySelector("#editStatus").value,
       finalUse: document.querySelector("#editFinalUse").value,
@@ -3735,7 +3732,6 @@ async function saveProjectFromDialog(event) {
     personType: document.querySelector("#editPersonType").value,
     contact: document.querySelector("#editContact").value.trim(),
     cpf: document.querySelector("#editCpf").value.trim(),
-    phone: document.querySelector("#editPhone").value.trim(),
     mobile: document.querySelector("#editMobile").value.trim(),
     email: document.querySelector("#editEmail").value.trim(),
     status: budgetClientRegistration ? BUDGET_CLIENT_STATUS : document.querySelector("#editStatus").value,
@@ -3844,7 +3840,8 @@ async function saveClientFromDialog(event) {
         ...client,
         name,
         email: document.querySelector("#formEmail").value.trim(),
-        phone: document.querySelector("#formPhone").value.trim(),
+        phone: client.phone || "",
+        mobile: document.querySelector("#formPhone").value.trim(),
         city: document.querySelector("#formCity").value.trim(),
         status: document.querySelector("#formStatus").value,
         active: normalizeClientActive(document.querySelector("#formActive").value, document.querySelector("#formStatus").value),
@@ -3869,7 +3866,8 @@ async function saveClientFromDialog(event) {
     _recordUserId: currentUserId(),
     name,
     email: document.querySelector("#formEmail").value.trim(),
-    phone: document.querySelector("#formPhone").value.trim(),
+    phone: "",
+    mobile: document.querySelector("#formPhone").value.trim(),
     city: document.querySelector("#formCity").value.trim(),
     state: "",
     status: document.querySelector("#formStatus").value,
@@ -3900,7 +3898,7 @@ function exportCsv() {
   const rows = [["Nome", "Email", "Telefone", "Cidade", "Status", "Ativo", "Faturamento", "Lucro"]];
   state.clients.forEach((client) => {
     const totals = clientTotals(client);
-    rows.push([client.name, client.email, client.phone, client.city, client.status, normalizeClientActive(client.active, client.status), totals.revenue, totals.profit]);
+    rows.push([client.name, client.email, client.mobile || client.phone, client.city, client.status, normalizeClientActive(client.active, client.status), totals.revenue, totals.profit]);
   });
 
   const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")).join("\n");
