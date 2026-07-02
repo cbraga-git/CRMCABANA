@@ -172,6 +172,7 @@ const elements = {
   authToggle: document.querySelector("#authToggle"),
   logoutBtn: document.querySelector("#logoutBtn"),
   sidebarToggle: document.querySelector("#sidebarToggle"),
+  syncPendingChip: document.querySelector("#syncPendingChip"),
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
@@ -317,6 +318,22 @@ function saveSession(session) {
 
 function userStorageKey() {
   return `${STORAGE_KEY}-${currentUserId() || "local"}`;
+}
+
+function pendingSyncKey() {
+  return `crm-pending-sync-${currentUserId() || "local"}`;
+}
+
+function markPendingSync() {
+  localStorage.setItem(pendingSyncKey(), "1");
+}
+
+function clearPendingSync() {
+  localStorage.removeItem(pendingSyncKey());
+}
+
+function hasPendingSync() {
+  return localStorage.getItem(pendingSyncKey()) === "1";
 }
 
 function environmentStorageKey() {
@@ -949,6 +966,12 @@ async function loadClients() {
     return loadLocalClients();
   }
 
+  if (hasPendingSync()) {
+    const localClients = loadLocalClients();
+    trySyncPendingClients(localClients);
+    return localClients;
+  }
+
   try {
     const clients = await loadRemoteClients();
     if (clients.length) return clients;
@@ -975,12 +998,34 @@ async function saveRemoteClients(clients) {
     data: serializeClientData(client),
     updated_at: new Date().toISOString(),
   }));
-  const response = await fetch(supabaseEndpoint("?on_conflict=id"), {
-    method: "POST",
-    headers: supabaseHeaders("resolution=merge-duplicates,return=minimal"),
-    body: JSON.stringify(rows),
-  });
-  if (!response.ok) throw new Error("Nao foi possivel salvar os clientes no banco.");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(supabaseEndpoint("?on_conflict=id"), {
+      method: "POST",
+      headers: supabaseHeaders("resolution=merge-duplicates,return=minimal"),
+      body: JSON.stringify(rows),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error("Nao foi possivel salvar os clientes no banco.");
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("Tempo esgotado ao salvar no banco. Verifique a conexao.");
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function trySyncPendingClients(clients) {
+  try {
+    await saveRemoteClients(clients);
+    clearPendingSync();
+    updateSyncIndicator();
+    return true;
+  } catch (error) {
+    console.warn(error);
+    return false;
+  }
 }
 
 async function deleteRemoteClient(clientId) {
@@ -999,9 +1044,13 @@ async function saveClients() {
 
   try {
     await saveRemoteClients(state.clients);
+    clearPendingSync();
+    updateSyncIndicator();
     return true;
   } catch (error) {
     console.warn(error);
+    markPendingSync();
+    updateSyncIndicator();
     alert("Nao foi possivel confirmar a gravacao no banco. Os dados ficaram salvos neste navegador, mas podem nao aparecer em outro dispositivo. Verifique a conexao e tente salvar novamente.");
     return false;
   }
@@ -3300,7 +3349,7 @@ async function saveBudget(options = {}) {
   state.budgetEditingId = null;
   state.budgetDraft = null;
   render();
-  alert("Orçamento salvo com sucesso.");
+  if (!options.silent) alert("Orçamento salvo com sucesso.");
 }
 
 async function deleteCurrentBudget() {
@@ -4284,6 +4333,15 @@ window.addEventListener("beforeunload", (event) => {
   event.returnValue = "";
 });
 
+window.addEventListener("online", () => {
+  if (!hasPendingSync() || !state.clients) return;
+  trySyncPendingClients(state.clients);
+});
+
+function updateSyncIndicator() {
+  if (elements.syncPendingChip) elements.syncPendingChip.hidden = !hasPendingSync();
+}
+
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
@@ -4295,6 +4353,7 @@ function render() {
   renderEnvironmentManager();
   renderUsers();
   renderDetail();
+  updateSyncIndicator();
 }
 
 function applySidebarCollapsed(collapsed) {
@@ -4492,7 +4551,18 @@ document.querySelector("#budgetPrintQuoteBtn")?.addEventListener("click", () => 
 elements.budgetPreviewPrintBtn?.addEventListener("click", printBudgetPreview);
 elements.budgetPreviewCloseBtn?.addEventListener("click", closeBudgetPrintPreview);
 elements.budgetDeleteBtn?.addEventListener("click", deleteCurrentBudget);
-document.querySelector("#budgetSaveBtn")?.addEventListener("click", saveBudget);
+document.querySelector("#budgetSaveBtn")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Salvando...";
+  try {
+    await saveBudget();
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
+});
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
 [
   "#budgetCreatedAt",
