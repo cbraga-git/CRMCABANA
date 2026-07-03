@@ -24,6 +24,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set app version
+        run: |
+          VERSION="v$(date -u +'%Y.%m.%d').${{ github.run_number }}"
+          sed -i "s/__APP_VERSION__/$VERSION/" crmcabana/index.html
+          echo "Versao publicada: $VERSION"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
