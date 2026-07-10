@@ -4342,11 +4342,15 @@ function promobCustomerFromDoc(doc) {
 }
 
 function findClientByPromobCustomer(customer) {
-  return state.clients.find((client) => {
+  const normalizedName = customer.name ? customer.name.trim().toLowerCase() : "";
+  const byContact = state.clients.find((client) => {
     const clientMobile = onlyDigits(client.mobile);
     const clientCpf = onlyDigits(client.cpf);
     return (customer.mobile && clientMobile && clientMobile === customer.mobile) || (customer.cpf && clientCpf && clientCpf === customer.cpf);
   });
+  if (byContact) return byContact;
+  if (!normalizedName) return undefined;
+  return state.clients.find((client) => (client.name || "").trim().toLowerCase() === normalizedName);
 }
 
 function resolveBudgetClientFromPromob(customer) {
