@@ -4389,9 +4389,6 @@ function findBudgetRowByEnvironmentName(name) {
 function applyPromobEnvironmentToBudgetForm(environment) {
   const existingRow = environment.name && findBudgetRowByEnvironmentName(environment.name);
   if (existingRow) {
-    const currentGross = parseMoney(existingRow.querySelector('[data-budget-field="gross"]')?.value);
-    const currentFactory = parseMoney(existingRow.querySelector('[data-budget-field="factory"]')?.value);
-    if (currentGross === environment.gross && currentFactory === environment.factory) return "unchanged";
     existingRow.querySelector('[data-budget-field="gross"]').value = formatMoneyInput(environment.gross);
     existingRow.querySelector('[data-budget-field="factory"]').value = formatMoneyInput(environment.factory);
     return "corrected";
@@ -4407,7 +4404,6 @@ async function importPromobXmlFiles(fileList) {
 
   let added = 0;
   let corrected = 0;
-  let unchanged = 0;
   const failedFiles = [];
   let clientResolution = null;
 
@@ -4424,10 +4420,8 @@ async function importPromobXmlFiles(fileList) {
       const environments = promobEnvironmentsFromDoc(doc);
       if (!environments.length) throw new Error("Nenhum ambiente com valores foi encontrado no XML.");
       environments.forEach((environment) => {
-        const outcome = applyPromobEnvironmentToBudgetForm(environment);
-        if (outcome === "added") added += 1;
-        else if (outcome === "corrected") corrected += 1;
-        else unchanged += 1;
+        if (applyPromobEnvironmentToBudgetForm(environment) === "added") added += 1;
+        else corrected += 1;
       });
     } catch (error) {
       console.warn(error);
@@ -4441,7 +4435,7 @@ async function importPromobXmlFiles(fileList) {
 
   const summary = [];
   if (clientResolution?.isNewClient) summary.push(`cliente ${clientResolution.client.name} cadastrado`);
-  summary.push(`${added} ambiente(s) adicionado(s)`, `${corrected} corrigido(s)`, `${unchanged} sem alteracao`);
+  summary.push(`${added} ambiente(s) adicionado(s)`, `${corrected} corrigido(s)`);
   if (failedFiles.length) summary.push(`falha em: ${failedFiles.join(", ")}`);
   alert(summary.join(", ") + ".");
 }
