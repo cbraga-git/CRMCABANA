@@ -99,6 +99,7 @@ const DEFAULT_BUDGET_SETTINGS = {
   dailyValue: 0,
 };
 const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Pedido", "Emissão de NF", "Finalizado", "Recusado"];
+const ORDER_STATUS = ["Aprovado", "Pedido", "Emissão de NF"];
 const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
@@ -3159,7 +3160,9 @@ function filteredBudgets() {
       const searchableValues = orderMode ? [client.name] : [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id];
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
       const matchesStatus = orderMode
-        ? budget.status === "Aprovado"
+        ? state.budgetStatus === "Todos"
+          ? ORDER_STATUS.includes(budget.status)
+          : budget.status === state.budgetStatus
         : state.budgetStatus === "Todos"
         ? budget.status !== "Recusado" && budget.status !== "Finalizado"
         : budget.status === state.budgetStatus;
