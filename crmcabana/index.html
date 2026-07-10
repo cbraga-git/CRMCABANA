@@ -218,10 +218,6 @@
               </label>
             </section>
             <div class="header-actions">
-              <button class="button secondary" type="button" data-import-promob>
-                <span class="button-icon">XML</span>
-                Importar Promob
-              </button>
               <button class="button primary" id="budgetNewBtn" type="button">
                 <span class="button-icon">+</span>
                 Criar novo
@@ -424,6 +420,7 @@
             <section class="project-editor budget-environments">
               <div class="editor-heading">
                 <span>Ambientes</span>
+                <button class="link-button" id="budgetImportPromobBtn" type="button">Importar XML do Promob</button>
                 <button class="link-button" id="budgetAddEnvironment" type="button">+ Adicionar ambiente</button>
               </div>
               <div class="table-card budget-table-card">
@@ -825,7 +822,7 @@
     </dialog>
 
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
-    <input id="promobImportFile" type="file" accept=".xml,text/xml" hidden />
+    <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
     <script src="app.js?v=110"></script>
