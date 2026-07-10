@@ -98,7 +98,7 @@ const DEFAULT_BUDGET_SETTINGS = {
   dailyQuantity: 0,
   dailyValue: 0,
 };
-const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Recusado"];
+const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Finalizado", "Recusado"];
 const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
@@ -1458,8 +1458,8 @@ function renderBudgetDashboard() {
 
 function dashboardBudgets() {
   const budgets = filteredBudgets();
-  if (state.budgetStatus === "Recusado") return budgets;
-  return budgets.filter(({ budget }) => budget.status !== "Recusado");
+  if (state.budgetStatus === "Recusado" || state.budgetStatus === "Finalizado") return budgets;
+  return budgets.filter(({ budget }) => budget.status !== "Recusado" && budget.status !== "Finalizado");
 }
 
 function renderChart(budgets) {
@@ -3158,7 +3158,11 @@ function filteredBudgets() {
     .filter(({ client, budget }) => {
       const searchableValues = orderMode ? [client.name] : [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id];
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
-      const matchesStatus = orderMode ? budget.status === "Aprovado" : state.budgetStatus === "Todos" ? budget.status !== "Recusado" : budget.status === state.budgetStatus;
+      const matchesStatus = orderMode
+        ? budget.status === "Aprovado"
+        : state.budgetStatus === "Todos"
+        ? budget.status !== "Recusado" && budget.status !== "Finalizado"
+        : budget.status === state.budgetStatus;
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
     });
