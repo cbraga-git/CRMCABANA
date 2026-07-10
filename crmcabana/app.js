@@ -98,7 +98,7 @@ const DEFAULT_BUDGET_SETTINGS = {
   dailyQuantity: 0,
   dailyValue: 0,
 };
-const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Finalizado", "Recusado"];
+const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Pedido", "Emissão de NF", "Finalizado", "Recusado"];
 const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
