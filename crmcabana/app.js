@@ -4303,9 +4303,11 @@ function openLeadImportFilePicker() {
   elements.leadImportFile.click();
 }
 
-function promobEnvironmentsFromXml(text) {
-  const doc = new DOMParser().parseFromString(text, "text/xml");
-  if (doc.querySelector("parsererror")) throw new Error("Arquivo XML do Promob invalido.");
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function promobEnvironmentsFromDoc(doc) {
   return Array.from(doc.querySelectorAll("AMBIENTS > AMBIENT"))
     .map((ambient) => {
       const totals = ambient.querySelector(":scope > TOTALPRICES > MARGINS");
@@ -4318,6 +4320,64 @@ function promobEnvironmentsFromXml(text) {
     .filter((environment) => environment.name || environment.gross || environment.factory);
 }
 
+function promobCustomerFromDoc(doc) {
+  const data = {};
+  doc.querySelectorAll("CUSTOMERSDATA > DATA").forEach((node) => {
+    data[node.getAttribute("ID")] = node.getAttribute("VALUE") || "";
+  });
+  return {
+    name: (data.nomecliente || "").trim(),
+    email: (data.email || data.email_Private_0 || "").trim(),
+    mobile: onlyDigits(data.celular || (data.phone_Mobile_0 || "").split("|").pop()),
+    cpf: onlyDigits(data.cpfcnpj),
+    personType: data.customerType === "Legal" ? "Juridica" : "Fisica",
+    city: (data.cidade || "").trim(),
+    state: (data.uf || "").trim(),
+    address: {
+      cep: onlyDigits(data.cep),
+      street: (data.endereco || "").trim(),
+      district: (data.bairro || "").trim(),
+    },
+  };
+}
+
+function findClientByPromobCustomer(customer) {
+  return state.clients.find((client) => {
+    const clientMobile = onlyDigits(client.mobile);
+    const clientCpf = onlyDigits(client.cpf);
+    return (customer.mobile && clientMobile && clientMobile === customer.mobile) || (customer.cpf && clientCpf && clientCpf === customer.cpf);
+  });
+}
+
+function resolveBudgetClientFromPromob(customer) {
+  if (!customer.mobile && !customer.cpf && !customer.name) return null;
+  const existingClient = findClientByPromobCustomer(customer);
+  let client = existingClient;
+  let isNewClient = false;
+  if (!client) {
+    client = {
+      ...blankClient(BUDGET_CLIENT_STATUS),
+      name: customer.name || "Cliente Promob",
+      email: customer.email,
+      mobile: customer.mobile,
+      cpf: customer.cpf,
+      personType: customer.personType,
+      city: customer.city,
+      state: customer.state,
+      address: { ...blankClient().address, ...customer.address },
+    };
+    state.clients = [...state.clients, client];
+    isNewClient = true;
+  } else if (!clientCanHaveBudget(client)) {
+    client = { ...client, status: BUDGET_CLIENT_STATUS };
+    state.clients = state.clients.map((item) => (item.id === client.id ? client : item));
+  }
+  renderBudgetClientOptions();
+  elements.budgetClientSelect.value = client.id;
+  elements.budgetClientSelect.dispatchEvent(new Event("change"));
+  return { client, isNewClient };
+}
+
 function findBudgetRowByEnvironmentName(name) {
   const normalized = normalizeEnvironmentName(name);
   return Array.from(elements.budgetRows.querySelectorAll("tr")).find((row) => {
@@ -4328,29 +4388,46 @@ function findBudgetRowByEnvironmentName(name) {
 
 function applyPromobEnvironmentToBudgetForm(environment) {
   const existingRow = environment.name && findBudgetRowByEnvironmentName(environment.name);
-  const row = existingRow || createBudgetRow({ name: environment.name, gross: 0, factory: 0, hardware: 0 });
-  row.querySelector('[data-budget-field="gross"]').value = formatMoneyInput(environment.gross);
-  row.querySelector('[data-budget-field="factory"]').value = formatMoneyInput(environment.factory);
-  if (!existingRow) elements.budgetRows.appendChild(row);
-  return Boolean(existingRow);
+  if (existingRow) {
+    const currentGross = parseMoney(existingRow.querySelector('[data-budget-field="gross"]')?.value);
+    const currentFactory = parseMoney(existingRow.querySelector('[data-budget-field="factory"]')?.value);
+    if (currentGross === environment.gross && currentFactory === environment.factory) return "unchanged";
+    existingRow.querySelector('[data-budget-field="gross"]').value = formatMoneyInput(environment.gross);
+    existingRow.querySelector('[data-budget-field="factory"]').value = formatMoneyInput(environment.factory);
+    return "corrected";
+  }
+  const row = createBudgetRow({ name: environment.name, gross: environment.gross, factory: environment.factory, hardware: 0 });
+  elements.budgetRows.appendChild(row);
+  return "added";
 }
 
 async function importPromobXmlFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
 
-  let updated = 0;
   let added = 0;
+  let corrected = 0;
+  let unchanged = 0;
   const failedFiles = [];
+  let clientResolution = null;
 
   for (const file of files) {
     try {
       const text = await readImportFileText(file);
-      const environments = promobEnvironmentsFromXml(text);
+      const doc = new DOMParser().parseFromString(text, "text/xml");
+      if (doc.querySelector("parsererror")) throw new Error("Arquivo XML do Promob invalido.");
+
+      if (!clientResolution && !elements.budgetClientSelect.value) {
+        clientResolution = resolveBudgetClientFromPromob(promobCustomerFromDoc(doc));
+      }
+
+      const environments = promobEnvironmentsFromDoc(doc);
       if (!environments.length) throw new Error("Nenhum ambiente com valores foi encontrado no XML.");
       environments.forEach((environment) => {
-        if (applyPromobEnvironmentToBudgetForm(environment)) updated += 1;
-        else added += 1;
+        const outcome = applyPromobEnvironmentToBudgetForm(environment);
+        if (outcome === "added") added += 1;
+        else if (outcome === "corrected") corrected += 1;
+        else unchanged += 1;
       });
     } catch (error) {
       console.warn(error);
@@ -4362,7 +4439,9 @@ async function importPromobXmlFiles(fileList) {
   markBudgetDirty();
   updateBudgetSummary();
 
-  const summary = [`${added} ambiente(s) adicionado(s)`, `${updated} corrigido(s)`];
+  const summary = [];
+  if (clientResolution?.isNewClient) summary.push(`cliente ${clientResolution.client.name} cadastrado`);
+  summary.push(`${added} ambiente(s) adicionado(s)`, `${corrected} corrigido(s)`, `${unchanged} sem alteracao`);
   if (failedFiles.length) summary.push(`falha em: ${failedFiles.join(", ")}`);
   alert(summary.join(", ") + ".");
 }
