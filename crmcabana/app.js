@@ -230,6 +230,7 @@ const elements = {
   environmentForm: document.querySelector("#environmentForm"),
   environmentNameInput: document.querySelector("#environmentNameInput"),
   leadImportFile: document.querySelector("#leadImportFile"),
+  promobImportFile: document.querySelector("#promobImportFile"),
   budgetClientSelect: document.querySelector("#budgetClientSelect"),
   budgetRows: document.querySelector("#budgetRows"),
   orderMaterialEditor: document.querySelector("#orderMaterialEditor"),
@@ -4302,6 +4303,130 @@ function openLeadImportFilePicker() {
   elements.leadImportFile.click();
 }
 
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function promobCustomerData(doc) {
+  const data = {};
+  doc.querySelectorAll("CUSTOMERSDATA > DATA").forEach((node) => {
+    data[node.getAttribute("ID")] = node.getAttribute("VALUE") || "";
+  });
+  return data;
+}
+
+function promobEnvironments(doc) {
+  return Array.from(doc.querySelectorAll("AMBIENTS > AMBIENT")).map((ambient) => {
+    const totals = ambient.querySelector(":scope > TOTALPRICES > MARGINS");
+    return {
+      name: (ambient.getAttribute("DESCRIPTION") || "").replace(/^Projeto\s*-\s*/i, "").trim(),
+      gross: Number(totals?.querySelector(":scope > BUDGET")?.getAttribute("VALUE")) || 0,
+      factory: Number(totals?.querySelector(":scope > ORDER")?.getAttribute("VALUE")) || 0,
+    };
+  });
+}
+
+function parsePromobXml(text) {
+  const doc = new DOMParser().parseFromString(text, "text/xml");
+  if (doc.querySelector("parsererror")) throw new Error("Arquivo XML do Promob invalido.");
+  const data = promobCustomerData(doc);
+  const environments = promobEnvironments(doc).filter((environment) => environment.name || environment.gross || environment.factory);
+  if (!environments.length) throw new Error("Nenhum ambiente com valores foi encontrado no XML.");
+  const mobile = onlyDigits(data.celular || (data.phone_Mobile_0 || "").split("|").pop());
+  return {
+    name: (data.nomecliente || "").trim(),
+    email: (data.email || data.email_Private_0 || "").trim(),
+    mobile,
+    cpf: onlyDigits(data.cpfcnpj),
+    personType: data.customerType === "Legal" ? "Juridica" : "Fisica",
+    city: (data.cidade || "").trim(),
+    state: (data.uf || "").trim(),
+    address: {
+      cep: onlyDigits(data.cep),
+      street: (data.endereco || "").trim(),
+      district: (data.bairro || "").trim(),
+    },
+    environments,
+  };
+}
+
+function findClientByPromobData(promobData) {
+  return state.clients.find((client) => {
+    const clientMobile = onlyDigits(client.mobile);
+    const clientCpf = onlyDigits(client.cpf);
+    return (promobData.mobile && clientMobile && clientMobile === promobData.mobile) || (promobData.cpf && clientCpf && clientCpf === promobData.cpf);
+  });
+}
+
+function promobBudgetRows(environments) {
+  return environments.map((environment) => ({ name: environment.name, gross: environment.gross, factory: environment.factory, hardware: 0 }));
+}
+
+async function importPromobXmlFile(file) {
+  const text = await readImportFileText(file);
+  const promobData = parsePromobXml(text);
+
+  const existingClient = findClientByPromobData(promobData);
+  const client = existingClient
+    ? {
+        ...existingClient,
+        name: existingClient.name || promobData.name,
+        email: existingClient.email || promobData.email,
+        mobile: existingClient.mobile || promobData.mobile,
+        cpf: existingClient.cpf || promobData.cpf,
+        city: existingClient.city || promobData.city,
+        state: existingClient.state || promobData.state,
+        address: {
+          ...existingClient.address,
+          cep: existingClient.address?.cep || promobData.address.cep,
+          street: existingClient.address?.street || promobData.address.street,
+          district: existingClient.address?.district || promobData.address.district,
+        },
+      }
+    : {
+        ...blankClient(BUDGET_CLIENT_STATUS),
+        name: promobData.name || "Cliente Promob",
+        email: promobData.email,
+        mobile: promobData.mobile,
+        cpf: promobData.cpf,
+        personType: promobData.personType,
+        city: promobData.city,
+        state: promobData.state,
+        address: { ...blankClient().address, ...promobData.address },
+      };
+
+  const budgetPayload = {
+    id: `budget-${Date.now()}`,
+    code: nextBudgetCode(),
+    status: BUDGET_STATUS[0],
+    createdAt: new Date().toISOString(),
+    saleAt: "",
+    settings: { ...DEFAULT_BUDGET_SETTINGS },
+    rows: promobBudgetRows(promobData.environments),
+    orderMaterials: [],
+    deliveryForecastAt: "",
+    cashPayments: defaultCashPaymentRows(),
+    notes: "",
+    updatedAt: new Date().toISOString(),
+  };
+
+  const clientsById = new Map(state.clients.map((item) => [item.id, item]));
+  const budgets = clientBudgetHistory(client);
+  budgets.unshift(budgetPayload);
+  clientsById.set(client.id, { ...client, budget: budgetPayload, budgets });
+  state.clients = Array.from(clientsById.values());
+  state.selectedId = client.id;
+
+  if (!(await saveClients())) return;
+  render();
+  alert(`Orcamento ${budgetPayload.code} importado do Promob para ${client.name}.`);
+}
+
+function openPromobImportFilePicker() {
+  elements.promobImportFile.value = "";
+  elements.promobImportFile.click();
+}
+
 function editableEnterShouldMoveFocus(event) {
   if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return false;
   const field = event.target;
@@ -4690,6 +4815,18 @@ elements.leadImportFile.addEventListener("change", async (event) => {
   } catch (error) {
     console.warn(error);
     alert(error.message || "Nao foi possivel importar os leads.");
+  }
+});
+document.querySelectorAll("[data-import-promob]").forEach((button) => button.addEventListener("click", openPromobImportFilePicker));
+elements.promobImportFile.addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    await importPromobXmlFile(file);
+  } catch (error) {
+    console.warn(error);
+    alert(error.message || "Nao foi possivel importar o XML do Promob.");
   }
 });
 document.querySelectorAll("[data-legacy-logout]").forEach((button) => {
