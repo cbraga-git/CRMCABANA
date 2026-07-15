@@ -87,6 +87,7 @@ const FINANCING_RATES = {
 };
 const DEFAULT_BUDGET_SETTINGS = {
   discountRate: 0,
+  freightRate: 12,
   releaseRate: 2,
   assemblyRate: 12,
   lelaRate: 0,
@@ -2143,6 +2144,7 @@ function clientBudgetHistory(client) {
       ...budget,
       id: budgetIdentity(budget) || `budget-${budgets.length + 1}`,
       createdAt: budget.createdAt || budget.updatedAt,
+      settings: { ...DEFAULT_BUDGET_SETTINGS, ...(budget.settings || {}) },
     };
     const identity = budgetIdentity(normalized);
     const existingIndex = budgets.findIndex((item) => budgetIdentity(item) === identity);
@@ -2182,6 +2184,7 @@ function renderBudgetEditorSubtitle(client) {
 function readBudgetSettings() {
   return {
     discountRate: Number(budgetInputValue("budgetDiscountRate")) || 0,
+    freightRate: Number(budgetInputValue("budgetFreightRate")) || 0,
     releaseRate: Number(budgetInputValue("budgetReleaseRate")) || 0,
     assemblyRate: Number(budgetInputValue("budgetAssemblyRate")) || 0,
     lelaRate: Number(budgetInputValue("budgetLelaRate")) || 0,
@@ -2267,6 +2270,7 @@ function renderOrderMaterialRows(materials = [], budgetRows = readBudgetRows()) 
 function calculateBudgetRows(rows, settings) {
   const rates = {
     discount: percentToRate(settings.discountRate),
+    freight: percentToRate(settings.freightRate),
     release: percentToRate(settings.releaseRate),
     assembly: percentToRate(settings.assemblyRate),
     lela: percentToRate(settings.lelaRate),
@@ -2279,20 +2283,23 @@ function calculateBudgetRows(rows, settings) {
     const factory = parseMoney(row.factory);
     const hardware = parseMoney(row.hardware);
     const net = gross - gross * rates.discount;
+    const freight = factory * rates.freight;
     const release = net * rates.release;
     const assembly = net * rates.assembly;
     const tax = net * rates.tax;
-    const profitBeforeProfitRates = net - factory - hardware - release - assembly - tax;
+    const profitBeforeProfitRates = net - factory - hardware - freight - release - assembly - tax;
     const profitRateTotal = rates.lela + rates.iris;
     const profit = profitBeforeProfitRates > 0 ? profitBeforeProfitRates / (1 + profitRateTotal) : profitBeforeProfitRates;
     const lela = profit > 0 ? profit * rates.lela : 0;
     const iris = profit > 0 ? profit * rates.iris : 0;
-    const totalCost = factory + hardware + release + assembly + lela + iris + tax;
+    const totalCost = factory + hardware + freight + release + assembly + lela + iris + tax;
     return {
       ...row,
       gross,
       factory,
       hardware,
+      factoryFreight: factory + freight,
+      freight,
       release,
       assembly,
       lela,
@@ -2301,7 +2308,6 @@ function calculateBudgetRows(rows, settings) {
       totalCost,
       net,
       profit,
-      margin: net ? profit / net : 0,
     };
   });
 }
@@ -2345,19 +2351,23 @@ function updateBudgetTableTotals(calculatedRows, totals) {
   const rowTotals = calculatedRows.reduce(
     (summary, row) => ({
       factory: summary.factory + row.factory,
+      factoryFreight: summary.factoryFreight + row.factoryFreight,
       hardware: summary.hardware + row.hardware,
+      freight: summary.freight + row.freight,
       release: summary.release + row.release,
       assembly: summary.assembly + row.assembly,
       lela: summary.lela + row.lela,
       iris: summary.iris + row.iris,
       tax: summary.tax + row.tax,
     }),
-    { factory: 0, hardware: 0, release: 0, assembly: 0, lela: 0, iris: 0, tax: 0 }
+    { factory: 0, factoryFreight: 0, hardware: 0, freight: 0, release: 0, assembly: 0, lela: 0, iris: 0, tax: 0 }
   );
 
   document.querySelector("#budgetRowsTotalGross").textContent = BRL.format(totals.gross);
   document.querySelector("#budgetRowsTotalFactory").textContent = BRL.format(rowTotals.factory);
+  document.querySelector("#budgetRowsTotalFactoryFreight").textContent = BRL.format(rowTotals.factoryFreight);
   document.querySelector("#budgetRowsTotalHardware").textContent = BRL.format(rowTotals.hardware);
+  document.querySelector("#budgetRowsTotalFreight").textContent = BRL.format(rowTotals.freight);
   document.querySelector("#budgetRowsTotalRelease").textContent = BRL.format(rowTotals.release);
   document.querySelector("#budgetRowsTotalAssembly").textContent = BRL.format(rowTotals.assembly);
   document.querySelector("#budgetRowsTotalLela").textContent = BRL.format(rowTotals.lela);
@@ -2366,7 +2376,6 @@ function updateBudgetTableTotals(calculatedRows, totals) {
   document.querySelector("#budgetRowsTotalCost").textContent = BRL.format(totals.cost);
   document.querySelector("#budgetRowsTotalNet").textContent = BRL.format(totals.net);
   document.querySelector("#budgetRowsTotalProfit").textContent = BRL.format(totals.profit);
-  document.querySelector("#budgetRowsTotalMargin").textContent = formatPercent(totals.margin);
 }
 
 function updateBudgetSummary() {
@@ -2392,6 +2401,8 @@ function updateBudgetSummary() {
 
   Array.from(elements.budgetRows.querySelectorAll("tr")).forEach((row, index) => {
     const values = calculatedRows[index] || {};
+    row.querySelector('[data-budget-result="factoryFreight"]').textContent = BRL.format(values.factoryFreight || 0);
+    row.querySelector('[data-budget-result="freight"]').textContent = BRL.format(values.freight || 0);
     row.querySelector('[data-budget-result="release"]').textContent = BRL.format(values.release || 0);
     row.querySelector('[data-budget-result="assembly"]').textContent = BRL.format(values.assembly || 0);
     row.querySelector('[data-budget-result="lela"]').textContent = BRL.format(values.lela || 0);
@@ -2400,7 +2411,6 @@ function updateBudgetSummary() {
     row.querySelector('[data-budget-result="totalCost"]').textContent = BRL.format(values.totalCost || 0);
     row.querySelector('[data-budget-result="net"]').textContent = BRL.format(values.net || 0);
     row.querySelector('[data-budget-result="profit"]').textContent = BRL.format(values.profit || 0);
-    row.querySelector('[data-budget-result="margin"]').textContent = formatPercent(values.margin || 0);
   });
 }
 
@@ -2813,7 +2823,9 @@ function buildQuoteDocument(context) {
         <td>${escapeHtml(row.name || "-")}</td>
         <td class="money">${BRL.format(row.gross || 0)}</td>
         <td class="money">${BRL.format(row.factory || 0)}</td>
+        <td class="money">${BRL.format(row.factoryFreight || 0)}</td>
         <td class="money">${BRL.format(row.hardware || 0)}</td>
+        <td class="money">${BRL.format(row.freight || 0)}</td>
         <td class="money">${BRL.format(row.release || 0)}</td>
         <td class="money">${BRL.format(row.assembly || 0)}</td>
         <td class="money">${BRL.format(row.lela || 0)}</td>
@@ -2822,7 +2834,6 @@ function buildQuoteDocument(context) {
         <td class="money">${BRL.format(row.totalCost || 0)}</td>
         <td class="money">${BRL.format(row.net || 0)}</td>
         <td class="money">${BRL.format(row.profit || 0)}</td>
-        <td class="money">${formatPercent(row.margin || 0)}</td>
       </tr>`
     )
     .join("");
@@ -2833,12 +2844,12 @@ function buildQuoteDocument(context) {
       <table>
         <thead>
           <tr>
-            <th>Ambiente</th><th class="money">VITTA</th><th class="money">Fábrica</th><th class="money">Ferragens</th><th class="money">Liberação</th>
+            <th>Ambiente</th><th class="money">VITTA</th><th class="money">Fábrica</th><th class="money">Fábrica+Frete</th><th class="money">Ferragens</th><th class="money">Frete</th><th class="money">Liberação</th>
             <th class="money">Montagem</th><th class="money">LELA</th><th class="money">IRIS</th><th class="money">Impostos</th>
-            <th class="money">Custo total</th><th class="money">Liquido</th><th class="money">Lucro</th><th class="money">Margem</th>
+            <th class="money">Custo total</th><th class="money">Liquido</th><th class="money">Lucro</th>
           </tr>
         </thead>
-        <tbody>${rows || '<tr><td colspan="13">Nenhum ambiente informado</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="14">Nenhum ambiente informado</td></tr>'}</tbody>
       </table>
       <div class="totals">
         ${printField("Total ambientes", BRL.format(context.totals.gross))}
@@ -2970,7 +2981,9 @@ function createBudgetRow(rowData = {}) {
     <td data-budget-environment></td>
     <td data-budget-column="gross"><input class="money-input" data-budget-field="gross" inputmode="decimal" /></td>
     <td><input class="money-input" data-budget-field="factory" inputmode="decimal" /></td>
+    <td data-budget-result="factoryFreight"></td>
     <td><input class="money-input" data-budget-field="hardware" inputmode="decimal" /></td>
+    <td data-budget-result="freight"></td>
     <td data-budget-result="release"></td>
     <td data-budget-result="assembly"></td>
     <td data-budget-result="lela"></td>
@@ -2979,7 +2992,6 @@ function createBudgetRow(rowData = {}) {
     <td data-budget-result="totalCost"></td>
     <td data-budget-column="net" data-budget-result="net"></td>
     <td data-budget-result="profit"></td>
-    <td data-budget-result="margin"></td>
     <td><button class="icon-button danger" type="button" data-budget-remove aria-label="Remover ambiente" title="Remover ambiente">🗑</button></td>
   `;
   const focusBudgetGross = () => {
@@ -3063,6 +3075,7 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetEntryTerm").value = String(settings.entryTerm || 30);
   document.querySelector("#budgetInstallments").value = String(settings.installments || 0);
   document.querySelector("#budgetDiscountRate").value = settings.discountRate;
+  document.querySelector("#budgetFreightRate").value = settings.freightRate;
   document.querySelector("#budgetReleaseRate").value = settings.releaseRate;
   document.querySelector("#budgetAssemblyRate").value = settings.assemblyRate;
   document.querySelector("#budgetLelaRate").value = settings.lelaRate;
@@ -4726,6 +4739,7 @@ document.querySelector("#budgetStatus")?.addEventListener("change", handleBudget
   "#budgetStatus",
   "#budgetInstallments",
   "#budgetDiscountRate",
+  "#budgetFreightRate",
   "#budgetReleaseRate",
   "#budgetAssemblyRate",
   "#budgetLelaRate",

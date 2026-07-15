@@ -1870,9 +1870,10 @@ body[data-view="order"] .budget-table tr > :nth-child(7),
 body[data-view="order"] .budget-table tr > :nth-child(8),
 body[data-view="order"] .budget-table tr > :nth-child(9),
 body[data-view="order"] .budget-table tr > :nth-child(10),
+body[data-view="order"] .budget-table tr > :nth-child(11),
 body[data-view="order"] .budget-table tr > :nth-child(12),
-body[data-view="order"] .budget-table tr > :nth-child(13),
-body[data-view="order"] .budget-rate-row > :nth-child(11) {
+body[data-view="order"] .budget-table tr > :nth-child(14),
+body[data-view="order"] .budget-rate-row > :nth-child(13) {
   display: none;
 }
 
@@ -2132,7 +2133,7 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-table {
-  min-width: 1500px;
+  min-width: 1650px;
   font-size: 12px;
 }
 

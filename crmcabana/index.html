@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=89" />
+    <link rel="stylesheet" href="styles.css?v=90" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -431,6 +431,8 @@
                       <th data-budget-column="gross"><label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th></th>
                       <th></th>
+                      <th></th>
+                      <th><label>Frete (%)<input id="budgetFreightRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label></th>
@@ -440,13 +442,14 @@
                       <th data-budget-column="net"><label>Vr diária<input id="budgetDailyValue" class="money-input" inputmode="decimal" /></label></th>
                       <th><label>Total diária<input id="budgetDailyTotal" readonly /></label></th>
                       <th></th>
-                      <th></th>
                     </tr>
                     <tr>
                       <th>Ambiente</th>
                       <th data-budget-column="gross">VITTA</th>
                       <th>Fábrica</th>
+                      <th>Fábrica+Frete</th>
                       <th>Ferragens</th>
+                      <th>Frete</th>
                       <th>Liberação</th>
                       <th>Montagem</th>
                       <th>LELA</th>
@@ -455,7 +458,6 @@
                       <th>Custo total</th>
                       <th data-budget-column="net">Liquido</th>
                       <th>Lucro</th>
-                      <th>Margem</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -465,7 +467,9 @@
                       <th>Total</th>
                       <td id="budgetRowsTotalGross" data-budget-column="gross">R$ 0,00</td>
                       <td id="budgetRowsTotalFactory">R$ 0,00</td>
+                      <td id="budgetRowsTotalFactoryFreight">R$ 0,00</td>
                       <td id="budgetRowsTotalHardware">R$ 0,00</td>
+                      <td id="budgetRowsTotalFreight">R$ 0,00</td>
                       <td id="budgetRowsTotalRelease">R$ 0,00</td>
                       <td id="budgetRowsTotalAssembly">R$ 0,00</td>
                       <td id="budgetRowsTotalLela">R$ 0,00</td>
@@ -474,7 +478,6 @@
                       <td id="budgetRowsTotalCost">R$ 0,00</td>
                       <td id="budgetRowsTotalNet" data-budget-column="net">R$ 0,00</td>
                       <td id="budgetRowsTotalProfit">R$ 0,00</td>
-                      <td id="budgetRowsTotalMargin">0%</td>
                       <td></td>
                     </tr>
                   </tfoot>
@@ -825,6 +828,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=111"></script>
+    <script src="app.js?v=114"></script>
   </body>
 </html>
