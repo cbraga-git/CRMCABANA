@@ -742,6 +742,10 @@ function parseMoney(value) {
 // negativo no inicio do texto; senao o comportamento de sempre (parseMoney) e mantido.
 // Multiplicacao e divisao tem precedencia sobre soma e subtracao, como numa calculadora.
 function evaluateMoneyExpression(value) {
+  // Numeros ja resolvidos (ex: valor calculado vindo do orcamento salvo) nunca passam pela
+  // leitura de texto: "." e separador de milhar no parser, entao converter um numero como
+  // 12504.5 para string e reinterpretar geraria 1250450 em vez de 12504,50.
+  if (typeof value === "number") return value;
   const text = String(value || "").trim();
   if (!/[+\-*/]/.test(text.slice(1))) return parseMoney(text);
 
