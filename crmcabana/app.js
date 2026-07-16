@@ -300,6 +300,38 @@ function authHeaders() {
   };
 }
 
+// O access_token do Supabase expira (padrao 1h) e nunca era renovado: uma sessao aberta por
+// mais tempo passava a levar 401 em toda chamada, inclusive ao salvar, e a mensagem de erro
+// (generica, "verifique a conexao") escondia que o problema era sessao expirada, nao rede.
+async function refreshAccessToken() {
+  const refreshToken = state.session?.refresh_token;
+  if (!refreshToken) return false;
+  try {
+    const response = await fetch(supabaseAuthEndpoint("/token?grant_type=refresh_token"), {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.access_token) return false;
+    saveSession(payload);
+    return true;
+  } catch (error) {
+    console.warn(error);
+    return false;
+  }
+}
+
+// requestInit e uma funcao (nao um objeto) para que, se a 1a tentativa vier 401, os headers
+// sejam remontados com o token renovado antes de tentar de novo.
+async function authorizedFetch(url, requestInit) {
+  let response = await fetch(url, requestInit());
+  if (response.status === 401 && (await refreshAccessToken())) {
+    response = await fetch(url, requestInit());
+  }
+  return response;
+}
+
 function loadStoredSession() {
   try {
     const saved = localStorage.getItem(SESSION_KEY);
@@ -900,13 +932,13 @@ async function ensureUserProfile() {
 
   const email = state.session?.user?.email || "";
   try {
-    let response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,blocked,updated_at`), {
+    let response = await authorizedFetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,blocked,updated_at`), () => ({
       headers: supabaseHeaders(),
-    });
+    }));
     if (!response.ok) {
-      response = await fetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,updated_at`), {
+      response = await authorizedFetch(supabaseProfilesEndpoint(`?id=eq.${encodeURIComponent(currentUserId())}&select=id,email,role,updated_at`), () => ({
         headers: supabaseHeaders(),
-      });
+      }));
     }
     if (!response.ok) throw new Error("profiles_unavailable");
 
@@ -921,11 +953,11 @@ async function ensureUserProfile() {
       return;
     }
 
-    const createResponse = await fetch(supabaseProfilesEndpoint(), {
+    const createResponse = await authorizedFetch(supabaseProfilesEndpoint(), () => ({
       method: "POST",
       headers: supabaseHeaders(),
       body: JSON.stringify({ id: currentUserId(), email, role: "user", blocked: false }),
-    });
+    }));
     if (!createResponse.ok) throw new Error("profile_create_failed");
     state.userRole = "user";
   } catch (error) {
@@ -941,29 +973,29 @@ async function loadUserProfiles() {
     return;
   }
 
-  let response = await fetch(supabaseProfilesEndpoint("?select=id,email,role,blocked,updated_at&order=email.asc"), {
+  let response = await authorizedFetch(supabaseProfilesEndpoint("?select=id,email,role,blocked,updated_at&order=email.asc"), () => ({
     headers: supabaseHeaders(),
-  });
+  }));
   if (!response.ok) {
-    response = await fetch(supabaseProfilesEndpoint("?select=id,email,role,updated_at&order=email.asc"), {
+    response = await authorizedFetch(supabaseProfilesEndpoint("?select=id,email,role,updated_at&order=email.asc"), () => ({
       headers: supabaseHeaders(),
-    });
+    }));
   }
   if (!response.ok) throw new Error("Nao foi possivel carregar os usuarios.");
   state.userProfiles = await response.json();
 
-  const logsResponse = await fetch(supabaseTableEndpoint("crm_audit_logs", "?select=created_at,action,target_user_id,target_email,details,actor_email&order=created_at.desc&limit=50"), {
+  const logsResponse = await authorizedFetch(supabaseTableEndpoint("crm_audit_logs", "?select=created_at,action,target_user_id,target_email,details,actor_email&order=created_at.desc&limit=50"), () => ({
     headers: supabaseHeaders(),
-  });
+  }));
   state.userLogs = logsResponse.ok ? await logsResponse.json() : [];
 }
 
 async function callAdminRpc(functionName, payload) {
-  const response = await fetch(supabaseRpcEndpoint(functionName), {
+  const response = await authorizedFetch(supabaseRpcEndpoint(functionName), () => ({
     method: "POST",
     headers: supabaseHeaders("return=representation"),
     body: JSON.stringify(payload),
-  });
+  }));
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     const details = [data?.message, data?.hint, data?.details].filter(Boolean).join(" ");
@@ -1002,9 +1034,9 @@ async function updateUserPassword(userId, password) {
 }
 
 async function loadRemoteClients() {
-  const response = await fetch(supabaseEndpoint("?select=user_id,data,updated_at&order=updated_at.desc"), {
+  const response = await authorizedFetch(supabaseEndpoint("?select=user_id,data,updated_at&order=updated_at.desc"), () => ({
     headers: supabaseHeaders(),
-  });
+  }));
   if (!response.ok) {
     const message = response.status === 401 ? "Sessao expirada. Entre novamente." : "Nao foi possivel carregar os clientes do banco.";
     throw new Error(message);
@@ -1073,12 +1105,12 @@ async function saveRemoteClients(clients) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(supabaseEndpoint("?on_conflict=id"), {
+    const response = await authorizedFetch(supabaseEndpoint("?on_conflict=id"), () => ({
       method: "POST",
       headers: supabaseHeaders("resolution=merge-duplicates,return=minimal"),
       body: JSON.stringify(rows),
       signal: controller.signal,
-    });
+    }));
     if (!response.ok) throw new Error("Nao foi possivel salvar os clientes no banco.");
     clients.forEach((client) => {
       client._remoteUpdatedAt = nowIso;
@@ -1110,12 +1142,12 @@ async function saveRemoteClient(client) {
     const path = isNew
       ? supabaseEndpoint("?on_conflict=id")
       : supabaseEndpoint(`?id=eq.${encodeURIComponent(client.id)}&updated_at=eq.${encodeURIComponent(client._remoteUpdatedAt)}`);
-    const response = await fetch(path, {
+    const response = await authorizedFetch(path, () => ({
       method: isNew ? "POST" : "PATCH",
       headers: supabaseHeaders(isNew ? "resolution=merge-duplicates,return=representation" : "return=representation"),
       body: JSON.stringify(isNew ? [payload] : payload),
       signal: controller.signal,
-    });
+    }));
     if (!response.ok) throw new Error("Nao foi possivel salvar o cliente no banco.");
     const saved = await response.json();
     if (saved.length === 0) {
@@ -1157,10 +1189,10 @@ async function trySyncPendingClients(clients) {
 async function deleteRemoteClient(clientId) {
   if (!remoteDatabaseEnabled() || !currentUserId()) return;
 
-  const response = await fetch(supabaseEndpoint(`?id=eq.${encodeURIComponent(clientId)}`), {
+  const response = await authorizedFetch(supabaseEndpoint(`?id=eq.${encodeURIComponent(clientId)}`), () => ({
     method: "DELETE",
     headers: supabaseHeaders(),
-  });
+  }));
   if (!response.ok) throw new Error("Nao foi possivel excluir o cliente no banco.");
   markPendingSyncIds([clientId], false);
 }
@@ -4191,9 +4223,9 @@ async function fetchSupabaseTableBackup(table) {
   let offset = 0;
 
   while (true) {
-    const response = await fetch(supabaseTableEndpoint(table, `?select=*&limit=${pageSize}&offset=${offset}`), {
+    const response = await authorizedFetch(supabaseTableEndpoint(table, `?select=*&limit=${pageSize}&offset=${offset}`), () => ({
       headers: supabaseHeaders(),
-    });
+    }));
     if (!response.ok) {
       const details = await response.json().catch(() => null);
       throw new Error(details?.message || `Nao foi possivel ler a tabela ${table}.`);
