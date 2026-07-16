@@ -737,8 +737,47 @@ function parseMoney(value) {
   return Number(normalized) || 0;
 }
 
+// Permite digitar contas nos campos de valor (ex: "1.200,00+350,50*2") em vez de so um
+// numero fechado. So entra em acao quando ha um operador alem de um eventual sinal de
+// negativo no inicio do texto; senao o comportamento de sempre (parseMoney) e mantido.
+// Multiplicacao e divisao tem precedencia sobre soma e subtracao, como numa calculadora.
+function evaluateMoneyExpression(value) {
+  const text = String(value || "").trim();
+  if (!/[+\-*/]/.test(text.slice(1))) return parseMoney(text);
+
+  const parts = text.split(/([+\-*/])/).filter((part) => part.trim() !== "");
+  if (!parts.length) return 0;
+
+  let index = 1;
+  let first = parseMoney(parts[0]);
+  if (parts[0] === "-") {
+    first = -parseMoney(parts[1]);
+    index = 2;
+  }
+
+  const terms = [first];
+  const operators = [];
+  while (index < parts.length - 1) {
+    const operator = parts[index];
+    const operand = parseMoney(parts[index + 1]);
+    if (operator === "*" || operator === "/") {
+      const previous = terms.pop();
+      terms.push(operator === "*" ? previous * operand : operand ? previous / operand : previous);
+    } else {
+      operators.push(operator);
+      terms.push(operand);
+    }
+    index += 2;
+  }
+
+  return terms.reduce((total, term, position) => {
+    if (position === 0) return term;
+    return operators[position - 1] === "+" ? total + term : total - term;
+  }, 0);
+}
+
 function formatMoneyInput(value) {
-  return BRL.format(parseMoney(value));
+  return BRL.format(evaluateMoneyExpression(value));
 }
 
 function suggestedFactoryValue(budget) {
@@ -3074,10 +3113,10 @@ function createBudgetRow(rowData = {}) {
   const row = document.createElement("tr");
   row.innerHTML = `
     <td data-budget-environment></td>
-    <td data-budget-column="gross"><input class="money-input" data-budget-field="gross" inputmode="decimal" /></td>
-    <td><input class="money-input" data-budget-field="factory" inputmode="decimal" /></td>
+    <td data-budget-column="gross"><input class="money-input" data-budget-field="gross" inputmode="decimal" title="Tambem aceita contas, ex: 1.200,00+350,50" /></td>
+    <td><input class="money-input" data-budget-field="factory" inputmode="decimal" title="Tambem aceita contas, ex: 1.200,00+350,50" /></td>
     <td data-budget-result="factoryFreight"></td>
-    <td><input class="money-input" data-budget-field="hardware" inputmode="decimal" /></td>
+    <td><input class="money-input" data-budget-field="hardware" inputmode="decimal" title="Tambem aceita contas, ex: 1.200,00+350,50" /></td>
     <td data-budget-result="freight"></td>
     <td data-budget-result="release"></td>
     <td data-budget-result="assembly"></td>
