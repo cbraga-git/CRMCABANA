@@ -327,16 +327,26 @@ function pendingSyncKey() {
   return `crm-pending-sync-${currentUserId() || "local"}`;
 }
 
-function markPendingSync() {
-  localStorage.setItem(pendingSyncKey(), "1");
+function loadPendingSyncIds() {
+  try {
+    const saved = localStorage.getItem(pendingSyncKey());
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    localStorage.removeItem(pendingSyncKey());
+    return [];
+  }
 }
 
-function clearPendingSync() {
-  localStorage.removeItem(pendingSyncKey());
+function markPendingSyncIds(ids, pending) {
+  const current = new Set(loadPendingSyncIds());
+  ids.forEach((id) => (pending ? current.add(id) : current.delete(id)));
+  if (current.size) localStorage.setItem(pendingSyncKey(), JSON.stringify(Array.from(current)));
+  else localStorage.removeItem(pendingSyncKey());
 }
 
 function hasPendingSync() {
-  return localStorage.getItem(pendingSyncKey()) === "1";
+  return loadPendingSyncIds().length > 0;
 }
 
 function environmentStorageKey() {
@@ -744,7 +754,7 @@ function isAdmin() {
 }
 
 function serializeClientData(client) {
-  const { _recordUserId, ...data } = client;
+  const { _recordUserId, _remoteUpdatedAt, ...data } = client;
   return data;
 }
 
@@ -949,7 +959,7 @@ async function updateUserPassword(userId, password) {
 }
 
 async function loadRemoteClients() {
-  const response = await fetch(supabaseEndpoint("?select=user_id,data&order=updated_at.desc"), {
+  const response = await fetch(supabaseEndpoint("?select=user_id,data,updated_at&order=updated_at.desc"), {
     headers: supabaseHeaders(),
   });
   if (!response.ok) {
@@ -959,7 +969,7 @@ async function loadRemoteClients() {
   const rows = await response.json();
   return normalizeClients(
     rows
-      .map((row) => (row.data ? { ...row.data, _recordUserId: row.user_id } : null))
+      .map((row) => (row.data ? { ...row.data, _recordUserId: row.user_id, _remoteUpdatedAt: row.updated_at } : null))
       .filter((client) => client && client.project && client.address)
   );
 }
@@ -969,19 +979,34 @@ async function loadClients() {
     return loadLocalClients();
   }
 
-  if (hasPendingSync()) {
-    const localClients = loadLocalClients();
-    trySyncPendingClients(localClients);
-    return localClients;
-  }
-
   try {
-    const clients = await loadRemoteClients();
-    if (clients.length) return clients;
+    const remoteClients = await loadRemoteClients();
+    if (!remoteClients.length && !hasPendingSync()) {
+      const seeded = loadLocalClients();
+      await saveRemoteClients(seeded);
+      return seeded;
+    }
 
-    const seeded = loadLocalClients();
-    await saveRemoteClients(seeded);
-    return seeded;
+    // Sobrepomos ao dado fresco do servidor apenas os clientes com edicao pendente (falha de
+    // rede anterior), nunca o cache local inteiro — assim o resto da lista fica sempre
+    // atualizado com o que outras sessoes possam ter salvo nesse meio tempo.
+    const pendingIds = loadPendingSyncIds();
+    if (!pendingIds.length) return remoteClients;
+
+    const localClients = loadLocalClients();
+    const clientsById = new Map(remoteClients.map((client) => [client.id, client]));
+    const pendingClients = [];
+    pendingIds.forEach((id) => {
+      const localVersion = localClients.find((client) => client.id === id);
+      if (localVersion) {
+        clientsById.set(id, localVersion);
+        pendingClients.push(localVersion);
+      } else {
+        markPendingSyncIds([id], false);
+      }
+    });
+    if (pendingClients.length) trySyncPendingClients(pendingClients);
+    return Array.from(clientsById.values());
   } catch (error) {
     console.warn(error);
     if (error.message.includes("Sessao expirada")) {
@@ -995,11 +1020,12 @@ async function loadClients() {
 async function saveRemoteClients(clients) {
   if (!clients.length) return;
 
+  const nowIso = new Date().toISOString();
   const rows = clients.map((client) => ({
     id: client.id,
     user_id: client._recordUserId || currentUserId(),
     data: serializeClientData(client),
-    updated_at: new Date().toISOString(),
+    updated_at: nowIso,
   }));
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -1011,6 +1037,54 @@ async function saveRemoteClients(clients) {
       signal: controller.signal,
     });
     if (!response.ok) throw new Error("Nao foi possivel salvar os clientes no banco.");
+    clients.forEach((client) => {
+      client._remoteUpdatedAt = nowIso;
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("Tempo esgotado ao salvar no banco. Verifique a conexao.");
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Salva um unico cliente. Se ja existia (client._remoteUpdatedAt conhecido), usa PATCH
+// condicionado a updated_at=eq.<valor que carregamos> como trava otimista: se outra sessao
+// salvou esse mesmo cliente entretanto, 0 linhas casam e detectamos o conflito em vez de
+// sobrescrever silenciosamente o que a outra sessao gravou.
+async function saveRemoteClient(client) {
+  const isNew = !client._remoteUpdatedAt;
+  const nowIso = new Date().toISOString();
+  const payload = {
+    id: client.id,
+    user_id: client._recordUserId || currentUserId(),
+    data: serializeClientData(client),
+    updated_at: nowIso,
+  };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const path = isNew
+      ? supabaseEndpoint("?on_conflict=id")
+      : supabaseEndpoint(`?id=eq.${encodeURIComponent(client.id)}&updated_at=eq.${encodeURIComponent(client._remoteUpdatedAt)}`);
+    const response = await fetch(path, {
+      method: isNew ? "POST" : "PATCH",
+      headers: supabaseHeaders(isNew ? "resolution=merge-duplicates,return=representation" : "return=representation"),
+      body: JSON.stringify(isNew ? [payload] : payload),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error("Nao foi possivel salvar o cliente no banco.");
+    const saved = await response.json();
+    if (saved.length === 0) {
+      const conflictError = new Error(
+        isNew
+          ? "O banco recusou a gravacao deste cadastro (sem permissao ou linha ja existente). Recarregue a pagina e tente novamente."
+          : "Este cadastro foi alterado em outra aba, dispositivo ou por outro usuario enquanto voce editava. Recarregue a pagina para ver a versao mais recente antes de salvar de novo."
+      );
+      conflictError.conflict = true;
+      throw conflictError;
+    }
+    client._remoteUpdatedAt = nowIso;
   } catch (error) {
     if (error.name === "AbortError") throw new Error("Tempo esgotado ao salvar no banco. Verifique a conexao.");
     throw error;
@@ -1020,15 +1094,21 @@ async function saveRemoteClients(clients) {
 }
 
 async function trySyncPendingClients(clients) {
-  try {
-    await saveRemoteClients(clients);
-    clearPendingSync();
-    updateSyncIndicator();
-    return true;
-  } catch (error) {
-    console.warn(error);
-    return false;
+  let allSucceeded = true;
+  for (const client of clients) {
+    try {
+      await saveRemoteClient(client);
+      markPendingSyncIds([client.id], false);
+    } catch (error) {
+      console.warn(error);
+      allSucceeded = false;
+      // Conflito: outra sessao ja gravou algo mais novo. Nao insistimos em cima do cache
+      // local desatualizado; o proximo carregamento traz a versao atual do servidor.
+      if (error.conflict) markPendingSyncIds([client.id], false);
+    }
   }
+  updateSyncIndicator();
+  return allSucceeded;
 }
 
 async function deleteRemoteClient(clientId) {
@@ -1039,22 +1119,37 @@ async function deleteRemoteClient(clientId) {
     headers: supabaseHeaders(),
   });
   if (!response.ok) throw new Error("Nao foi possivel excluir o cliente no banco.");
+  markPendingSyncIds([clientId], false);
 }
 
-async function saveClients() {
+// changedIds identifica quais clientes tiveram dados alterados nesta operacao. Enviamos ao
+// banco apenas esses registros (nunca o array inteiro em memoria), para que uma sessao com
+// dados desatualizados de OUTROS clientes nunca sobrescreva o que outra sessao salvou.
+async function saveClients(changedIds = []) {
   localStorage.setItem(userStorageKey(), JSON.stringify(state.clients));
-  if (!remoteDatabaseEnabled() || !currentUserId()) return true;
+  if (!remoteDatabaseEnabled() || !currentUserId() || !changedIds.length) return true;
+
+  const clientsToSync = changedIds.map((id) => state.clients.find((client) => client.id === id)).filter(Boolean);
+  if (!clientsToSync.length) return true;
 
   try {
-    await saveRemoteClients(state.clients);
-    clearPendingSync();
+    if (clientsToSync.length > 1) {
+      await saveRemoteClients(clientsToSync);
+    } else {
+      await saveRemoteClient(clientsToSync[0]);
+    }
+    markPendingSyncIds(changedIds, false);
     updateSyncIndicator();
     return true;
   } catch (error) {
     console.warn(error);
-    markPendingSync();
+    if (error.conflict) {
+      alert(error.message);
+    } else {
+      markPendingSyncIds(changedIds, true);
+      alert("Nao foi possivel confirmar a gravacao no banco. Os dados ficaram salvos neste navegador, mas podem nao aparecer em outro dispositivo. Verifique a conexao e tente salvar novamente.");
+    }
     updateSyncIndicator();
-    alert("Nao foi possivel confirmar a gravacao no banco. Os dados ficaram salvos neste navegador, mas podem nao aparecer em outro dispositivo. Verifique a conexao e tente salvar novamente.");
     return false;
   }
 }
@@ -3361,7 +3456,8 @@ async function saveBudget(options = {}) {
       : item
   );
   state.selectedId = client.id;
-  if (!(await saveClients())) return false;
+  const changedIds = sourceId && sourceId !== client.id ? [client.id, sourceId] : [client.id];
+  if (!(await saveClients(changedIds))) return false;
   refreshEnvironmentCatalog(rows.map((row) => row.name));
   state.budgetEditing = false;
   state.budgetDirty = false;
@@ -3392,7 +3488,7 @@ async function deleteCurrentBudget() {
     };
   });
   state.selectedId = client.id;
-  if (!(await saveClients())) return;
+  if (!(await saveClients([client.id]))) return;
   resetBudgetEditorState();
   render();
 }
@@ -3838,7 +3934,7 @@ async function saveProjectFromDialog(event) {
   }
 
   state.selectedId = savedClient.id;
-  if (!(await saveClients())) return;
+  if (!(await saveClients([savedClient.id]))) return;
   refreshEnvironmentCatalog(environments.map((environment) => environment.name));
   state.projectDirty = false;
   render();
@@ -3866,7 +3962,7 @@ async function saveProjectFromDialog(event) {
         budgets,
       };
     });
-    if (!(await saveClients())) return;
+    if (!(await saveClients([savedClient.id]))) return;
     state.budgetEditingId = payloadIdentity;
     state.budgetSourceId = savedClient.id;
     state.budgetDirty = false;
@@ -3924,7 +4020,7 @@ async function saveClientFromDialog(event) {
         },
       };
     });
-    if (!(await saveClients())) return;
+    if (!(await saveClients([state.editingId]))) return;
     state.clientDialogDirty = false;
     elements.dialog.close();
     render();
@@ -3958,7 +4054,7 @@ async function saveClientFromDialog(event) {
 
   state.clients.unshift(client);
   state.selectedId = client.id;
-  if (!(await saveClients())) return;
+  if (!(await saveClients([client.id]))) return;
   state.clientDialogDirty = false;
   elements.dialog.close();
   openClientRegistration(client.id, "clients");
@@ -4306,7 +4402,7 @@ async function importLeadsFile(file) {
   state.clients = Array.from(clientsById.values());
   state.selectedId = importedClients[0].id;
 
-  if (!(await saveClients())) return;
+  if (!(await saveClients(importedClients.map((client) => client.id)))) return;
   render();
   alert(`${importedClients.length} lead(s) importado(s) com sucesso.`);
 }
