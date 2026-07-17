@@ -1744,6 +1744,23 @@ body[data-view="order"][data-budget-editing="true"] .budget-view > .page-header 
   min-height: 34px;
 }
 
+.budget-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.budget-toolbar-row .budget-toolbar {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}
+
+.budget-toolbar-row .budget-assembly-panel {
+  flex: 0 0 auto;
+}
+
 .budget-toolbar {
   display: grid;
   grid-template-columns: 150px 210px 190px minmax(260px, 420px) 210px;
@@ -1763,7 +1780,8 @@ body[data-view="order"] .budget-toolbar .order-only-field {
 .budget-toolbar label,
 .budget-index-grid label,
 .budget-rate-row label,
-.budget-finance-grid label {
+.budget-finance-grid label,
+.budget-assembly-grid label {
   display: grid;
   gap: 3px;
   color: var(--muted);
@@ -1778,6 +1796,7 @@ body[data-view="order"] .budget-toolbar .order-only-field {
 .budget-rate-row input,
 .budget-finance-grid select,
 .budget-finance-grid input,
+.budget-assembly-grid input,
 .budget-table select,
 .budget-table input {
   min-height: 30px;
@@ -1799,6 +1818,10 @@ body[data-view="order"] .budget-toolbar .order-only-field {
   background: var(--card);
   padding: 4px 5px 3px;
   vertical-align: bottom;
+}
+
+.budget-daily-field {
+  visibility: hidden;
 }
 
 .budget-rate-row label {
@@ -1982,6 +2005,17 @@ body[data-view="order"] .budget-table {
 
 .budget-finance-grid > div {
   align-self: end;
+}
+
+.budget-assembly-panel {
+  width: 420px;
+  max-width: 100%;
+}
+
+.budget-assembly-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 8px;
 }
 
 .budget-editor {
@@ -2782,8 +2816,13 @@ dialog::backdrop {
   .budget-toolbar,
   .budget-grid,
   .budget-index-grid,
+  .budget-assembly-grid,
   .payments-grid {
     grid-template-columns: 1fr;
+  }
+
+  .budget-assembly-panel {
+    width: 100%;
   }
 
   .budget-view > .page-header {

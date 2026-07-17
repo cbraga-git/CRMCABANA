@@ -98,6 +98,9 @@ const DEFAULT_BUDGET_SETTINGS = {
   installments: 0,
   dailyQuantity: 0,
   dailyValue: 0,
+  assemblerName: "",
+  assemblyStartDate: "",
+  assemblyEndDate: "",
 };
 const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Pedido", "Emissão de NF", "Finalizado", "Recusado"];
 const ORDER_STATUS = ["Aprovado", "Pedido", "Emissão de NF"];
@@ -2365,6 +2368,9 @@ function readBudgetSettings() {
     installments: Number(budgetInputValue("budgetInstallments")) || 0,
     dailyQuantity: Number(budgetInputValue("budgetDailyQuantity")) || 0,
     dailyValue: parseMoney(budgetInputValue("budgetDailyValue")),
+    assemblerName: budgetInputValue("budgetAssemblerName").trim(),
+    assemblyStartDate: budgetInputValue("budgetAssemblyStartDate"),
+    assemblyEndDate: budgetInputValue("budgetAssemblyEndDate"),
   };
 }
 
@@ -3253,6 +3259,9 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetTaxRate").value = settings.taxRate;
   document.querySelector("#budgetDailyQuantity").value = settings.dailyQuantity || "";
   document.querySelector("#budgetDailyValue").value = formatMoneyInput(settings.dailyValue || 0);
+  document.querySelector("#budgetAssemblerName").value = settings.assemblerName || "";
+  document.querySelector("#budgetAssemblyStartDate").value = settings.assemblyStartDate || "";
+  document.querySelector("#budgetAssemblyEndDate").value = settings.assemblyEndDate || "";
   if (elements.budgetSaleAt) {
     elements.budgetSaleAt.value = budget.saleAt ? formatDateTimeLocal(budget.saleAt) : "";
   }
@@ -4918,6 +4927,9 @@ document.querySelector("#budgetStatus")?.addEventListener("change", handleBudget
   "#budgetTaxRate",
   "#budgetDailyQuantity",
   "#budgetDailyValue",
+  "#budgetAssemblerName",
+  "#budgetAssemblyStartDate",
+  "#budgetAssemblyEndDate",
   "#orderDeliveryForecastAt",
   "#budgetNotes",
 ].forEach((selector) => {

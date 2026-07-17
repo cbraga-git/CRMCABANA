@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=90" />
+    <link rel="stylesheet" href="styles.css?v=92" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -316,34 +316,51 @@
               <div class="budget-print-page" id="budgetPrintPreviewContent"></div>
             </section>
 
-            <section class="budget-toolbar">
-              <label>ID Orçamento
-                <input id="budgetCode" readonly />
-              </label>
-              <label>Data cadastro
-                <input id="budgetCreatedAt" type="datetime-local" />
-              </label>
-              <label>Status do orçamento
-                <select id="budgetStatus">
-                  <option>Novo Orçamento</option>
-                  <option>Negociação</option>
-                  <option>Aprovado</option>
-                  <option>Pedido</option>
-                  <option>Emissão de NF</option>
-                  <option>Finalizado</option>
-                  <option>Recusado</option>
-                </select>
-              </label>
-              <label>Cliente do orçamento
-                <select id="budgetClientSelect"></select>
-              </label>
-              <label class="budget-sale-field" id="budgetSaleAtField" hidden>Data da Venda
-                <input id="budgetSaleAt" type="datetime-local" />
-              </label>
-              <label class="order-only-field">Previsao de Entrega
-                <input id="orderDeliveryForecastAt" type="datetime-local" />
-              </label>
-            </section>
+            <div class="budget-toolbar-row">
+              <section class="budget-toolbar">
+                <label>ID Orçamento
+                  <input id="budgetCode" readonly />
+                </label>
+                <label>Data cadastro
+                  <input id="budgetCreatedAt" type="datetime-local" />
+                </label>
+                <label>Status do orçamento
+                  <select id="budgetStatus">
+                    <option>Novo Orçamento</option>
+                    <option>Negociação</option>
+                    <option>Aprovado</option>
+                    <option>Pedido</option>
+                    <option>Emissão de NF</option>
+                    <option>Finalizado</option>
+                    <option>Recusado</option>
+                  </select>
+                </label>
+                <label>Cliente do orçamento
+                  <select id="budgetClientSelect"></select>
+                </label>
+                <label class="budget-sale-field" id="budgetSaleAtField" hidden>Data da Venda
+                  <input id="budgetSaleAt" type="datetime-local" />
+                </label>
+                <label class="order-only-field">Previsao de Entrega
+                  <input id="orderDeliveryForecastAt" type="datetime-local" />
+                </label>
+              </section>
+
+              <section class="budget-panel budget-assembly-panel" aria-label="Dados da montagem">
+                <h2>Dados da Montagem</h2>
+                <div class="budget-assembly-grid">
+                  <label>Nome montador
+                    <input id="budgetAssemblerName" type="text" placeholder="Nome do montador" />
+                  </label>
+                  <label>Data inicial
+                    <input id="budgetAssemblyStartDate" type="date" />
+                  </label>
+                  <label>Data final
+                    <input id="budgetAssemblyEndDate" type="date" />
+                  </label>
+                </div>
+              </section>
+            </div>
 
             <section class="budget-summary" aria-label="Resumo do orçamento">
               <article><span>Total ambientes</span><strong id="budgetTotalGross">R$ 0,00</strong></article>
@@ -438,9 +455,9 @@
                       <th><label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>IRIS (%)<input id="budgetIrisRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th><label>Qtd diária<input id="budgetDailyQuantity" type="number" min="0" step="0.01" /></label></th>
-                      <th data-budget-column="net"><label>Vr diária<input id="budgetDailyValue" class="money-input" inputmode="decimal" /></label></th>
-                      <th><label>Total diária<input id="budgetDailyTotal" readonly /></label></th>
+                      <th class="budget-daily-field"><label>Qtd diária<input id="budgetDailyQuantity" type="number" min="0" step="0.01" /></label></th>
+                      <th class="budget-daily-field" data-budget-column="net"><label>Vr diária<input id="budgetDailyValue" class="money-input" inputmode="decimal" /></label></th>
+                      <th class="budget-daily-field"><label>Total diária<input id="budgetDailyTotal" readonly /></label></th>
                       <th></th>
                     </tr>
                     <tr>
@@ -828,6 +845,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=114"></script>
+    <script src="app.js?v=115"></script>
   </body>
 </html>
