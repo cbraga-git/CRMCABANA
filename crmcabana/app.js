@@ -2488,6 +2488,21 @@ function calculateBudgetRows(rows, settings) {
   });
 }
 
+function migrateDailyIntoAssemblyRate(budget) {
+  const settings = budget?.settings;
+  if (!settings) return;
+  const dailyTotal = (Number(settings.dailyQuantity) || 0) * parseMoney(settings.dailyValue);
+  if (!dailyTotal) return;
+  const calculatedRows = calculateBudgetRows(budget.rows || [], settings);
+  const totalNet = calculatedRows.reduce((sum, row) => sum + row.net, 0);
+  const totalAssembly = calculatedRows.reduce((sum, row) => sum + row.assembly, 0);
+  if (totalNet > 0) {
+    settings.assemblyRate = Number((((totalAssembly + dailyTotal) / totalNet) * 100).toFixed(2));
+  }
+  settings.dailyQuantity = 0;
+  settings.dailyValue = 0;
+}
+
 function budgetTotals(calculatedRows, settings) {
   const rowTotals = calculatedRows.reduce(
     (summary, row) => ({
@@ -2501,8 +2516,6 @@ function budgetTotals(calculatedRows, settings) {
   const dailyTotal = (Number(settings.dailyQuantity) || 0) * parseMoney(settings.dailyValue);
   const totals = {
     ...rowTotals,
-    cost: rowTotals.cost + dailyTotal,
-    profit: rowTotals.profit - dailyTotal,
     dailyTotal,
   };
   const financedBase = Math.max(0, totals.gross - totals.gross * percentToRate(settings.discountRate) - settings.entry);
@@ -3235,6 +3248,7 @@ function createBudgetRow(rowData = {}) {
 function fillBudgetForm(client) {
   closeBudgetPrintPreview();
   const budget = state.budgetDraft || (state.budgetIsNew ? blankBudget() : budgetForEditing(client));
+  migrateDailyIntoAssemblyRate(budget);
   state.budgetEditingId = budgetIdentity(budget) || state.budgetEditingId;
   const settings = budget.settings;
   const targetClient = selectedBudgetClient();
