@@ -2118,6 +2118,25 @@ function readOrderDeliveryForecastAt() {
   return readDateTimeInputAsIso(elements.orderDeliveryForecastAt);
 }
 
+function updateBudgetAssemblyDays() {
+  const daysInput = document.querySelector("#budgetAssemblyDays");
+  if (!daysInput) return;
+  const startValue = budgetInputValue("budgetAssemblyStartDate");
+  const endValue = budgetInputValue("budgetAssemblyEndDate");
+  if (!startValue || !endValue) {
+    daysInput.value = "";
+    return;
+  }
+  const start = new Date(`${startValue}T00:00:00`);
+  const end = new Date(`${endValue}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    daysInput.value = "";
+    return;
+  }
+  const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+  daysInput.value = days > 0 ? String(days) : "0";
+}
+
 function updateBudgetSaleAtFieldVisibility() {
   if (!elements.budgetSaleAtField) return;
   elements.budgetSaleAtField.hidden = state.view === "order" || budgetInputValue("budgetStatus") !== "Aprovado";
@@ -3276,6 +3295,7 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetAssemblerName").value = settings.assemblerName || "";
   document.querySelector("#budgetAssemblyStartDate").value = settings.assemblyStartDate || "";
   document.querySelector("#budgetAssemblyEndDate").value = settings.assemblyEndDate || "";
+  updateBudgetAssemblyDays();
   if (elements.budgetSaleAt) {
     elements.budgetSaleAt.value = budget.saleAt ? formatDateTimeLocal(budget.saleAt) : "";
   }
@@ -4956,6 +4976,11 @@ document.querySelector("#budgetStatus")?.addEventListener("change", handleBudget
     markBudgetDirty();
     updateBudgetSummary();
   });
+});
+["#budgetAssemblyStartDate", "#budgetAssemblyEndDate"].forEach((selector) => {
+  const input = document.querySelector(selector);
+  input?.addEventListener("input", updateBudgetAssemblyDays);
+  input?.addEventListener("change", updateBudgetAssemblyDays);
 });
 document.querySelector("#budgetEntry")?.addEventListener("blur", (event) => {
   event.target.value = formatMoneyInput(event.target.value);
