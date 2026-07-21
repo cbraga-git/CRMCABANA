@@ -4920,7 +4920,13 @@ document.querySelector("#budgetFreightValue")?.addEventListener("focus", (event)
   event.currentTarget.select();
 });
 document.querySelector("#budgetFreightValue")?.addEventListener("blur", (event) => {
-  event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+  const input = event.currentTarget;
+  if (state.budgetIsNew && input.value.includes("%")) {
+    const freightRate = parseMoney(input.value.replace(/%/g, ""));
+    const totalFactory = readBudgetRows().reduce((sum, row) => sum + parseMoney(row.factory), 0);
+    input.value = formatMoneyInput(totalFactory * percentToRate(freightRate));
+  }
+  input.value = formatMoneyInput(input.value);
   updateBudgetSummary();
 });
 ["#budgetAssemblyStartDate", "#budgetAssemblyEndDate"].forEach((selector) => {
