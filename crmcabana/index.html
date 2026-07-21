@@ -438,9 +438,8 @@
                       <th></th>
                       <th data-budget-column="gross"><label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th></th>
+                      <th><label>Frete (R$ ou %)<input id="budgetFreightValue" class="money-input" inputmode="text" title="Em novo orçamento, aceita percentual com %, ex: 12%" /></label></th>
                       <th></th>
-                      <th></th>
-                      <th><label>Frete (%)<input id="budgetFreightRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label></th>
@@ -457,7 +456,6 @@
                       <th>Fábrica</th>
                       <th>Fábrica+Frete</th>
                       <th>Ferragens</th>
-                      <th>Frete</th>
                       <th>Liberação</th>
                       <th>Montagem</th>
                       <th>LELA</th>
@@ -477,7 +475,6 @@
                       <td id="budgetRowsTotalFactory">R$ 0,00</td>
                       <td id="budgetRowsTotalFactoryFreight">R$ 0,00</td>
                       <td id="budgetRowsTotalHardware">R$ 0,00</td>
-                      <td id="budgetRowsTotalFreight">R$ 0,00</td>
                       <td id="budgetRowsTotalRelease">R$ 0,00</td>
                       <td id="budgetRowsTotalAssembly">R$ 0,00</td>
                       <td id="budgetRowsTotalLela">R$ 0,00</td>
@@ -856,6 +853,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=122"></script>
+    <script src="app.js?v=123"></script>
   </body>
 </html>

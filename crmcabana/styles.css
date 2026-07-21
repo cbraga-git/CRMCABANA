@@ -1882,9 +1882,8 @@ body[data-view="order"] .budget-table tr > :nth-child(8),
 body[data-view="order"] .budget-table tr > :nth-child(9),
 body[data-view="order"] .budget-table tr > :nth-child(10),
 body[data-view="order"] .budget-table tr > :nth-child(11),
-body[data-view="order"] .budget-table tr > :nth-child(12),
-body[data-view="order"] .budget-table tr > :nth-child(14),
-body[data-view="order"] .budget-rate-row > :nth-child(13) {
+body[data-view="order"] .budget-table tr > :nth-child(13),
+body[data-view="order"] .budget-rate-row > :nth-child(12) {
   display: none;
 }
 
