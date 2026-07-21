@@ -63,6 +63,7 @@ as $$
     from public.crm_profiles
     where id = auth.uid()
       and role = 'admin'
+      and blocked = false
   );
 $$;
 
@@ -310,8 +311,9 @@ begin
     raise exception 'Apenas administradores podem editar usuarios.';
   end if;
 
-  if target_user_id = auth.uid() and coalesce(user_blocked, false) then
-    raise exception 'Voce nao pode bloquear o proprio usuario.';
+  if target_user_id = auth.uid()
+     and (coalesce(user_blocked, false) or normalized_role <> 'admin') then
+    raise exception 'Voce nao pode bloquear nem remover o proprio acesso administrativo.';
   end if;
 
   update auth.users
@@ -380,6 +382,22 @@ begin
   );
 end;
 $$;
+
+-- Funcoes SECURITY DEFINER nao devem herdar o EXECUTE concedido a PUBLIC por padrao.
+-- Somente os RPCs administrativos ficam chamaveis pelo cliente autenticado; auxiliares
+-- de hash, auditoria e trigger continuam acessiveis apenas ao proprietario do schema.
+revoke execute on function public.crm_is_admin() from public, anon;
+revoke execute on function public.crm_handle_new_user() from public, anon, authenticated;
+revoke execute on function public.crm_hash_password(text) from public, anon, authenticated;
+revoke execute on function public.crm_log_action(text, uuid, text, jsonb) from public, anon, authenticated;
+revoke execute on function public.crm_admin_create_user(text, text, text) from public, anon;
+revoke execute on function public.crm_admin_update_user(uuid, text, text, boolean) from public, anon;
+revoke execute on function public.crm_admin_set_password(uuid, text) from public, anon;
+
+grant execute on function public.crm_is_admin() to authenticated;
+grant execute on function public.crm_admin_create_user(text, text, text) to authenticated;
+grant execute on function public.crm_admin_update_user(uuid, text, text, boolean) to authenticated;
+grant execute on function public.crm_admin_set_password(uuid, text) to authenticated;
 
 -- Para definir o primeiro administrador, rode uma vez no Supabase SQL Editor:
 -- update public.crm_profiles set role = 'admin' where email = 'email@empresa.com';
