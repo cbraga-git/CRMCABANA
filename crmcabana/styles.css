@@ -2011,7 +2011,7 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-assembly-panel {
-  width: 520px;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -2299,6 +2299,22 @@ body[data-view="order"] .order-material-editor {
   font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.budget-footer-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(420px, 520px);
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.budget-footer-grid .budget-notes-field {
+  margin-top: 0;
+}
+
+.budget-footer-grid .budget-notes-field textarea {
+  height: 100%;
 }
 
 .budget-notes-field textarea {
@@ -2820,6 +2836,7 @@ dialog::backdrop {
   .budget-grid,
   .budget-index-grid,
   .budget-assembly-grid,
+  .budget-footer-grid,
   .payments-grid {
     grid-template-columns: 1fr;
   }
