@@ -2321,10 +2321,7 @@ function renderBudgetEditorSubtitle(client) {
   subtitle.innerHTML = "";
   if (!client) return;
 
-  [
-    ["Cliente", client.name || "-"],
-    ["Vendedor", responsibleSeller(client) || "-"],
-  ].forEach(([label, value]) => {
+  [["Vendedor", responsibleSeller(client) || "-"]].forEach(([label, value]) => {
     const item = document.createElement("span");
     const labelElement = document.createElement("strong");
     const valueElement = document.createElement("span");
@@ -3234,7 +3231,7 @@ function fillBudgetForm(client) {
   const settings = budget.settings;
   const targetClient = selectedBudgetClient();
   const documentLabel = state.view === "order" ? "Pedido" : "Orçamento";
-  document.querySelector("#budgetEditorTitle").textContent = state.budgetIsNew ? `Novo ${documentLabel}` : `Cadastro ${documentLabel}`;
+  document.querySelector("#budgetEditorTitle").textContent = documentLabel;
   renderBudgetEditorSubtitle(targetClient);
   document.querySelector("#budgetEditClientBtn").disabled = false;
   document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";

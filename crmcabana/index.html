@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="referrer" content="no-referrer" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=95" />
+    <link rel="stylesheet" href="styles.css?v=98" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -292,9 +292,33 @@
 
           <section class="budget-editor" id="budgetEditor" hidden>
             <header class="budget-editor-header">
-              <div>
-                <h2 id="budgetEditorTitle">Cadastro Orçamento</h2>
-                <p id="budgetEditorSubtitle"></p>
+              <div class="budget-editor-main">
+                <div class="budget-editor-heading-copy">
+                  <h2 id="budgetEditorTitle">Orçamento</h2>
+                  <p id="budgetEditorSubtitle"></p>
+                </div>
+                <section class="budget-toolbar budget-header-toolbar" aria-label="Identificação do orçamento">
+                  <label>ID Orçamento
+                    <input id="budgetCode" readonly />
+                  </label>
+                  <label>Data cadastro
+                    <input id="budgetCreatedAt" type="datetime-local" />
+                  </label>
+                  <label>Status do orçamento
+                    <select id="budgetStatus">
+                      <option>Novo Orçamento</option>
+                      <option>Negociação</option>
+                      <option>Aprovado</option>
+                      <option>Pedido</option>
+                      <option>Emissão de NF</option>
+                      <option>Finalizado</option>
+                      <option>Recusado</option>
+                    </select>
+                  </label>
+                  <label>Cliente do orçamento
+                    <select id="budgetClientSelect"></select>
+                  </label>
+                </section>
               </div>
               <div class="header-actions">
                 <button class="button secondary budget-action-button" id="budgetBackToList" type="button" aria-label="Voltar" title="Voltar">←</button>
@@ -307,6 +331,15 @@
               </div>
             </header>
 
+            <section class="budget-auxiliary-toolbar" aria-label="Datas complementares">
+              <label class="budget-sale-field" id="budgetSaleAtField" hidden>Data da Venda
+                <input id="budgetSaleAt" type="datetime-local" />
+              </label>
+              <label class="order-only-field">Previsão de Entrega
+                <input id="orderDeliveryForecastAt" type="datetime-local" />
+              </label>
+            </section>
+
             <section class="budget-print-preview" id="budgetPrintPreview" hidden>
               <header>
                 <h2 id="budgetPrintPreviewTitle">Documento</h2>
@@ -317,37 +350,6 @@
               </header>
               <div class="budget-print-page" id="budgetPrintPreviewContent"></div>
             </section>
-
-            <div class="budget-toolbar-row">
-              <section class="budget-toolbar">
-                <label>ID Orçamento
-                  <input id="budgetCode" readonly />
-                </label>
-                <label>Data cadastro
-                  <input id="budgetCreatedAt" type="datetime-local" />
-                </label>
-                <label>Status do orçamento
-                  <select id="budgetStatus">
-                    <option>Novo Orçamento</option>
-                    <option>Negociação</option>
-                    <option>Aprovado</option>
-                    <option>Pedido</option>
-                    <option>Emissão de NF</option>
-                    <option>Finalizado</option>
-                    <option>Recusado</option>
-                  </select>
-                </label>
-                <label>Cliente do orçamento
-                  <select id="budgetClientSelect"></select>
-                </label>
-                <label class="budget-sale-field" id="budgetSaleAtField" hidden>Data da Venda
-                  <input id="budgetSaleAt" type="datetime-local" />
-                </label>
-                <label class="order-only-field">Previsao de Entrega
-                  <input id="orderDeliveryForecastAt" type="datetime-local" />
-                </label>
-              </section>
-            </div>
 
             <section class="budget-summary" aria-label="Resumo do orçamento">
               <article><span>Total ambientes</span><strong id="budgetTotalGross">R$ 0,00</strong></article>
@@ -510,15 +512,15 @@
                 </div>
               </section>
               <div class="budget-footer-grid">
-                <label class="budget-notes-field">
-                  Observações
-                  <textarea id="budgetNotes" rows="3"></textarea>
-                </label>
+                <section class="budget-panel budget-notes-panel" aria-label="Observações">
+                  <h2>Observações</h2>
+                  <textarea id="budgetNotes" rows="5" aria-label="Observações do orçamento ou pedido"></textarea>
+                </section>
 
                 <section class="budget-panel budget-assembly-panel" aria-label="Dados da montagem">
                   <h2>Dados da Montagem</h2>
                   <div class="budget-assembly-grid">
-                    <label>Nome montador
+                    <label class="budget-assembler-name">Nome montador
                       <input id="budgetAssemblerName" type="text" placeholder="Nome do montador" />
                     </label>
                     <label>Data inicial
@@ -852,6 +854,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=118"></script>
+    <script src="app.js?v=120"></script>
   </body>
 </html>
