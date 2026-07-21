@@ -133,7 +133,6 @@ const state = {
   userRole: "user",
   userProfiles: [],
   userLogs: [],
-  authMode: "signin",
   view: "clients",
   dashboardStatus: IN_PROGRESS_STATUS,
   clientStatus: IN_PROGRESS_STATUS,
@@ -174,7 +173,6 @@ const elements = {
   authPassword: document.querySelector("#authPassword"),
   authMessage: document.querySelector("#authMessage"),
   authSubmit: document.querySelector("#authSubmit"),
-  authToggle: document.querySelector("#authToggle"),
   logoutBtn: document.querySelector("#logoutBtn"),
   sidebarToggle: document.querySelector("#sidebarToggle"),
   syncPendingChip: document.querySelector("#syncPendingChip"),
@@ -337,9 +335,14 @@ async function authorizedFetch(url, requestInit) {
 
 function loadStoredSession() {
   try {
-    const saved = localStorage.getItem(SESSION_KEY);
+    // A sessao fica limitada a esta aba. Migra uma sessao antiga do localStorage uma unica
+    // vez para evitar manter refresh tokens persistentes no disco do navegador.
+    const saved = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    if (saved) sessionStorage.setItem(SESSION_KEY, saved);
     return saved ? JSON.parse(saved) : null;
   } catch {
+    sessionStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(SESSION_KEY);
     return null;
   }
@@ -348,9 +351,11 @@ function loadStoredSession() {
 function saveSession(session) {
   state.session = session;
   if (session) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    localStorage.removeItem(SESSION_KEY);
     return;
   }
+  sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(SESSION_KEY);
 }
 
@@ -388,20 +393,23 @@ function environmentStorageKey() {
   return `${ENVIRONMENT_STORAGE_KEY}-${currentUserId() || "local"}`;
 }
 
-function showAuthMessage(message = "") {
-  elements.authMessage.textContent = message;
+function clearSyncedBrowserCache(userId) {
+  if (!userId) return;
+  const userPendingKey = `crm-pending-sync-${userId}`;
+  try {
+    const pending = JSON.parse(localStorage.getItem(userPendingKey) || "[]");
+    // Nunca apagamos a unica copia de uma alteracao que ainda nao chegou ao servidor.
+    if (Array.isArray(pending) && pending.length) return;
+  } catch {
+    return;
+  }
+  localStorage.removeItem(`${STORAGE_KEY}-${userId}`);
+  localStorage.removeItem(`${ENVIRONMENT_STORAGE_KEY}-${userId}`);
+  localStorage.removeItem(userPendingKey);
 }
 
-function renderAuthMode() {
-  const signingUp = state.authMode === "signup";
-  elements.authTitle.textContent = signingUp ? "Criar conta" : "Entrar";
-  elements.authSubtitle.textContent = signingUp
-    ? "Crie seu acesso para separar seus clientes com seguranca."
-    : "Acesse sua area para ver apenas seus clientes.";
-  elements.authSubmit.textContent = signingUp ? "Criar conta" : "Entrar";
-  elements.authToggle.textContent = signingUp ? "Ja tenho conta" : "Criar nova conta";
-  elements.authPassword.autocomplete = signingUp ? "new-password" : "current-password";
-  showAuthMessage();
+function showAuthMessage(message = "") {
+  elements.authMessage.textContent = message;
 }
 
 function showAuthenticatedApp() {
@@ -888,21 +896,8 @@ async function signIn(email, password) {
   saveSession(payload);
 }
 
-async function signUp(email, password) {
-  const response = await fetch(supabaseAuthEndpoint("/signup"), {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({ email, password }),
-  });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error_description || payload.msg || "Nao foi possivel criar a conta.");
-  if (!payload.access_token) {
-    throw new Error("Conta criada. Confirme seu e-mail antes de entrar.");
-  }
-  saveSession(payload);
-}
-
 async function signOut() {
+  const signingOutUserId = currentUserId();
   if (state.session?.access_token) {
     try {
       await fetch(supabaseAuthEndpoint("/logout"), {
@@ -917,6 +912,7 @@ async function signOut() {
     }
   }
   saveSession(null);
+  clearSyncedBrowserCache(signingOutUserId);
   state.userRole = "user";
   state.userProfiles = [];
   state.clients = [];
@@ -930,7 +926,7 @@ async function signOut() {
 async function ensureUserProfile() {
   if (!remoteDatabaseEnabled() || !currentUserId()) {
     state.userRole = "user";
-    return;
+    return !authEnabled();
   }
 
   const email = state.session?.user?.email || "";
@@ -950,10 +946,10 @@ async function ensureUserProfile() {
       if (rows[0].blocked) {
         alert("Usuario bloqueado. Fale com um administrador.");
         await signOut();
-        return;
+        return false;
       }
       state.userRole = rows[0].role === "admin" ? "admin" : "user";
-      return;
+      return true;
     }
 
     const createResponse = await authorizedFetch(supabaseProfilesEndpoint(), () => ({
@@ -963,9 +959,15 @@ async function ensureUserProfile() {
     }));
     if (!createResponse.ok) throw new Error("profile_create_failed");
     state.userRole = "user";
+    return true;
   } catch (error) {
     console.warn(error);
     state.userRole = "user";
+    // Falhas de rede ainda permitem trabalhar no cache; uma sessao recusada, nao.
+    if (error instanceof TypeError) return true;
+    await signOut();
+    showAuthMessage("Sua sessao nao e mais valida. Entre novamente.");
+    return false;
   }
 }
 
@@ -1706,46 +1708,6 @@ function renderChart(budgets) {
     status.split(" ").forEach((word, lineIndex) => {
       context.fillText(word, x - revenueWidth / 4, baseY + 18 + lineIndex * 12);
     });
-  });
-}
-
-function renderClients() {
-  const clients = filteredClients("clients");
-  updateSortHeaders("clients");
-  document.querySelector("#clientCount").textContent = state.clients.length;
-  elements.clientRows.innerHTML = "";
-  setupResizableTables();
-
-  if (!clients.length) {
-    elements.clientRows.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum cliente encontrado</td></tr>';
-    return;
-  }
-
-  clients.forEach((client) => {
-    const row = document.createElement("tr");
-    [client.name, client.email || "—", client.phone || "—", client.city || "—"].forEach((value) => {
-      const cell = document.createElement("td");
-      cell.textContent = value;
-      row.appendChild(cell);
-    });
-
-    const statusCell = document.createElement("td");
-    const badge = document.createElement("span");
-    badge.className = `status-badge ${statusClass(client.status)}`;
-    badge.textContent = client.status;
-    statusCell.appendChild(badge);
-    row.appendChild(statusCell);
-
-    const actionCell = document.createElement("td");
-    const button = document.createElement("button");
-    button.className = "link-button";
-    button.type = "button";
-    button.textContent = "Ver";
-    button.addEventListener("click", () => openClientRegistration(client.id, "clients"));
-    actionCell.appendChild(button);
-    row.appendChild(actionCell);
-
-    elements.clientRows.appendChild(row);
   });
 }
 
@@ -3780,37 +3742,6 @@ function createEnvironmentRow(environment = { name: "", budget: 0, factory: 0, a
   return row;
 }
 
-function openProjectDialog() {
-  const client = selectedClient();
-  if (!client) return;
-
-  document.querySelector("#editName").value = client.name || "";
-  document.querySelector("#editCpf").value = client.cpf || "";
-  document.querySelector("#editMobile").value = client.mobile || client.phone || "";
-  document.querySelector("#editEmail").value = client.email || "";
-  document.querySelector("#editStatus").value = normalizeLeadStatus(client.status || DEFAULT_STATUS);
-  document.querySelector("#editOwner").value = client.owner || "";
-  document.querySelector("#editCep").value = client.address.cep || "";
-  document.querySelector("#editState").value = client.state || "";
-  document.querySelector("#editStreet").value = client.address.street || "";
-  document.querySelector("#editNumber").value = client.address.number || "";
-  document.querySelector("#editComplement").value = client.address.complement || "";
-  document.querySelector("#editDistrict").value = client.address.district || "";
-  document.querySelector("#editCity").value = client.city || "";
-  document.querySelector("#projectDeadline").value = client.project.deadline || "";
-  document.querySelector("#projectCreatedBy").value = registeredBy(client);
-  document.querySelector("#projectCreated").value = client.project.created || "";
-  document.querySelector("#projectNotes").value = client.project.notes || "";
-
-  elements.projectRows.innerHTML = "";
-  const environments = client.project.environments.length
-    ? client.project.environments
-    : [{ name: "", budget: 0, factory: 0, assembly: 0 }];
-  environments.forEach((environment) => elements.projectRows.appendChild(createEnvironmentRow(environment)));
-
-  elements.projectDialog.showModal();
-}
-
 function blankClient(status = DEFAULT_STATUS) {
   return {
     id: createId(),
@@ -4757,11 +4688,6 @@ function toggleSidebar() {
   applySidebarCollapsed(collapsed);
 }
 
-elements.authToggle.addEventListener("click", () => {
-  state.authMode = state.authMode === "signin" ? "signup" : "signin";
-  renderAuthMode();
-});
-
 document.querySelector("#togglePassword").addEventListener("click", () => {
   const showingPassword = elements.authPassword.type === "text";
   elements.authPassword.type = showingPassword ? "password" : "text";
@@ -4776,14 +4702,10 @@ elements.authForm.addEventListener("submit", async (event) => {
   if (!email || !password) return;
 
   elements.authSubmit.disabled = true;
-  showAuthMessage(state.authMode === "signup" ? "Criando conta..." : "Entrando...");
+  showAuthMessage("Entrando...");
 
   try {
-    if (state.authMode === "signup") {
-      await signUp(email, password);
-    } else {
-      await signIn(email, password);
-    }
+    await signIn(email, password);
     await startApp();
   } catch (error) {
     showAuthMessage(error.message);
@@ -5102,7 +5024,11 @@ window.addEventListener("resize", () => {
 });
 
 async function startApp() {
-  await ensureUserProfile();
+  const accessAllowed = await ensureUserProfile();
+  if (!accessAllowed) {
+    showAuthScreen();
+    return false;
+  }
   showAuthenticatedApp();
   state.clients = await loadClients();
   if (isAdmin()) {
@@ -5117,6 +5043,7 @@ async function startApp() {
   state.view = "clients";
   showView("clients");
   render();
+  return true;
 }
 
 async function init() {

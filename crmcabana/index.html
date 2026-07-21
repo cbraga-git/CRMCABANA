@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+    <meta name="referrer" content="no-referrer" />
     <title>CRM Cabana | Moveis Planejados</title>
     <link rel="stylesheet" href="styles.css?v=93" />
   </head>
@@ -25,7 +27,7 @@
         </label>
         <p class="auth-message" id="authMessage" role="status"></p>
         <button class="button primary" id="authSubmit" type="submit">Entrar</button>
-        <button class="link-button auth-toggle" id="authToggle" type="button">Criar nova conta</button>
+        <p class="auth-help">Novos acessos devem ser solicitados a um administrador.</p>
       </form>
     </section>
 
