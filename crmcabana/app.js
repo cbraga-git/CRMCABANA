@@ -4679,10 +4679,26 @@ function loadSidebarPreference() {
   return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
 }
 
+let layoutRefreshFrame = 0;
+
+function scheduleCurrentViewLayoutRefresh() {
+  window.cancelAnimationFrame(layoutRefreshFrame);
+  layoutRefreshFrame = window.requestAnimationFrame(() => {
+    // Aguarda o navegador aplicar a nova coluna do menu antes de medir canvas e tabelas.
+    layoutRefreshFrame = window.requestAnimationFrame(() => {
+      setupResizableTables();
+      if ((state.view === "budget" || state.view === "order") && !state.budgetEditing) {
+        renderBudgetDashboard();
+      }
+    });
+  });
+}
+
 function toggleSidebar() {
   const collapsed = document.body.dataset.sidebarCollapsed !== "true";
   localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
   applySidebarCollapsed(collapsed);
+  scheduleCurrentViewLayoutRefresh();
 }
 
 document.querySelector("#togglePassword").addEventListener("click", () => {
@@ -5019,6 +5035,12 @@ window.addEventListener("resize", () => {
     renderBudgetDashboard();
   }
 });
+
+if (typeof ResizeObserver === "function") {
+  const contentResizeObserver = new ResizeObserver(() => scheduleCurrentViewLayoutRefresh());
+  const content = document.querySelector(".content");
+  if (content) contentResizeObserver.observe(content);
+}
 
 async function startApp() {
   const accessAllowed = await ensureUserProfile();
