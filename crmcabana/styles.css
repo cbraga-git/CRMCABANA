@@ -2100,12 +2100,11 @@ body[data-view="order"] .budget-table {
   display: flex;
   flex: 0 0 auto;
   align-items: end;
-  gap: 20px;
 }
 
 .budget-header-toolbar {
   flex: 1 1 auto;
-  grid-template-columns: 120px 180px 180px minmax(220px, 1fr);
+  grid-template-columns: 120px 180px minmax(220px, 1fr) 180px minmax(180px, 1fr);
   gap: 7px;
   margin-bottom: 0;
 }
