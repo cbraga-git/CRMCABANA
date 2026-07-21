@@ -2316,20 +2316,9 @@ function budgetForEditing(client) {
   return clientBudgetHistory(client).find((budget) => budgetIdentity(budget) === state.budgetEditingId) || clientBudget(client);
 }
 
-function renderBudgetEditorSubtitle(client) {
-  const subtitle = document.querySelector("#budgetEditorSubtitle");
-  subtitle.innerHTML = "";
-  if (!client) return;
-
-  [["Vendedor", responsibleSeller(client) || "-"]].forEach(([label, value]) => {
-    const item = document.createElement("span");
-    const labelElement = document.createElement("strong");
-    const valueElement = document.createElement("span");
-    labelElement.textContent = `${label}:`;
-    valueElement.textContent = value;
-    item.append(labelElement, valueElement);
-    subtitle.appendChild(item);
-  });
+function renderBudgetSeller(client) {
+  const seller = document.querySelector("#budgetSeller");
+  if (seller) seller.value = client ? responsibleSeller(client) || "-" : "-";
 }
 
 function readBudgetSettings() {
@@ -3232,7 +3221,7 @@ function fillBudgetForm(client) {
   const targetClient = selectedBudgetClient();
   const documentLabel = state.view === "order" ? "Pedido" : "Orçamento";
   document.querySelector("#budgetEditorTitle").textContent = documentLabel;
-  renderBudgetEditorSubtitle(targetClient);
+  renderBudgetSeller(targetClient);
   document.querySelector("#budgetEditClientBtn").disabled = false;
   document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";
   document.querySelector("#budgetEditClientBtn").setAttribute("aria-label", targetClient ? "Editar cliente" : "Cadastrar cliente");
@@ -4850,7 +4839,7 @@ elements.budgetClientSelect?.addEventListener("change", () => {
   state.selectedId = elements.budgetClientSelect.value || null;
   markBudgetDirty();
   const targetClient = selectedBudgetClient();
-  renderBudgetEditorSubtitle(targetClient);
+  renderBudgetSeller(targetClient);
   document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";
   document.querySelector("#budgetEditClientBtn").setAttribute("aria-label", targetClient ? "Editar cliente" : "Cadastrar cliente");
 });
