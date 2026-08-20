@@ -1552,7 +1552,7 @@ function sortClients(clients) {
 function budgetSortValue(item, key) {
   const totals = budgetSummary(item.budget);
   const values = {
-    code: budgetCodeSequence(item.budget.code),
+    code: formatBudgetCodeForList(item.budget.code),
     client: item.client.name || "",
     seller: responsibleSeller(item.client),
     status: item.budget.status || "",
@@ -3315,9 +3315,12 @@ function budgetSummary(budget) {
   return budgetTotals(calculatedRows, budget.settings || DEFAULT_BUDGET_SETTINGS);
 }
 
-function budgetCodeSequence(code) {
-  const match = String(code || "").match(/^(\d+)/);
-  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+function formatBudgetCodeForList(code) {
+  const originalCode = String(code || "").trim();
+  const match = originalCode.match(/^(\d+)-(\d{2})(\d{4})$/);
+  if (!match) return originalCode;
+  const [, sequence, month, year] = match;
+  return `${month}${year}-${sequence}`;
 }
 
 function budgetDateValue(budget) {
@@ -3425,7 +3428,7 @@ function renderBudgetList() {
     row.appendChild(folderCell);
 
     [
-      budget.code || "-",
+      formatBudgetCodeForList(budget.code) || "-",
       client.name,
       responsibleSeller(client),
       budget.status || "Negociação",
