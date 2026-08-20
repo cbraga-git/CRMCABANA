@@ -26,8 +26,8 @@ jobs:
 
       - name: Set app version
         run: |
-          VERSION="v$(date -u +'%Y.%m.%d').${{ github.run_number }}"
-          sed -i "s/__APP_VERSION__/$VERSION/" crmcabana/index.html
+          VERSION="Build $(TZ=America/Sao_Paulo date +'%d/%m/%Y %H:%M')"
+          sed -i "s|__APP_VERSION__|$VERSION|" crmcabana/index.html
           echo "Versao publicada: $VERSION"
 
       - name: Upload artifact
