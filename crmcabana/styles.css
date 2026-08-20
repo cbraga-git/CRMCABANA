@@ -292,7 +292,6 @@ button {
 
 .nav-subitem {
   min-height: 36px;
-  font-size: 13px;
 }
 
 .nav-item.active {
@@ -3002,7 +3001,6 @@ dialog::backdrop {
     grid-template-columns: 16px minmax(0, 1fr) 14px;
     gap: 6px;
     padding: 0 6px;
-    font-size: 12px;
     text-align: center;
   }
 
