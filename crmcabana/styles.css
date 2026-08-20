@@ -248,6 +248,53 @@ button {
   font-weight: 700;
 }
 
+.nav-group {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-parent {
+  display: grid;
+  width: calc(100% - 12px);
+  min-height: 40px;
+  margin: 0 6px;
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #efe3aa;
+  padding: 0 14px;
+  text-align: left;
+  font-weight: 700;
+}
+
+.nav-parent:hover,
+.nav-group.active > .nav-parent {
+  background: rgba(217, 199, 121, 0.16);
+}
+
+.nav-chevron {
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.nav-parent[aria-expanded="false"] .nav-chevron {
+  transform: rotate(-90deg);
+}
+
+.nav-submenu {
+  display: grid;
+  padding-left: 24px;
+}
+
+.nav-subitem {
+  min-height: 36px;
+  font-size: 13px;
+}
+
 .nav-item.active {
   background: var(--accent);
   color: #050505;
@@ -367,6 +414,23 @@ body[data-sidebar-collapsed="true"] .nav-item {
   width: 100%;
   margin: 0;
   padding: 0;
+}
+
+body[data-sidebar-collapsed="true"] .nav-parent {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body[data-sidebar-collapsed="true"] .nav-parent .nav-label,
+body[data-sidebar-collapsed="true"] .nav-chevron {
+  display: none;
+}
+
+body[data-sidebar-collapsed="true"] .nav-submenu {
+  padding-left: 0;
 }
 
 body[data-sidebar-collapsed="true"] .nav-icon {
@@ -645,6 +709,26 @@ button:focus-visible {
 
 .budget-dashboard {
   margin-bottom: 8px;
+}
+
+.financial-view {
+  max-width: 1440px;
+}
+
+.financial-view .page-header {
+  margin-bottom: 16px;
+}
+
+.financial-filters {
+  margin-bottom: 16px;
+}
+
+.financial-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.financial-chart-card {
+  margin-top: 16px;
 }
 
 .budget-dashboard-filters {
@@ -2794,6 +2878,24 @@ dialog::backdrop {
     padding: 0 14px;
   }
 
+  body[data-sidebar-collapsed="true"] .nav-parent {
+    display: grid;
+    width: calc(100% - 12px);
+    margin: 0 6px;
+    grid-template-columns: 18px minmax(0, 1fr) 18px;
+    justify-content: initial;
+    padding: 0 14px;
+  }
+
+  body[data-sidebar-collapsed="true"] .nav-parent .nav-label,
+  body[data-sidebar-collapsed="true"] .nav-chevron {
+    display: initial;
+  }
+
+  body[data-sidebar-collapsed="true"] .nav-submenu {
+    padding-left: 24px;
+  }
+
   body[data-sidebar-collapsed="true"] .logout-button {
     width: auto;
     margin: 0 16px 16px;
@@ -2894,6 +2996,19 @@ dialog::backdrop {
   .nav-item {
     min-height: 34px;
     padding: 0 10px;
+  }
+
+  .nav-parent {
+    grid-template-columns: 16px minmax(0, 1fr) 14px;
+    gap: 6px;
+    padding: 0 6px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .nav-submenu,
+  body[data-sidebar-collapsed="true"] .nav-submenu {
+    padding-left: 18px;
   }
 
   .user-chip {
@@ -3041,6 +3156,19 @@ dialog::backdrop {
     padding: 0 6px;
     font-size: 12px;
     text-align: center;
+  }
+
+  .nav-parent {
+    grid-template-columns: 16px minmax(0, 1fr) 14px;
+    gap: 6px;
+    padding: 0 6px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .nav-submenu,
+  body[data-sidebar-collapsed="true"] .nav-submenu {
+    padding-left: 0;
   }
 
   .nav-label {

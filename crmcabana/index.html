@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="referrer" content="no-referrer" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=99" />
+    <link rel="stylesheet" href="styles.css?v=100" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -51,6 +51,19 @@
             <span class="nav-icon">#</span>
             <span class="nav-label">Pedido</span>
           </button>
+          <div class="nav-group" id="financialNavGroup" hidden>
+            <button class="nav-parent" id="financialNavToggle" type="button" aria-expanded="true" aria-controls="financialSubmenu" title="Gestão Financeira">
+              <span class="nav-icon">$</span>
+              <span class="nav-label">Gestão Financeira</span>
+              <span class="nav-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="nav-submenu" id="financialSubmenu">
+              <button class="nav-item nav-subitem" id="financialOverviewNavItem" type="button" data-view="financial" title="Visão geral">
+                <span class="nav-icon" aria-hidden="true">•</span>
+                <span class="nav-label">Visão geral</span>
+              </button>
+            </div>
+          </div>
           <button class="nav-item" type="button" data-view="environments" title="Ambientes">
             <span class="nav-icon">[]</span>
             <span class="nav-label">Ambientes</span>
@@ -227,8 +240,7 @@
             </div>
           </header>
 
-          <section class="budget-dashboard" id="budgetDashboard" aria-label="Indicadores de orcamento">
-            <section class="filters-card budget-dashboard-filters" aria-label="Filtros do dashboard de orcamento">
+          <section class="filters-card budget-dashboard-filters" id="budgetFiltersPanel" aria-label="Filtros da lista de orçamentos">
               <div>
                 <span class="filter-title">Status</span>
                 <div class="status-filters" data-filter-group="budget"></div>
@@ -243,31 +255,6 @@
                   <input id="budgetEndDate" type="date" />
                 </label>
               </div>
-            </section>
-
-            <section class="stats-grid budget-dashboard-stats">
-              <article class="stat-card wide">
-                <span class="stat-icon rose">$</span>
-                <div><span>Custo Total Orçamentos</span><strong id="totalCost">R$ 0,00</strong></div>
-              </article>
-              <article class="stat-card wide">
-                <span class="stat-icon teal">$</span>
-                <div><span>Total Liquido Orçamentos</span><strong id="totalNet">R$ 0,00</strong></div>
-              </article>
-              <article class="stat-card wide">
-                <span class="stat-icon teal">up</span>
-                <div><span>Lucro Total Orçamentos</span><strong id="totalProfit">R$ 0,00</strong></div>
-              </article>
-            </section>
-
-            <section class="chart-card">
-              <h2>Orçamentos por Status</h2>
-              <canvas id="statusChart" aria-label="Grafico de orçamentos por status"></canvas>
-              <div class="legend">
-                <span><i class="revenue"></i> Total orçamento</span>
-                <span><i class="profit"></i> Lucro</span>
-              </div>
-            </section>
           </section>
 
           <section class="table-card" id="budgetListCard">
@@ -535,6 +522,52 @@
                 </section>
               </div>
             </section>
+          </section>
+        </section>
+
+        <section class="view financial-view" id="financialView">
+          <header class="page-header">
+            <div>
+              <h1>Gestão Financeira</h1>
+              <p>Visão geral dos resultados dos orçamentos</p>
+            </div>
+          </header>
+
+          <section class="filters-card financial-filters" aria-label="Filtros da gestão financeira">
+            <div>
+              <span class="filter-title">Status</span>
+              <div class="status-filters" data-filter-group="financial"></div>
+            </div>
+            <div class="date-filter">
+              <span class="filter-title">Data do orçamento</span>
+              <label><input id="financialStartDate" type="date" /></label>
+              <span>até</span>
+              <label><input id="financialEndDate" type="date" /></label>
+            </div>
+          </section>
+
+          <section class="stats-grid financial-stats" aria-label="Indicadores financeiros de orçamentos">
+            <article class="stat-card">
+              <span class="stat-icon rose">$</span>
+              <div><span>Custo Total Orçamentos</span><strong id="totalCost">R$ 0,00</strong></div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon teal">$</span>
+              <div><span>Total Líquido Orçamentos</span><strong id="totalNet">R$ 0,00</strong></div>
+            </article>
+            <article class="stat-card">
+              <span class="stat-icon green">↑</span>
+              <div><span>Lucro Total Orçamentos</span><strong id="totalProfit">R$ 0,00</strong></div>
+            </article>
+          </section>
+
+          <section class="chart-card financial-chart-card">
+            <h2>Orçamentos por Status</h2>
+            <canvas id="statusChart" aria-label="Gráfico de orçamentos por status"></canvas>
+            <div class="legend">
+              <span><i class="revenue"></i> Total orçamento</span>
+              <span><i class="profit"></i> Lucro</span>
+            </div>
           </section>
         </section>
 
@@ -853,6 +886,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=125"></script>
+    <script src="app.js?v=126"></script>
   </body>
 </html>

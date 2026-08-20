@@ -182,6 +182,9 @@ const elements = {
   maintenanceNavItem: document.querySelector("#maintenanceNavItem"),
   budgetNavItem: document.querySelector("#budgetNavItem"),
   orderNavItem: document.querySelector("#orderNavItem"),
+  financialNavGroup: document.querySelector("#financialNavGroup"),
+  financialNavToggle: document.querySelector("#financialNavToggle"),
+  financialSubmenu: document.querySelector("#financialSubmenu"),
   backupSiteDataBtn: document.querySelector("#backupSiteDataBtn"),
   backupStatus: document.querySelector("#backupStatus"),
   userRows: document.querySelector("#userRows"),
@@ -195,8 +198,11 @@ const elements = {
   dashboardFilters: document.querySelector('[data-filter-group="dashboard"]'),
   clientFilters: document.querySelector('[data-filter-group="clients"]'),
   budgetFilters: document.querySelector('[data-filter-group="budget"]'),
+  financialFilters: document.querySelector('[data-filter-group="financial"]'),
   budgetStartDate: document.querySelector("#budgetStartDate"),
   budgetEndDate: document.querySelector("#budgetEndDate"),
+  financialStartDate: document.querySelector("#financialStartDate"),
+  financialEndDate: document.querySelector("#financialEndDate"),
   clientsHeader: document.querySelector("#clientsHeader"),
   clientsDashboardFilters: document.querySelector("#clientsDashboardFilters"),
   clientsDashboardStats: document.querySelector("#clientsDashboardStats"),
@@ -429,6 +435,9 @@ function showAuthenticatedApp() {
   }
   if (elements.orderNavItem) {
     elements.orderNavItem.hidden = !isAdmin();
+  }
+  if (elements.financialNavGroup) {
+    elements.financialNavGroup.hidden = !isAdmin();
   }
 }
 
@@ -919,6 +928,7 @@ async function signOut() {
   state.selectedId = null;
   if (elements.budgetNavItem) elements.budgetNavItem.hidden = true;
   if (elements.orderNavItem) elements.orderNavItem.hidden = true;
+  if (elements.financialNavGroup) elements.financialNavGroup.hidden = true;
   if (elements.maintenanceNavItem) elements.maintenanceNavItem.hidden = true;
   showAuthScreen();
 }
@@ -1335,7 +1345,7 @@ function markProjectDirty() {
 }
 
 async function showView(view, selectedId) {
-  if ((view === "users" || view === "maintenance" || view === "budget" || view === "order") && !isAdmin()) {
+  if ((view === "users" || view === "maintenance" || view === "budget" || view === "order" || view === "financial") && !isAdmin()) {
     alert("Acesso restrito a administradores.");
     view = "clients";
   }
@@ -1374,6 +1384,7 @@ async function showView(view, selectedId) {
   elements.navItems.forEach((item) => {
     item.classList.toggle("active", item.dataset.view === view);
   });
+  elements.financialNavGroup?.classList.toggle("active", view === "financial");
 
   render();
 }
@@ -1384,7 +1395,7 @@ function setStatusFilter(group, status) {
     state.clientStatus = status;
   }
   if (group === "clients") state.clientStatus = status;
-  if (group === "budget") state.budgetStatus = status;
+  if (group === "budget" || group === "financial") state.budgetStatus = status;
   render();
 }
 
@@ -1594,7 +1605,7 @@ function renderStatusFilters(container, activeStatus, group) {
   if (!container) return;
   container.innerHTML = "";
 
-  const statuses = group === "budget" ? ["Todos", ...BUDGET_STATUS] : STATUS;
+  const statuses = group === "budget" || group === "financial" ? ["Todos", ...BUDGET_STATUS] : STATUS;
   statuses.forEach((status) => {
     const button = document.createElement("button");
     button.className = `pill ${status === activeStatus ? "active" : ""}`;
@@ -1632,6 +1643,21 @@ function renderBudgetDashboard() {
   document.querySelector("#totalCost").textContent = BRL.format(totals.cost);
   document.querySelector("#totalProfit").textContent = BRL.format(totals.profit);
   renderChart(budgets);
+}
+
+function syncBudgetFilterInputs() {
+  [elements.budgetStartDate, elements.financialStartDate].forEach((input) => {
+    if (input && input.value !== state.budgetStartDate) input.value = state.budgetStartDate;
+  });
+  [elements.budgetEndDate, elements.financialEndDate].forEach((input) => {
+    if (input && input.value !== state.budgetEndDate) input.value = state.budgetEndDate;
+  });
+}
+
+function renderFinancialManagement() {
+  if (!isAdmin() || state.view !== "financial") return;
+  syncBudgetFilterInputs();
+  renderBudgetDashboard();
 }
 
 function dashboardBudgets() {
@@ -3457,11 +3483,11 @@ function renderBudgetList() {
 
 function renderBudget() {
   if (!elements.budgetClientSelect || !isAdmin()) return;
+  const isBudgetArea = state.view === "budget" || state.view === "order";
+  if (!isBudgetArea) return;
   renderBudgetClientOptions();
   renderBudgetList();
-  renderBudgetDashboard();
 
-  const isBudgetArea = state.view === "budget" || state.view === "order";
   const orderMode = state.view === "order";
   const editing = isBudgetArea && state.budgetEditing;
   document.body.dataset.budgetViewMode = orderMode ? "order" : "budget";
@@ -3473,7 +3499,7 @@ function renderBudget() {
   document.querySelector("#budgetHeader h1").textContent = orderMode ? "Pedido" : "Orçamento";
   document.body.dataset.budgetEditing = editing ? "true" : "false";
   document.querySelector("#budgetHeader").hidden = editing;
-  document.querySelector("#budgetDashboard").hidden = editing;
+  document.querySelector("#budgetFiltersPanel").hidden = editing;
   elements.budgetListCard.hidden = editing;
   elements.budgetEditor.hidden = !editing;
   if (editing) {
@@ -4661,10 +4687,13 @@ function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
   renderStatusFilters(elements.budgetFilters, state.budgetStatus, "budget");
+  renderStatusFilters(elements.financialFilters, state.budgetStatus, "financial");
+  syncBudgetFilterInputs();
   renderDashboard();
   renderClients();
   renderProjects();
   renderBudget();
+  renderFinancialManagement();
   renderEnvironmentManager();
   renderUsers();
   renderDetail();
@@ -4693,7 +4722,7 @@ function scheduleCurrentViewLayoutRefresh() {
     // Aguarda o navegador aplicar a nova coluna do menu antes de medir canvas e tabelas.
     layoutRefreshFrame = window.requestAnimationFrame(() => {
       setupResizableTables();
-      if ((state.view === "budget" || state.view === "order") && !state.budgetEditing) {
+      if (state.view === "financial") {
         renderBudgetDashboard();
       }
     });
@@ -4738,6 +4767,11 @@ elements.logoutBtn.addEventListener("click", async () => {
   signOut();
 });
 elements.sidebarToggle?.addEventListener("click", toggleSidebar);
+elements.financialNavToggle?.addEventListener("click", () => {
+  const expanded = elements.financialNavToggle.getAttribute("aria-expanded") === "true";
+  elements.financialNavToggle.setAttribute("aria-expanded", String(!expanded));
+  elements.financialSubmenu.hidden = expanded;
+});
 
 elements.navItems.forEach((item) => {
   item.addEventListener("click", async () => {
@@ -4826,6 +4860,16 @@ elements.budgetStartDate?.addEventListener("change", (event) => {
 elements.budgetEndDate?.addEventListener("change", (event) => {
   state.budgetEndDate = event.target.value;
   renderBudget();
+});
+
+elements.financialStartDate?.addEventListener("change", (event) => {
+  state.budgetStartDate = event.target.value;
+  render();
+});
+
+elements.financialEndDate?.addEventListener("change", (event) => {
+  state.budgetEndDate = event.target.value;
+  render();
 });
 
 document.querySelector("#newClientBtn").addEventListener("click", () => openProjectDialog(null));
@@ -5051,7 +5095,7 @@ window.addEventListener("resize", () => {
   if (state.view === "clients") {
     renderDashboard();
   }
-  if (state.view === "budget" || state.view === "order") {
+  if (state.view === "financial") {
     renderBudgetDashboard();
   }
 });
