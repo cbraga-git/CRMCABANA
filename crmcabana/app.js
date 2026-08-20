@@ -5079,8 +5079,9 @@ async function startApp() {
   }
   refreshEnvironmentCatalog();
   state.selectedId = state.clients[0]?.id || null;
-  state.view = "clients";
-  showView("clients");
+  const initialView = isAdmin() ? "budget" : "clients";
+  state.view = initialView;
+  await showView(initialView);
   render();
   return true;
 }
