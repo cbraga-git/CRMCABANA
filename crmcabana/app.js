@@ -3522,7 +3522,7 @@ function renderBudgetList() {
   rows.innerHTML = "";
 
   if (!budgets.length) {
-    rows.innerHTML = `<tr><td colspan="11" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="10" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
     return;
   }
 
@@ -3553,10 +3553,9 @@ function renderBudgetList() {
 
     const amountValues = [
       { value: BRL.format(orderMode ? totals.net : totals.gross) },
-      { value: BRL.format(totals.net), hidden: orderMode },
       { value: orderMode ? formatPrintDateTime(budget.deliveryForecastAt) || "-" : BRL.format(totals.cost) },
-      { value: BRL.format(totals.profit) },
-      { value: formatPercent(totals.margin) },
+      { value: BRL.format(totals.profit), hidden: orderMode },
+      { value: BRL.format(totals.net), hidden: orderMode },
       { value: budget.updatedAt ? new Date(budget.updatedAt).toLocaleString("pt-BR") : "-" },
     ];
     amountValues.forEach(({ value, hidden = false }) => {
