@@ -3500,12 +3500,14 @@ function renderBudgetList() {
   const budgets = filteredBudgets();
   const orderMode = state.view === "order";
   const grossHeader = document.querySelector('#budgetListCard th[data-sort="gross"], #budgetListCard th[data-sort="net"]');
+  const netHeader = document.querySelector("#budgetListCard th[data-budget-net-column]");
   const costHeader = document.querySelector('#budgetListCard th[data-sort="cost"], #budgetListCard th[data-sort="deliveryForecastAt"]');
   if (grossHeader) {
     grossHeader.dataset.sort = orderMode ? "net" : "gross";
     grossHeader.textContent = orderMode ? "Faturado" : "Total ambientes";
     grossHeader.tabIndex = 0;
   }
+  if (netHeader) netHeader.hidden = orderMode;
   if (costHeader) {
     costHeader.dataset.sort = orderMode ? "deliveryForecastAt" : "cost";
     costHeader.textContent = orderMode ? "Previsao de entrega" : "Custo total";
@@ -3520,7 +3522,7 @@ function renderBudgetList() {
   rows.innerHTML = "";
 
   if (!budgets.length) {
-    rows.innerHTML = `<tr><td colspan="10" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="11" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
     return;
   }
 
@@ -3549,18 +3551,20 @@ function renderBudgetList() {
       row.appendChild(cell);
     });
 
-    [
-      BRL.format(orderMode ? totals.net : totals.gross),
-      orderMode ? formatPrintDateTime(budget.deliveryForecastAt) || "-" : BRL.format(totals.cost),
-      BRL.format(totals.profit),
-      formatPercent(totals.margin),
-      budget.updatedAt ? new Date(budget.updatedAt).toLocaleString("pt-BR") : "-",
-    ].forEach((value) => {
+    const amountValues = [
+      { value: BRL.format(orderMode ? totals.net : totals.gross) },
+      { value: BRL.format(totals.net), hidden: orderMode },
+      { value: orderMode ? formatPrintDateTime(budget.deliveryForecastAt) || "-" : BRL.format(totals.cost) },
+      { value: BRL.format(totals.profit) },
+      { value: formatPercent(totals.margin) },
+      { value: budget.updatedAt ? new Date(budget.updatedAt).toLocaleString("pt-BR") : "-" },
+    ];
+    amountValues.forEach(({ value, hidden = false }) => {
       const cell = document.createElement("td");
       cell.textContent = value;
+      cell.hidden = hidden;
       row.appendChild(cell);
     });
-
     row.addEventListener("dblclick", () => openBudgetEditor(client.id, { budgetId: budgetIdentity(budget) }));
     rows.appendChild(row);
   });
