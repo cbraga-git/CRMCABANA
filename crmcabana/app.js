@@ -3503,7 +3503,7 @@ function renderBudgetList() {
   const costHeader = document.querySelector('#budgetListCard th[data-sort="cost"], #budgetListCard th[data-sort="deliveryForecastAt"]');
   if (grossHeader) {
     grossHeader.dataset.sort = orderMode ? "net" : "gross";
-    grossHeader.textContent = orderMode ? "Total liquido" : "Total ambientes";
+    grossHeader.textContent = orderMode ? "Faturado" : "Total ambientes";
     grossHeader.tabIndex = 0;
   }
   if (costHeader) {

@@ -182,7 +182,7 @@ declare item jsonb;
 begin
   if not public.crm_is_admin() then raise exception 'Apenas administradores podem alterar status.'; end if;
   if jsonb_typeof(statuses) <> 'array' or jsonb_array_length(statuses) = 0 then raise exception 'Informe ao menos um status.'; end if;
-  delete from public.crm_budget_statuses;
+  delete from public.crm_budget_statuses where name is not null;
   for item in select value from jsonb_array_elements(statuses) loop
     insert into public.crm_budget_statuses (name, applies_to_budget, applies_to_order, sort_order)
     values (trim(item->>'name'), coalesce((item->>'budget')::boolean, false), coalesce((item->>'order')::boolean, false), coalesce((item->>'sort_order')::integer, 0));
