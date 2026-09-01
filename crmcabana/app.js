@@ -530,12 +530,21 @@ async function loadBudgetStatuses() {
   applyBudgetStatusConfig(rows || DEFAULT_BUDGET_STATUSES);
 }
 
-async function saveBudgetStatuses() {
+async function saveBudgetStatuses(nextStatuses = state.budgetStatuses) {
   if (!isAdmin()) throw new Error("Acesso restrito a administradores.");
-  const normalized = normalizeBudgetStatusConfig(state.budgetStatuses);
+  const normalized = normalizeBudgetStatusConfig(nextStatuses);
   if (remoteDatabaseEnabled() && currentUserId()) {
     const response = await authorizedFetch(supabaseRpcEndpoint("crm_admin_replace_budget_statuses"), () => ({ method: "POST", headers: supabaseHeaders("return=minimal"), body: JSON.stringify({ statuses: normalized.map((status, index) => ({ ...status, sort_order: index })) }) }));
-    if (!response.ok) throw new Error("Não foi possível salvar no banco. Rode o supabase-schema.sql atualizado e tente novamente.");
+    if (!response.ok) {
+      let details = "";
+      try {
+        const payload = await response.json();
+        details = payload.message || payload.details || payload.hint || payload.code || "";
+      } catch {
+        details = await response.text().catch(() => "");
+      }
+      throw new Error(`Não foi possível salvar no banco${details ? `: ${details}` : ` (HTTP ${response.status})`}.`);
+    }
   }
   localStorage.setItem(BUDGET_STATUS_STORAGE_KEY, JSON.stringify(normalized));
   applyBudgetStatusConfig(normalized);
@@ -4802,15 +4811,15 @@ function renderBudgetStatusManager() {
       if (!name || (!budgetInput.checked && !orderInput.checked)) return alert("Informe o nome e associe o status a Orçamento e/ou Pedido.");
       if (state.budgetStatuses.some((item, itemIndex) => itemIndex !== index && item.name.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"))) return alert("Já existe um status com esse nome.");
       if (status.name !== name && budgetStatusIsInUse(status.name)) return alert("Este status já está em uso e não pode ser renomeado.");
-      state.budgetStatuses[index] = { name, budget: budgetInput.checked, order: orderInput.checked };
-      try { await saveBudgetStatuses(); } catch (error) { alert(error.message); }
+      const nextStatuses = state.budgetStatuses.map((item, itemIndex) => itemIndex === index ? { name, budget: budgetInput.checked, order: orderInput.checked } : item);
+      try { await saveBudgetStatuses(nextStatuses); } catch (error) { alert(error.message); renderBudgetStatusManager(); }
     });
     const deleteButton = document.createElement("button"); deleteButton.type = "button"; deleteButton.className = "button compact secondary danger"; deleteButton.textContent = "Excluir";
     deleteButton.addEventListener("click", async () => {
       if (budgetStatusIsInUse(status.name)) return alert("Este status está associado a orçamentos/pedidos existentes e não pode ser excluído.");
       if (!confirm(`Excluir o status ${status.name}?`)) return;
-      state.budgetStatuses.splice(index, 1);
-      try { await saveBudgetStatuses(); } catch (error) { alert(error.message); }
+      const nextStatuses = state.budgetStatuses.filter((_, itemIndex) => itemIndex !== index);
+      try { await saveBudgetStatuses(nextStatuses); } catch (error) { alert(error.message); renderBudgetStatusManager(); }
     });
     actions.append(saveButton, deleteButton); row.appendChild(actions); elements.budgetStatusAdminRows.appendChild(row);
   });
@@ -4941,11 +4950,10 @@ elements.budgetStatusAdminForm?.addEventListener("submit", async (event) => {
   const order = elements.newBudgetStatusOrder.checked;
   if (!budget && !order) return alert("Associe o status a Orçamento e/ou Pedido.");
   if (state.budgetStatuses.some((status) => status.name.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"))) return alert("Já existe um status com esse nome.");
-  state.budgetStatuses.push({ name, budget, order });
   try {
-    await saveBudgetStatuses(); elements.budgetStatusAdminForm.reset(); elements.newBudgetStatusBudget.checked = true;
+    await saveBudgetStatuses([...state.budgetStatuses, { name, budget, order }]); elements.budgetStatusAdminForm.reset(); elements.newBudgetStatusBudget.checked = true;
     elements.budgetStatusAdminMessage.textContent = "Status cadastrado com sucesso.";
-  } catch (error) { alert(error.message); }
+  } catch (error) { alert(error.message); renderBudgetStatusManager(); }
 });
 
 elements.userAdminForm?.addEventListener("submit", async (event) => {
