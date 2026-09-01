@@ -63,6 +63,10 @@
             </span>
             <span class="nav-label">Usuarios</span>
           </button>
+          <button class="nav-item" id="budgetStatusesNavItem" type="button" data-view="budgetStatuses" title="Status de orcamentos e pedidos" hidden>
+            <span class="nav-icon">✓</span>
+            <span class="nav-label">Status Orçamento/Pedido</span>
+          </button>
           <div class="nav-group" id="financialNavGroup" hidden>
             <button class="nav-parent" id="financialNavToggle" type="button" aria-expanded="true" aria-controls="financialSubmenu" title="Gestão Financeira">
               <span class="nav-icon">$</span>
@@ -648,6 +652,22 @@
               </div>
             </article>
           </section>
+        </section>
+
+        <section class="view legacy-view" id="budgetStatusesView">
+          <header class="page-header">
+            <div><h1>Status de Orçamentos e Pedidos</h1><p>Cadastre os status e defina em quais áreas cada um será utilizado.</p></div>
+          </header>
+          <form class="status-admin-form" id="budgetStatusAdminForm">
+            <label>Nome do status<input id="newBudgetStatusName" type="text" maxlength="60" required /></label>
+            <label class="status-scope-option"><input id="newBudgetStatusBudget" type="checkbox" checked /> Orçamento</label>
+            <label class="status-scope-option"><input id="newBudgetStatusOrder" type="checkbox" /> Pedido</label>
+            <button class="button primary" type="submit">Cadastrar status</button>
+          </form>
+          <section class="table-card">
+            <table class="status-admin-table"><thead><tr><th>Status</th><th>Orçamento</th><th>Pedido</th><th>Ações</th></tr></thead><tbody id="budgetStatusAdminRows"></tbody></table>
+          </section>
+          <p class="maintenance-status status-admin-message" id="budgetStatusAdminMessage" role="status"></p>
         </section>
 
         <section class="view detail-view" id="detailView">

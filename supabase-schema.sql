@@ -24,6 +24,24 @@ create table if not exists public.crm_audit_logs (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.crm_budget_statuses (
+  name text primary key,
+  applies_to_budget boolean not null default true,
+  applies_to_order boolean not null default false,
+  sort_order integer not null default 0,
+  updated_at timestamptz not null default now(),
+  check (length(trim(name)) between 1 and 60),
+  check (applies_to_budget or applies_to_order)
+);
+
+insert into public.crm_budget_statuses (name, applies_to_budget, applies_to_order, sort_order)
+values
+  ('Novo Orçamento', true, false, 0), ('Negociação', true, false, 1),
+  ('Aprovado', true, true, 2), ('Pedido', true, true, 3),
+  ('Emissão de NF', true, true, 4), ('Finalizado', true, false, 5),
+  ('Recusado', true, false, 6)
+on conflict (name) do nothing;
+
 alter table public.crm_clients
 add column if not exists user_id uuid references auth.users(id) on delete cascade;
 
@@ -50,6 +68,7 @@ end $$;
 alter table public.crm_clients enable row level security;
 alter table public.crm_profiles enable row level security;
 alter table public.crm_audit_logs enable row level security;
+alter table public.crm_budget_statuses enable row level security;
 
 create or replace function public.crm_is_admin()
 returns boolean
@@ -105,6 +124,7 @@ drop policy if exists "crm_profiles_insert_self" on public.crm_profiles;
 drop policy if exists "crm_profiles_update_admin" on public.crm_profiles;
 drop policy if exists "crm_audit_logs_select_admin" on public.crm_audit_logs;
 drop policy if exists "crm_audit_logs_insert_admin" on public.crm_audit_logs;
+drop policy if exists "crm_budget_statuses_select" on public.crm_budget_statuses;
 
 create policy "crm_clients_select"
 on public.crm_clients
@@ -152,6 +172,23 @@ create policy "crm_audit_logs_insert_admin"
 on public.crm_audit_logs
 for insert
 with check (public.crm_is_admin());
+
+create policy "crm_budget_statuses_select" on public.crm_budget_statuses
+for select using (auth.uid() is not null);
+
+create or replace function public.crm_admin_replace_budget_statuses(statuses jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare item jsonb;
+begin
+  if not public.crm_is_admin() then raise exception 'Apenas administradores podem alterar status.'; end if;
+  if jsonb_typeof(statuses) <> 'array' or jsonb_array_length(statuses) = 0 then raise exception 'Informe ao menos um status.'; end if;
+  delete from public.crm_budget_statuses;
+  for item in select value from jsonb_array_elements(statuses) loop
+    insert into public.crm_budget_statuses (name, applies_to_budget, applies_to_order, sort_order)
+    values (trim(item->>'name'), coalesce((item->>'budget')::boolean, false), coalesce((item->>'order')::boolean, false), coalesce((item->>'sort_order')::integer, 0));
+  end loop;
+end;
+$$;
 
 create extension if not exists pgcrypto with schema extensions;
 
@@ -393,11 +430,13 @@ revoke execute on function public.crm_log_action(text, uuid, text, jsonb) from p
 revoke execute on function public.crm_admin_create_user(text, text, text) from public, anon;
 revoke execute on function public.crm_admin_update_user(uuid, text, text, boolean) from public, anon;
 revoke execute on function public.crm_admin_set_password(uuid, text) from public, anon;
+revoke execute on function public.crm_admin_replace_budget_statuses(jsonb) from public, anon;
 
 grant execute on function public.crm_is_admin() to authenticated;
 grant execute on function public.crm_admin_create_user(text, text, text) to authenticated;
 grant execute on function public.crm_admin_update_user(uuid, text, text, boolean) to authenticated;
 grant execute on function public.crm_admin_set_password(uuid, text) to authenticated;
+grant execute on function public.crm_admin_replace_budget_statuses(jsonb) to authenticated;
 
 -- Para definir o primeiro administrador, rode uma vez no Supabase SQL Editor:
 -- update public.crm_profiles set role = 'admin' where email = 'email@empresa.com';

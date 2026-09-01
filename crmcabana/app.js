@@ -9,6 +9,7 @@ const ENVIRONMENT_STORAGE_KEY = "movelcrm-environments";
 const SIDEBAR_COLLAPSED_KEY = "movelcrm-sidebar-collapsed";
 const CLIENT_COLUMNS_WIDTH_KEY = "movelcrm-client-column-widths";
 const BUDGET_COLUMNS_WIDTH_KEY = "movelcrm-budget-column-widths";
+const BUDGET_STATUS_STORAGE_KEY = "movelcrm-budget-statuses";
 const STATUS = [
   "Todos",
   "Em Andamento",
@@ -102,8 +103,14 @@ const DEFAULT_BUDGET_SETTINGS = {
   assemblyStartDate: "",
   assemblyEndDate: "",
 };
-const BUDGET_STATUS = ["Novo Orçamento", "Negociação", "Aprovado", "Pedido", "Emissão de NF", "Finalizado", "Recusado"];
-const ORDER_STATUS = ["Aprovado", "Pedido", "Emissão de NF"];
+const DEFAULT_BUDGET_STATUSES = [
+  { name: "Novo Orçamento", budget: true, order: false }, { name: "Negociação", budget: true, order: false },
+  { name: "Aprovado", budget: true, order: true }, { name: "Pedido", budget: true, order: true },
+  { name: "Emissão de NF", budget: true, order: true }, { name: "Finalizado", budget: true, order: false },
+  { name: "Recusado", budget: true, order: false },
+];
+let BUDGET_STATUS = DEFAULT_BUDGET_STATUSES.map((status) => status.name);
+let ORDER_STATUS = DEFAULT_BUDGET_STATUSES.filter((status) => status.order).map((status) => status.name);
 const STATUS_MIGRATION = {
   Lead: "Novo",
   "Em negociacao": "Negociação",
@@ -161,6 +168,7 @@ const state = {
   returnView: "clients",
   clients: [],
   environments: [],
+  budgetStatuses: DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status })),
 };
 
 const elements = {
@@ -179,6 +187,7 @@ const elements = {
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
+  budgetStatusesNavItem: document.querySelector("#budgetStatusesNavItem"),
   maintenanceNavItem: document.querySelector("#maintenanceNavItem"),
   budgetNavItem: document.querySelector("#budgetNavItem"),
   orderNavItem: document.querySelector("#orderNavItem"),
@@ -237,6 +246,12 @@ const elements = {
   environmentCount: document.querySelector("#environmentCount"),
   environmentForm: document.querySelector("#environmentForm"),
   environmentNameInput: document.querySelector("#environmentNameInput"),
+  budgetStatusAdminForm: document.querySelector("#budgetStatusAdminForm"),
+  newBudgetStatusName: document.querySelector("#newBudgetStatusName"),
+  newBudgetStatusBudget: document.querySelector("#newBudgetStatusBudget"),
+  newBudgetStatusOrder: document.querySelector("#newBudgetStatusOrder"),
+  budgetStatusAdminRows: document.querySelector("#budgetStatusAdminRows"),
+  budgetStatusAdminMessage: document.querySelector("#budgetStatusAdminMessage"),
   leadImportFile: document.querySelector("#leadImportFile"),
   promobImportFile: document.querySelector("#promobImportFile"),
   budgetClientSelect: document.querySelector("#budgetClientSelect"),
@@ -427,6 +442,7 @@ function showAuthenticatedApp() {
   if (elements.usersNavItem) {
     elements.usersNavItem.hidden = !isAdmin();
   }
+  if (elements.budgetStatusesNavItem) elements.budgetStatusesNavItem.hidden = !isAdmin();
   if (elements.maintenanceNavItem) {
     elements.maintenanceNavItem.hidden = !isAdmin();
   }
@@ -466,6 +482,64 @@ function responsibleSeller(client) {
 
 function normalizeLeadStatus(status) {
   return STATUS_MIGRATION[status] || (STATUS.includes(status) ? status : DEFAULT_STATUS);
+}
+
+function normalizeBudgetStatusConfig(rows) {
+  if (!Array.isArray(rows)) return DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status }));
+  const seen = new Set();
+  const normalized = rows.map((row) => ({ name: String(row?.name || "").trim(), budget: Boolean(row?.budget), order: Boolean(row?.order) }))
+    .filter((row) => {
+      const key = row.name.toLocaleLowerCase("pt-BR");
+      if (!row.name || (!row.budget && !row.order) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return normalized.length ? normalized : DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status }));
+}
+
+function applyBudgetStatusConfig(rows) {
+  state.budgetStatuses = normalizeBudgetStatusConfig(rows);
+  BUDGET_STATUS = state.budgetStatuses.filter((status) => status.budget).map((status) => status.name);
+  ORDER_STATUS = state.budgetStatuses.filter((status) => status.order).map((status) => status.name);
+  if (!BUDGET_STATUS.length) BUDGET_STATUS = [DEFAULT_BUDGET_STATUSES[0].name];
+  refreshBudgetStatusSelect();
+}
+
+function refreshBudgetStatusSelect() {
+  const select = document.querySelector("#budgetStatus");
+  if (!select) return;
+  const previous = select.value;
+  const statuses = state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
+  select.replaceChildren(...statuses.map((name) => new Option(name, name)));
+  select.value = statuses.includes(previous) ? previous : statuses[0] || "";
+}
+
+function configuredDocumentStatuses() {
+  return state.budgetStatuses.map((status) => status.name);
+}
+
+async function loadBudgetStatuses() {
+  let rows = null;
+  if (remoteDatabaseEnabled() && currentUserId()) {
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_budget_statuses", "?select=name,applies_to_budget,applies_to_order,sort_order&order=sort_order.asc,name.asc"), () => ({ headers: supabaseHeaders() }));
+    if (response.ok) rows = (await response.json()).map((row) => ({ name: row.name, budget: row.applies_to_budget, order: row.applies_to_order }));
+  }
+  if (!rows?.length) {
+    try { rows = JSON.parse(localStorage.getItem(BUDGET_STATUS_STORAGE_KEY) || "null"); } catch { rows = null; }
+  }
+  applyBudgetStatusConfig(rows || DEFAULT_BUDGET_STATUSES);
+}
+
+async function saveBudgetStatuses() {
+  if (!isAdmin()) throw new Error("Acesso restrito a administradores.");
+  const normalized = normalizeBudgetStatusConfig(state.budgetStatuses);
+  if (remoteDatabaseEnabled() && currentUserId()) {
+    const response = await authorizedFetch(supabaseRpcEndpoint("crm_admin_replace_budget_statuses"), () => ({ method: "POST", headers: supabaseHeaders("return=minimal"), body: JSON.stringify({ statuses: normalized.map((status, index) => ({ ...status, sort_order: index })) }) }));
+    if (!response.ok) throw new Error("Não foi possível salvar no banco. Rode o supabase-schema.sql atualizado e tente novamente.");
+  }
+  localStorage.setItem(BUDGET_STATUS_STORAGE_KEY, JSON.stringify(normalized));
+  applyBudgetStatusConfig(normalized);
+  render();
 }
 
 function normalizeFinalUse(value) {
@@ -930,6 +1004,7 @@ async function signOut() {
   if (elements.orderNavItem) elements.orderNavItem.hidden = true;
   if (elements.financialNavGroup) elements.financialNavGroup.hidden = true;
   if (elements.maintenanceNavItem) elements.maintenanceNavItem.hidden = true;
+  if (elements.budgetStatusesNavItem) elements.budgetStatusesNavItem.hidden = true;
   showAuthScreen();
 }
 
@@ -1345,7 +1420,7 @@ function markProjectDirty() {
 }
 
 async function showView(view, selectedId) {
-  if ((view === "users" || view === "maintenance" || view === "budget" || view === "order" || view === "financial") && !isAdmin()) {
+  if ((view === "users" || view === "maintenance" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial") && !isAdmin()) {
     alert("Acesso restrito a administradores.");
     view = "clients";
   }
@@ -1385,6 +1460,7 @@ async function showView(view, selectedId) {
     item.classList.toggle("active", item.dataset.view === view);
   });
   elements.financialNavGroup?.classList.toggle("active", view === "financial");
+  if (view === "budget" || view === "order") refreshBudgetStatusSelect();
 
   render();
 }
@@ -2140,7 +2216,7 @@ function handleBudgetStatusDateFields() {
 }
 
 function currentBudgetDraft() {
-  const status = BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
+  const status = configuredDocumentStatuses().includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
   return {
     id: state.budgetEditingId || `budget-${Date.now()}`,
     code: budgetInputValue("budgetCode") || nextBudgetCode(),
@@ -2243,7 +2319,7 @@ function clientBudget(client) {
   return {
     id: saved.id || saved.code || "",
     code: saved.code || (saved.updatedAt ? fallbackBudgetCode(client) : ""),
-    status: BUDGET_STATUS.includes(saved.status) ? saved.status : BUDGET_STATUS[0],
+    status: configuredDocumentStatuses().includes(saved.status) ? saved.status : BUDGET_STATUS[0],
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     saleAt: saved.saleAt || "",
     settings: normalizeBudgetSettings(saved.settings, rows),
@@ -3522,7 +3598,7 @@ async function saveBudget(options = {}) {
   const rows = readBudgetRows();
   const sourceId = state.budgetSourceId;
   const budgetCode = budgetInputValue("budgetCode") || nextBudgetCode();
-  const budgetStatus = BUDGET_STATUS.includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
+  const budgetStatus = configuredDocumentStatuses().includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
   const budgetPayload = {
     id: state.budgetEditingId || `budget-${Date.now()}`,
     code: budgetCode,
@@ -4696,8 +4772,48 @@ function render() {
   renderFinancialManagement();
   renderEnvironmentManager();
   renderUsers();
+  renderBudgetStatusManager();
   renderDetail();
   updateSyncIndicator();
+}
+
+function budgetStatusIsInUse(name) {
+  return state.clients.some((client) => client.budget?.status === name || (client.budgets || []).some((budget) => budget.status === name));
+}
+
+function renderBudgetStatusManager() {
+  if (!elements.budgetStatusAdminRows) return;
+  elements.budgetStatusAdminRows.replaceChildren();
+  state.budgetStatuses.forEach((status, index) => {
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    const nameInput = document.createElement("input");
+    nameInput.type = "text"; nameInput.maxLength = 60; nameInput.value = status.name; nameCell.appendChild(nameInput); row.appendChild(nameCell);
+    const budgetCell = document.createElement("td");
+    const budgetInput = document.createElement("input");
+    budgetInput.type = "checkbox"; budgetInput.checked = status.budget; budgetCell.appendChild(budgetInput); row.appendChild(budgetCell);
+    const orderCell = document.createElement("td");
+    const orderInput = document.createElement("input");
+    orderInput.type = "checkbox"; orderInput.checked = status.order; orderCell.appendChild(orderInput); row.appendChild(orderCell);
+    const actions = document.createElement("td"); actions.className = "user-actions";
+    const saveButton = document.createElement("button"); saveButton.type = "button"; saveButton.className = "button compact secondary"; saveButton.textContent = "Salvar";
+    saveButton.addEventListener("click", async () => {
+      const name = nameInput.value.trim();
+      if (!name || (!budgetInput.checked && !orderInput.checked)) return alert("Informe o nome e associe o status a Orçamento e/ou Pedido.");
+      if (state.budgetStatuses.some((item, itemIndex) => itemIndex !== index && item.name.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"))) return alert("Já existe um status com esse nome.");
+      if (status.name !== name && budgetStatusIsInUse(status.name)) return alert("Este status já está em uso e não pode ser renomeado.");
+      state.budgetStatuses[index] = { name, budget: budgetInput.checked, order: orderInput.checked };
+      try { await saveBudgetStatuses(); } catch (error) { alert(error.message); }
+    });
+    const deleteButton = document.createElement("button"); deleteButton.type = "button"; deleteButton.className = "button compact secondary danger"; deleteButton.textContent = "Excluir";
+    deleteButton.addEventListener("click", async () => {
+      if (budgetStatusIsInUse(status.name)) return alert("Este status está associado a orçamentos/pedidos existentes e não pode ser excluído.");
+      if (!confirm(`Excluir o status ${status.name}?`)) return;
+      state.budgetStatuses.splice(index, 1);
+      try { await saveBudgetStatuses(); } catch (error) { alert(error.message); }
+    });
+    actions.append(saveButton, deleteButton); row.appendChild(actions); elements.budgetStatusAdminRows.appendChild(row);
+  });
 }
 
 function applySidebarCollapsed(collapsed) {
@@ -4816,6 +4932,20 @@ elements.environmentForm?.addEventListener("submit", (event) => {
     return;
   }
   elements.environmentNameInput?.focus();
+});
+
+elements.budgetStatusAdminForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = elements.newBudgetStatusName.value.trim();
+  const budget = elements.newBudgetStatusBudget.checked;
+  const order = elements.newBudgetStatusOrder.checked;
+  if (!budget && !order) return alert("Associe o status a Orçamento e/ou Pedido.");
+  if (state.budgetStatuses.some((status) => status.name.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"))) return alert("Já existe um status com esse nome.");
+  state.budgetStatuses.push({ name, budget, order });
+  try {
+    await saveBudgetStatuses(); elements.budgetStatusAdminForm.reset(); elements.newBudgetStatusBudget.checked = true;
+    elements.budgetStatusAdminMessage.textContent = "Status cadastrado com sucesso.";
+  } catch (error) { alert(error.message); }
 });
 
 elements.userAdminForm?.addEventListener("submit", async (event) => {
@@ -5114,6 +5244,7 @@ async function startApp() {
   }
   showAuthenticatedApp();
   state.clients = await loadClients();
+  await loadBudgetStatuses();
   if (isAdmin()) {
     try {
       await loadUserProfiles();
