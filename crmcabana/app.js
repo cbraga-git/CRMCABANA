@@ -1454,6 +1454,7 @@ async function showView(view, selectedId) {
     resetBudgetEditorState();
   }
 
+  if ((view === "budget" || view === "order") && view !== previousView) state.budgetStatus = "Todos";
   state.view = view;
   document.body.dataset.view = view;
   state.selectedId = selectedId || state.selectedId;
@@ -1690,7 +1691,8 @@ function renderStatusFilters(container, activeStatus, group) {
   if (!container) return;
   container.innerHTML = "";
 
-  const statuses = group === "budget" || group === "financial" ? ["Todos", ...BUDGET_STATUS] : STATUS;
+  const documentStatuses = group === "budget" && state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
+  const statuses = group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
   statuses.forEach((status) => {
     const button = document.createElement("button");
     button.className = `pill ${status === activeStatus ? "active" : ""}`;
