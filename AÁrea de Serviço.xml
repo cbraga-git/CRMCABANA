@@ -1,0 +1,844 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LISTING LANG="pt-BR" ASSISTANCEORDER="N" ONLINE="Y" CUSTOMERNUMBER="475" ID="orcamento" DESCRIPTION="Orçamento" DATE="10/07/2026" HOUR="20:33:46" CLIENTLOGO="%pastasistema%\identity\logoCliente.gif" CURRENCYSYMBOL="R$" IDTYPE="orcamento" UNIT="mm" AMBIENTS="3\0" QUANTITYINCREASE="N" DEFAULTPRICETABLEUSED="Y" PRICETABLEUSED="" ONLYSELECTEDITEMS="N" ALLOWSUPPLEMENTARYITEMS="Y" ALLOWEXTRAITEMS="Y" HASNOTAVAILABLEITEMS="N" HASCHANGEDDIMENSIONITEMS="N" AREASPROCESSED="N" TRANSLATEDESCRIPTIONS="N" SERIALIZEATTRIBUTES="N">
+  <PROJECTGUID GUID="c08eeb62-fe14-416e-b693-68d11b4008ea" />
+  <ABOUTPROMOB VERSION="5" REVISION="60" BUILD="46" SYSTEM="Vitta" SYSTEMID="1025" DISTRIBUTION="Studio" SERIALNUMBER="76896621" PRODUCTCODE="4OZMDSQSI7" CUSTOMERNUMBER="516" SYSTEMREVISION="01/07/2026 09:05:33">
+    <LIBRARIES>
+      <LIBRARY LINE="nobilia_componentes" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="Villaggio" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="Blum" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="Colortec" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="decore" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="bibliotecas" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="Hafele" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="vit_dor" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="Artetilica" REVISION="Janeiro/2026" VERSION="Janeiro/2026" />
+      <LIBRARY LINE="nobilia_acessorios" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="vit_ace_nov" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="revest" REVISION="" VERSION="" />
+      <LIBRARY LINE="Vit_vit" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="vil_1171_del_met" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="tam_pai" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="vit_hom_the" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="raiz_2035_2" REVISION="R.00" VERSION="00-ERP" />
+      <LIBRARY LINE="mull_art" REVISION="1" VERSION="3" />
+      <LIBRARY LINE="pux_zen" REVISION="Março/2026" VERSION="Março/2026" />
+      <LIBRARY LINE="villaggio_Del_Metallo" REVISION="" VERSION="" />
+      <LIBRARY LINE="Brilhart_Color" REVISION="Maio_15" VERSION="2026" />
+      <LIBRARY LINE="Allure" REVISION="R.00" VERSION="00-ERP" />
+    </LIBRARIES>
+  </ABOUTPROMOB>
+  <CUSTOMERSDATA>
+    <DATA ID="ModifiedOn" VALUE="30/06/2026 20:22:56" />
+    <DATA ID="codcliente" VALUE="" />
+    <DATA ID="nomecliente" VALUE="Patricia" />
+    <DATA ID="rep_contatoempresa" VALUE="" />
+    <DATA ID="rep_codempresa" VALUE="" />
+    <DATA ID="corporateName" VALUE="Patricia" />
+    <DATA ID="rep_bairroempresa" VALUE="" />
+    <DATA ID="customerObservation" VALUE="" />
+    <DATA ID="email" VALUE="patricia@gmail.com" />
+    <DATA ID="uf" VALUE="" />
+    <DATA ID="rep_telefoneempresa" VALUE="" />
+    <DATA ID="Environment" VALUE="Cozinha" />
+    <DATA ID="rep_nomeempresa" VALUE="" />
+    <DATA ID="rep_cnpjempresa" VALUE="" />
+    <DATA ID="observacoes" VALUE="" />
+    <DATA ID="cpfcnpj" VALUE="" />
+    <DATA ID="rep_cepenpresa" VALUE="" />
+    <DATA ID="email_Private_0" VALUE="patricia@gmail.com" />
+    <DATA ID="cidade" VALUE="" />
+    <DATA ID="bairro" VALUE="" />
+    <DATA ID="villaggio_occliente" VALUE="" />
+    <DATA ID="endereco" VALUE="" />
+    <DATA ID="rep_cnpjempresa_Allure" VALUE="" />
+    <DATA ID="DeliveryDate" VALUE="" />
+    <DATA ID="cep" VALUE="" />
+    <DATA ID="rep_cidadeempresa" VALUE="" />
+    <DATA ID="customerType" VALUE="Physical" />
+    <DATA ID="nickName" VALUE="" />
+    <DATA ID="rep_ufempresa" VALUE="" />
+    <DATA ID="rep_enderecoempresa" VALUE="" />
+    <DATA ID="phone_Mobile_0" VALUE="55|11999999999" />
+    <DATA ID="rep_emailempresa" VALUE="" />
+    <DATA ID="Allure_occliente" VALUE="" />
+    <DATA ID="ClosingDate" VALUE="" />
+    <DATA ID="Situation" VALUE="Em andamento" />
+    <DATA ID="celular" VALUE="11999999999" />
+    <DATA ID="Type" VALUE="Principal" />
+    <DATA ID="rep_cnpjempresa_villaggio" VALUE="" />
+    <DATA ID="dateOfBirth" VALUE="" />
+    <DATA ID="endentrega" VALUE="" />
+    <DATA ID="Stage" VALUE="Prospecção" />
+    <DATA ID="CreatedOn" VALUE="29/05/2026 21:16:46" />
+    <DATA ID="fone" VALUE="" />
+  </CUSTOMERSDATA>
+  <TOTALPRICES TABLE="1805.6">
+    <MARGINS>
+      <ORDER VALUE="1746.52">
+        <MARGIN ID="icms" DESCRIPTION="ICMS" VALUE="0" />
+        <MARGIN ID="IPI" DESCRIPTION="IPI" VALUE="94.55" />
+        <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" VALUE="-289.47" />
+        <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" VALUE="-51.3" />
+        <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" VALUE="0" />
+        <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" VALUE="0" />
+        <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" VALUE="0" />
+        <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" VALUE="187.14" />
+      </ORDER>
+      <BUDGET VALUE="5092.87">
+        <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" VALUE="2969.12" />
+        <MARGIN ID="frete" DESCRIPTION="Frete" VALUE="377.23" />
+        <MARGIN ID="montagem" DESCRIPTION="Montagem" VALUE="0" />
+      </BUDGET>
+    </MARGINS>
+  </TOTALPRICES>
+  <AMBIENTS>
+    <AMBIENT GUID="b1d8ebfa-ff25-4af8-84a7-0bdd2d6f3d6c" DESCRIPTION="Projeto - Área de Serviço" UNIQUEID="3\0">
+      <TOTALPRICES TABLE="1805.6">
+        <MARGINS>
+          <ORDER VALUE="1746.52">
+            <MARGIN ID="icms" DESCRIPTION="ICMS" VALUE="0" />
+            <MARGIN ID="IPI" DESCRIPTION="IPI" VALUE="94.55" />
+            <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" VALUE="-289.47" />
+            <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" VALUE="-51.3" />
+            <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" VALUE="0" />
+            <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" VALUE="0" />
+            <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" VALUE="0" />
+            <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" VALUE="187.14" />
+          </ORDER>
+          <BUDGET VALUE="5092.87">
+            <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" VALUE="2969.12" />
+            <MARGIN ID="frete" DESCRIPTION="Frete" VALUE="377.23" />
+            <MARGIN ID="montagem" DESCRIPTION="Montagem" VALUE="0" />
+          </BUDGET>
+        </MARGINS>
+      </TOTALPRICES>
+      <MODELINFORMATIONS>
+        <MODELCATEGORYINFORMATIONS>
+          <MODELCATEGORYINFORMATION DESCRIPTION="Cozinhas">
+            <MODELINFORMATIONS>
+              <MODELINFORMATION DESCRIPTION="Caixas" ID="vit_pai_15_mod_edt">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="MDF&gt;Branco Txt - 017" ID="vit_pai_mdf_15_mod_edt;branco txt" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Furação" ID="coz_comp_pai_edit_mod_lat">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Painel c/ Rebaixo" ID="coz_comp_pai_edit_ver_15_lat_15" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Acabamentos Fundos" ID="Vit_aca_fun_edt">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Fundos 6mm MDF&gt;Branco Txt - 6mm BP - 017" ID="Vit_aca_fun_6bp_dor_edt;branco txt" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Acabamentos Frentes" ID="vit_aca_fre">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Frentes 15mm MDF&gt;Branco Txt - 017" ID="vit_aca_fre_15;vit_aca_fre_bra_tx" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Frentes" ID="vit_mod_for_inf">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Reta p/ 15 e 18mm" ID="vit_mod_for_inf_ret" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Prateleiras" ID="Vit_pra_edi">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Prateleiras 15 MDF&gt;Branco Txt - 017" ID="Vit_pra_dor_15_edt;branco txt" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+            </MODELINFORMATIONS>
+          </MODELCATEGORYINFORMATION>
+          <MODELCATEGORYINFORMATION DESCRIPTION="Acessórios">
+            <MODELINFORMATIONS>
+              <MODELINFORMATION DESCRIPTION="Acabamentos Acessórios" ID="Vit_aca_ace_2">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Branco Txt - 017" ID="branco txt" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Acabamento Puxador" ID="Ace_pux_rom">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Alumínio" ID="Vit_pux_gol_alu" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Puxadores" ID="vit_ace_nov_pux">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Roma 146mm (A 984)" ID="vit_ace_nov_pux_alu_146_rom" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Dobradiças" ID="vit_ace_nov_dob">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="Slowmotion\Reta Ecco (A 567) " ID="vit_ace_nov_dob_con_ret_2_2_2" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+            </MODELINFORMATIONS>
+          </MODELCATEGORYINFORMATION>
+          <MODELCATEGORYINFORMATION DESCRIPTION="Acabamentos/Painéis">
+            <MODELINFORMATIONS>
+              <MODELINFORMATION DESCRIPTION="Painéis/Tamponamentos 15mm" ID="vit_pai_15_tam">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="MDF&gt;Branco Txt - 017" ID="vit_pai_mdf;vit_pai_bra_tx" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+              <MODELINFORMATION DESCRIPTION="Rodaforros" ID="vit_rodaf">
+                <MODELTYPEINFORMATIONS>
+                  <MODELTYPEINFORMATION DESCRIPTION="MDF&gt;Branco Txt - 017" ID="vit_rodaf_mdf;vit_rodaf_bra" />
+                </MODELTYPEINFORMATIONS>
+              </MODELINFORMATION>
+            </MODELINFORMATIONS>
+          </MODELCATEGORYINFORMATION>
+        </MODELCATEGORYINFORMATIONS>
+      </MODELINFORMATIONS>
+      <CATEGORIES>
+        <CATEGORY DESCRIPTION="Acessórios">
+          <TOTALPRICES TABLE="176.53">
+            <MARGINS>
+              <ORDER VALUE="217.48">
+                <MARGIN ID="icms" DESCRIPTION="ICMS" VALUE="0" />
+                <MARGIN ID="IPI" DESCRIPTION="IPI" VALUE="17.65" />
+                <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" VALUE="0" />
+                <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" VALUE="0" />
+                <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" VALUE="0" />
+                <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" VALUE="0" />
+                <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" VALUE="0" />
+                <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" VALUE="23.3" />
+              </ORDER>
+              <BUDGET VALUE="634.18">
+                <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" VALUE="369.72" />
+                <MARGIN ID="frete" DESCRIPTION="Frete" VALUE="46.98" />
+                <MARGIN ID="montagem" DESCRIPTION="Montagem" VALUE="0" />
+              </BUDGET>
+            </MARGINS>
+          </TOTALPRICES>
+          <ITEMS>
+            <ITEM ID="vit_ace_nov_dob_con_ret_2_2_2" DESCRIPTION="Dobradiça Ecco Ø35mm Reta Eco Slowmotion" OBSERVATIONS="" REFERENCE="A 567" UNIT="UN" REPETITION="1" QUANTITY="8" WIDTH="35" HEIGHT="52" DEPTH="77" TEXTDIMENSION="35 x 52 x 77" COMPONENT="N" STRUCTURE="N" FAMILY="Acessórios" GROUP="Slowmotion" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\acessorios\dobradicas\vit_ace_nov_dob_302\reta_3.png" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="252" UNIQUEPARENTID="-2" GUID="26882d1d-28f6-4ff9-87c6-c9b8b59dcc7b" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN">
+              <SHAPE />
+              <METADATAS>
+                <METADATA ID="UniqueIdCollection" VALUE="252;220;224;228;232;240;244;248" />
+              </METADATAS>
+              <PRICE TABLE="7.27" UNIT="58.16" TOTAL="58.16" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="vit_ace_nov">
+                  <ORDER UNIT="71.66" TOTAL="71.66" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="58.16" INVALUE="58.16" OUTVALUE="58.16" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="58.16" INVALUE="58.16" OUTVALUE="63.98" MONETARYVALUE="5.82" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="63.98" INVALUE="63.98" OUTVALUE="63.98" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="63.98" INVALUE="63.98" OUTVALUE="63.98" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="63.98" INVALUE="63.98" OUTVALUE="63.98" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="63.98" INVALUE="63.98" OUTVALUE="63.98" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="63.98" INVALUE="63.98" OUTVALUE="63.98" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="63.98" INVALUE="63.98" OUTVALUE="71.66" MONETARYVALUE="7.68" />
+                  </ORDER>
+                  <BUDGET UNIT="208.96" TOTAL="208.96" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="71.66" INVALUE="71.66" OUTVALUE="193.48" MONETARYVALUE="121.82" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="193.48" INVALUE="193.48" OUTVALUE="208.96" MONETARYVALUE="15.48" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="208.96" INVALUE="208.96" OUTVALUE="208.96" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="A 567" />
+                <DOBRADICA REFERENCE="SLOW" />
+                <DESC REFERENCE="" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="vit_ace_nov_ara_coz_pt_vas" DESCRIPTION="Porta Vassouras" OBSERVATIONS="" REFERENCE="A 056" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="315" HEIGHT="40" DEPTH="50" TEXTDIMENSION="315 x 40 x 50" COMPONENT="N" STRUCTURE="N" FAMILY="Acessórios" GROUP="Aramados Cromados" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\acessorios\Aramados Cozinha\Aramados Cozinhas Cromados\241.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="54" UNIQUEPARENTID="-2" GUID="afa4b9a3-aacb-4a14-94b6-d8ca18dd0c28" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN">
+              <SHAPE />
+              <PRICE TABLE="25.89" UNIT="25.89" TOTAL="25.89" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="vit_ace_nov">
+                  <ORDER UNIT="31.9" TOTAL="31.9" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="25.89" INVALUE="25.89" OUTVALUE="25.89" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="25.89" INVALUE="25.89" OUTVALUE="28.48" MONETARYVALUE="2.59" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="28.48" INVALUE="28.48" OUTVALUE="28.48" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="28.48" INVALUE="28.48" OUTVALUE="28.48" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="28.48" INVALUE="28.48" OUTVALUE="28.48" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="28.48" INVALUE="28.48" OUTVALUE="28.48" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="28.48" INVALUE="28.48" OUTVALUE="28.48" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="28.48" INVALUE="28.48" OUTVALUE="31.9" MONETARYVALUE="3.42" />
+                  </ORDER>
+                  <BUDGET UNIT="93.02" TOTAL="93.02" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="31.9" INVALUE="31.9" OUTVALUE="86.13" MONETARYVALUE="54.23" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="86.13" INVALUE="86.13" OUTVALUE="93.02" MONETARYVALUE="6.89" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="93.02" INVALUE="93.02" OUTVALUE="93.02" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="A 056" />
+                <DESC REFERENCE="" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="vit_ace_nov_pux_alu_146_rom" DESCRIPTION="Puxador Roma 146mm - Alumínio" OBSERVATIONS="" REFERENCE="A 984 ALU" UNIT="UN" REPETITION="1" QUANTITY="2" WIDTH="146" HEIGHT="15" DEPTH="35" TEXTDIMENSION="146 x 15 x 35" COMPONENT="N" STRUCTURE="N" FAMILY="Acessórios" GROUP="Perfil Sobreposto" ISGEOMETRY="N" ISAGGREGATEGROUP="Y" IMAGE="%PastaSistema%\Bibliotecas\acessorios\puxadores\Fabrica\aluminio\Perfil Sobreposto\Roma.JPG" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="261" UNIQUEPARENTID="-2" GUID="3ae70964-b060-4b0e-8575-dbf9f4ea8af4" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN">
+              <SHAPE />
+              <METADATAS>
+                <METADATA ID="UniqueIdCollection" VALUE="261;255" />
+              </METADATAS>
+              <PRICE TABLE="22" UNIT="44" TOTAL="44" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="vit_ace_nov">
+                  <ORDER UNIT="54.21" TOTAL="54.21" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="44" INVALUE="44" OUTVALUE="44" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="44" INVALUE="44" OUTVALUE="48.4" MONETARYVALUE="4.4" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="48.4" INVALUE="48.4" OUTVALUE="48.4" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="48.4" INVALUE="48.4" OUTVALUE="48.4" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="48.4" INVALUE="48.4" OUTVALUE="48.4" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="48.4" INVALUE="48.4" OUTVALUE="48.4" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="48.4" INVALUE="48.4" OUTVALUE="48.4" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="48.4" INVALUE="48.4" OUTVALUE="54.21" MONETARYVALUE="5.81" />
+                  </ORDER>
+                  <BUDGET UNIT="158.08" TOTAL="158.08" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="54.21" INVALUE="54.21" OUTVALUE="146.37" MONETARYVALUE="92.16" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="146.37" INVALUE="146.37" OUTVALUE="158.08" MONETARYVALUE="11.71" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="158.08" INVALUE="158.08" OUTVALUE="158.08" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="A 984 ALU" />
+                <FORMA REFERENCE="ALU" />
+                <DESC REFERENCE="" />
+                <MODELO REFERENCE="Alumínio" />
+                <PARTNER REFERENCE="False" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="vit_ace_nov_fer_can_cap_3_2" DESCRIPTION="Suporte Cantoneira c/ Capa (Kit c/ 2 Unid) - Branco Txt - 017" OBSERVATIONS="" REFERENCE="A 974   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="55" HEIGHT="25" DEPTH="55" TEXTDIMENSION="55 x 25 x 55" COMPONENT="N" STRUCTURE="N" FAMILY="Acessórios" GROUP="Cantoneiras" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\acessorios\cantoneiras\cant_capa_2_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="23" UNIQUEPARENTID="-2" GUID="01006560-1124-456d-9c14-39bc929d8395" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN">
+              <SHAPE />
+              <PRICE TABLE="6.93" UNIT="6.93" TOTAL="6.93" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="vit_ace_nov">
+                  <ORDER UNIT="8.53" TOTAL="8.53" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="6.93" INVALUE="6.93" OUTVALUE="6.93" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="6.93" INVALUE="6.93" OUTVALUE="7.62" MONETARYVALUE="0.69" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="7.62" INVALUE="7.62" OUTVALUE="7.62" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="7.62" INVALUE="7.62" OUTVALUE="7.62" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="7.62" INVALUE="7.62" OUTVALUE="7.62" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="7.62" INVALUE="7.62" OUTVALUE="7.62" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="7.62" INVALUE="7.62" OUTVALUE="7.62" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="7.62" INVALUE="7.62" OUTVALUE="8.53" MONETARYVALUE="0.91" />
+                  </ORDER>
+                  <BUDGET UNIT="24.87" TOTAL="24.87" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="8.53" INVALUE="8.53" OUTVALUE="23.03" MONETARYVALUE="14.5" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="23.03" INVALUE="23.03" OUTVALUE="24.87" MONETARYVALUE="1.84" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="24.87" INVALUE="24.87" OUTVALUE="24.87" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="A 974   017" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="vit_ace_nov_fer_con" DESCRIPTION="Suporte Uniblock p/ Prateleiras - Kit c/ 4" OBSERVATIONS="" REFERENCE="A 376" UNIT="UN" REPETITION="1" QUANTITY="5" WIDTH="20" HEIGHT="13" DEPTH="18" TEXTDIMENSION="20 x 13 x 18" COMPONENT="N" STRUCTURE="N" FAMILY="Acessórios" GROUP="Ferragens" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\acessorios\ferragens\Conector_4.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="196" UNIQUEPARENTID="-2" GUID="cec55aaf-0941-4609-b1a8-417026f191bd" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN">
+              <SHAPE />
+              <METADATAS>
+                <METADATA ID="UniqueIdCollection" VALUE="196;256;43;28;191" />
+              </METADATAS>
+              <PRICE TABLE="8.31" UNIT="41.55" TOTAL="41.55" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="vit_ace_nov">
+                  <ORDER UNIT="51.18" TOTAL="51.18" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="41.55" INVALUE="41.55" OUTVALUE="41.55" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="41.55" INVALUE="41.55" OUTVALUE="45.7" MONETARYVALUE="4.15" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="45.7" INVALUE="45.7" OUTVALUE="45.7" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="45.7" INVALUE="45.7" OUTVALUE="45.7" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="45.7" INVALUE="45.7" OUTVALUE="45.7" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="45.7" INVALUE="45.7" OUTVALUE="45.7" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="45.7" INVALUE="45.7" OUTVALUE="45.7" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="45.7" INVALUE="45.7" OUTVALUE="51.18" MONETARYVALUE="5.48" />
+                  </ORDER>
+                  <BUDGET UNIT="149.25" TOTAL="149.25" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="51.18" INVALUE="51.18" OUTVALUE="138.19" MONETARYVALUE="87.01" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="138.19" INVALUE="138.19" OUTVALUE="149.25" MONETARYVALUE="11.06" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="149.25" INVALUE="149.25" OUTVALUE="149.25" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="A 376" />
+                <DESC REFERENCE="" />
+              </REFERENCES>
+            </ITEM>
+          </ITEMS>
+        </CATEGORY>
+        <CATEGORY DESCRIPTION="Fabrica">
+          <TOTALPRICES TABLE="1629.07">
+            <MARGINS>
+              <ORDER VALUE="1529.04">
+                <MARGIN ID="icms" DESCRIPTION="ICMS" VALUE="0" />
+                <MARGIN ID="IPI" DESCRIPTION="IPI" VALUE="76.9" />
+                <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" VALUE="-289.47" />
+                <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" VALUE="-51.3" />
+                <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" VALUE="0" />
+                <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" VALUE="0" />
+                <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" VALUE="0" />
+                <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" VALUE="163.84" />
+              </ORDER>
+              <BUDGET VALUE="4458.69">
+                <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" VALUE="2599.4" />
+                <MARGIN ID="frete" DESCRIPTION="Frete" VALUE="330.25" />
+                <MARGIN ID="montagem" DESCRIPTION="Montagem" VALUE="0" />
+              </BUDGET>
+            </MARGINS>
+          </TOTALPRICES>
+          <ITEMS>
+            <ITEM ID="coz_comp_rodaf_coz_barra_2750_m" DESCRIPTION="15mm - Barra 2750 M - 2 Lados c/ Fita - Branco Txt - 017" OBSERVATIONS="" REFERENCE="013R_   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="2750" HEIGHT="70" DEPTH="15" TEXTDIMENSION="2750 x 15 x 70" COMPONENT="N" STRUCTURE="N" FAMILY="Acabamentos/Painéis" GROUP="Barra 2 Lados" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Tamponamentos Paineis\Modelos Formato\Mod For Barra\E233_8_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="149" UNIQUEPARENTID="-2" GUID="21b45a64-1b7e-4bba-8aa5-97bede9c931c" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="BARRA_COMPONENTES">
+              <SHAPE />
+              <PRICE TABLE="68.9" UNIT="68.9" TOTAL="68.9" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="tam_pai">
+                  <ORDER UNIT="84.88" TOTAL="84.88" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="68.9" INVALUE="68.9" OUTVALUE="68.9" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="68.9" INVALUE="68.9" OUTVALUE="75.79" MONETARYVALUE="6.89" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="75.79" INVALUE="75.79" OUTVALUE="75.79" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="75.79" INVALUE="75.79" OUTVALUE="75.79" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="75.79" INVALUE="75.79" OUTVALUE="75.79" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="75.79" INVALUE="75.79" OUTVALUE="75.79" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="75.79" INVALUE="75.79" OUTVALUE="75.79" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="75.79" INVALUE="75.79" OUTVALUE="84.88" MONETARYVALUE="9.09" />
+                  </ORDER>
+                  <BUDGET UNIT="247.51" TOTAL="247.51" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="84.88" INVALUE="84.88" OUTVALUE="229.18" MONETARYVALUE="144.3" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="229.18" INVALUE="229.18" OUTVALUE="247.51" MONETARYVALUE="18.33" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="247.51" INVALUE="247.51" OUTVALUE="247.51" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="013R_   017" />
+                <MODEL REFERENCE="017" />
+                <DESC_BARRA REFERENCE="15mm - Barra 2750 M" />
+                <CODIGO REFERENCE="013R" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_comp_pai_edit_hor_15_bas_15" DESCRIPTION="Base de Balcão Editável c/ Rebaixo 1,5cm - Branco Txt - 017" OBSERVATIONS="" REFERENCE="002QR   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="769" HEIGHT="360" DEPTH="15" TEXTDIMENSION="769 x 360 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Base" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Modulos Editaveis\Modelos Formato\Estruturas Editaveis\Laterais\E218_9.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="26" UNIQUEPARENTID="-2" GUID="e2fb97b3-d0a2-494d-ac6b-671e28fb8be6" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="197.71" UNIT="54.73" TOTAL="54.73" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="46.91" TOTAL="46.91" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="54.73" INVALUE="54.73" OUTVALUE="54.73" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="54.73" INVALUE="54.73" OUTVALUE="56.51" MONETARYVALUE="1.78" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="56.51" INVALUE="56.51" OUTVALUE="44.08" MONETARYVALUE="-12.43" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="44.08" INVALUE="44.08" OUTVALUE="41.88" MONETARYVALUE="-2.2" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="41.88" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="41.88" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="41.88" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="46.91" MONETARYVALUE="5.03" />
+                  </ORDER>
+                  <BUDGET UNIT="136.79" TOTAL="136.79" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="46.91" INVALUE="46.91" OUTVALUE="126.66" MONETARYVALUE="79.75" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="126.66" INVALUE="126.66" OUTVALUE="136.79" MONETARYVALUE="10.13" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="136.79" INVALUE="136.79" OUTVALUE="136.79" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="002QR   017" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_comp_pai_edit_hor_15_bas_15" DESCRIPTION="Base de Balcão Editável c/ Rebaixo 1,5cm - Branco Txt - 017" OBSERVATIONS="" REFERENCE="002QR   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="769" HEIGHT="360" DEPTH="15" TEXTDIMENSION="769 x 360 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Base" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Modulos Editaveis\Modelos Formato\Estruturas Editaveis\Laterais\E218_9.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="25" UNIQUEPARENTID="-2" GUID="34d92319-d39b-43bb-88a1-425b855b50dc" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="197.71" UNIT="54.73" TOTAL="54.73" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="46.91" TOTAL="46.91" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="54.73" INVALUE="54.73" OUTVALUE="54.73" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="54.73" INVALUE="54.73" OUTVALUE="56.51" MONETARYVALUE="1.78" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="56.51" INVALUE="56.51" OUTVALUE="44.08" MONETARYVALUE="-12.43" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="44.08" INVALUE="44.08" OUTVALUE="41.88" MONETARYVALUE="-2.2" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="41.88" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="41.88" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="41.88" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="41.88" INVALUE="41.88" OUTVALUE="46.91" MONETARYVALUE="5.03" />
+                  </ORDER>
+                  <BUDGET UNIT="136.79" TOTAL="136.79" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="46.91" INVALUE="46.91" OUTVALUE="126.66" MONETARYVALUE="79.75" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="126.66" INVALUE="126.66" OUTVALUE="136.79" MONETARYVALUE="10.13" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="136.79" INVALUE="136.79" OUTVALUE="136.79" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="002QR   017" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_com_fun_1_760_edt_2" DESCRIPTION="Fundo 788x2188 - Branco Txt - 6mm BP - 017" OBSERVATIONS="" REFERENCE="005FU_6 017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="2188" HEIGHT="788" DEPTH="6" TEXTDIMENSION="2188 x 788 x 6" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Fundo" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Modulos Editaveis\Modelos Formato\Estruturas Editaveis\Fundo\Fundo_2_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="22" UNIQUEPARENTID="-2" GUID="a408534f-781d-41ba-9888-1343091ad158" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="146.42" UNIT="252.45" TOTAL="252.45" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="216.32" TOTAL="216.32" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="252.45" INVALUE="252.45" OUTVALUE="252.45" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="252.45" INVALUE="252.45" OUTVALUE="260.65" MONETARYVALUE="8.2" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="260.65" INVALUE="260.65" OUTVALUE="203.31" MONETARYVALUE="-57.34" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="203.31" INVALUE="203.31" OUTVALUE="193.14" MONETARYVALUE="-10.17" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="193.14" INVALUE="193.14" OUTVALUE="193.14" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="193.14" INVALUE="193.14" OUTVALUE="193.14" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="193.14" INVALUE="193.14" OUTVALUE="193.14" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="193.14" INVALUE="193.14" OUTVALUE="216.32" MONETARYVALUE="23.18" />
+                  </ORDER>
+                  <BUDGET UNIT="630.78" TOTAL="630.78" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="216.32" INVALUE="216.32" OUTVALUE="584.06" MONETARYVALUE="367.74" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="584.06" INVALUE="584.06" OUTVALUE="630.78" MONETARYVALUE="46.72" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="630.78" INVALUE="630.78" OUTVALUE="630.78" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="005FU_6 017" />
+                <MODEL REFERENCE="6 017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_comp_pai_edit_ver_15_lat_15" DESCRIPTION="Lateral de Balcão Editável c/ Rebaixo 1,5cm - Branco Txt - 017" OBSERVATIONS="" REFERENCE="002ZR   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="2200" HEIGHT="360" DEPTH="15" TEXTDIMENSION="2200 x 360 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Lateral" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Modulos Editaveis\Modelos Formato\Estruturas Editaveis\Lateral\Vertical.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="24" UNIQUEPARENTID="-2" GUID="9ed5f4ef-6635-47a7-a541-a44ec8954dd1" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="197.71" UNIT="156.59" TOTAL="156.59" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="134.18" TOTAL="134.18" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="156.59" INVALUE="156.59" OUTVALUE="156.59" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="156.59" INVALUE="156.59" OUTVALUE="161.68" MONETARYVALUE="5.09" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="161.68" INVALUE="161.68" OUTVALUE="126.11" MONETARYVALUE="-35.57" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="126.11" INVALUE="126.11" OUTVALUE="119.8" MONETARYVALUE="-6.31" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="119.8" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="119.8" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="119.8" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="134.18" MONETARYVALUE="14.38" />
+                  </ORDER>
+                  <BUDGET UNIT="391.27" TOTAL="391.27" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="134.18" INVALUE="134.18" OUTVALUE="362.29" MONETARYVALUE="228.11" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="362.29" INVALUE="362.29" OUTVALUE="391.27" MONETARYVALUE="28.98" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="391.27" INVALUE="391.27" OUTVALUE="391.27" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="002ZR   017" />
+                <TIPO REFERENCE="USI" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_comp_pai_edit_ver_15_lat_15" DESCRIPTION="Lateral de Balcão Editável c/ Rebaixo 1,5cm - Branco Txt - 017" OBSERVATIONS="" REFERENCE="002ZR   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="2200" HEIGHT="360" DEPTH="15" TEXTDIMENSION="2200 x 360 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Lateral" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Modulos Editaveis\Modelos Formato\Estruturas Editaveis\Lateral\Vertical.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="21" UNIQUEPARENTID="-2" GUID="ad1d3184-44dc-4e1d-8ccf-0721ffbb79a9" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="197.71" UNIT="156.59" TOTAL="156.59" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="134.18" TOTAL="134.18" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="156.59" INVALUE="156.59" OUTVALUE="156.59" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="156.59" INVALUE="156.59" OUTVALUE="161.68" MONETARYVALUE="5.09" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="161.68" INVALUE="161.68" OUTVALUE="126.11" MONETARYVALUE="-35.57" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="126.11" INVALUE="126.11" OUTVALUE="119.8" MONETARYVALUE="-6.31" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="119.8" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="119.8" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="119.8" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="119.8" INVALUE="119.8" OUTVALUE="134.18" MONETARYVALUE="14.38" />
+                  </ORDER>
+                  <BUDGET UNIT="391.27" TOTAL="391.27" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="134.18" INVALUE="134.18" OUTVALUE="362.29" MONETARYVALUE="228.11" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="362.29" INVALUE="362.29" OUTVALUE="391.27" MONETARYVALUE="28.98" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="391.27" INVALUE="391.27" OUTVALUE="391.27" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="002ZR   017" />
+                <TIPO REFERENCE="USI" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_comp_pai_edit_hor_15" DESCRIPTION="Painel Chapa 1,5cm - Branco Txt - 017" OBSERVATIONS="" REFERENCE="002P_   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="845" HEIGHT="125" DEPTH="15" TEXTDIMENSION="845 x 125 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Acabamentos/Painéis" GROUP="15mm" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Tamponamentos Paineis\Paineis_Edit\15mm\E218_9.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="183" UNIQUEPARENTID="-2" GUID="77967a67-5093-47d6-b72f-8bf0e38f7418" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="197.71" UNIT="20.88" TOTAL="20.88" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="tam_pai">
+                  <ORDER UNIT="25.73" TOTAL="25.73" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="20.88" INVALUE="20.88" OUTVALUE="20.88" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="20.88" INVALUE="20.88" OUTVALUE="22.97" MONETARYVALUE="2.09" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="22.97" INVALUE="22.97" OUTVALUE="22.97" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="22.97" INVALUE="22.97" OUTVALUE="22.97" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="22.97" INVALUE="22.97" OUTVALUE="22.97" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="22.97" INVALUE="22.97" OUTVALUE="22.97" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="22.97" INVALUE="22.97" OUTVALUE="22.97" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="22.97" INVALUE="22.97" OUTVALUE="25.73" MONETARYVALUE="2.76" />
+                  </ORDER>
+                  <BUDGET UNIT="75.03" TOTAL="75.03" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="25.73" INVALUE="25.73" OUTVALUE="69.47" MONETARYVALUE="43.74" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="69.47" INVALUE="69.47" OUTVALUE="75.03" MONETARYVALUE="5.56" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="75.03" INVALUE="75.03" OUTVALUE="75.03" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="002P_   017" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_comp_pai_edit_hor_15" DESCRIPTION="Painel Chapa 1,5cm - Branco Txt - 017" OBSERVATIONS="" REFERENCE="002P_   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="2325" HEIGHT="385" DEPTH="15" TEXTDIMENSION="2325 x 385 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Acabamentos/Painéis" GROUP="15mm" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Tamponamentos Paineis\Paineis_Edit\15mm\E218_9.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="63" UNIQUEPARENTID="-2" GUID="30f8f990-6293-4d70-9ff1-ed324c379fc7" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="197.71" UNIT="176.98" TOTAL="176.98" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="tam_pai">
+                  <ORDER UNIT="218.04" TOTAL="218.04" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="176.98" INVALUE="176.98" OUTVALUE="176.98" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="176.98" INVALUE="176.98" OUTVALUE="194.68" MONETARYVALUE="17.7" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="194.68" INVALUE="194.68" OUTVALUE="194.68" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="194.68" INVALUE="194.68" OUTVALUE="194.68" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="194.68" INVALUE="194.68" OUTVALUE="194.68" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="194.68" INVALUE="194.68" OUTVALUE="194.68" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="194.68" INVALUE="194.68" OUTVALUE="194.68" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="194.68" INVALUE="194.68" OUTVALUE="218.04" MONETARYVALUE="23.36" />
+                  </ORDER>
+                  <BUDGET UNIT="635.81" TOTAL="635.81" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="218.04" INVALUE="218.04" OUTVALUE="588.71" MONETARYVALUE="370.67" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="588.71" INVALUE="588.71" OUTVALUE="635.81" MONETARYVALUE="47.1" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="635.81" INVALUE="635.81" OUTVALUE="635.81" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="002P_   017" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_comp_pai_edit_ver_15" DESCRIPTION="Painel Chapa 1,5cm - Branco Txt - 017" OBSERVATIONS="" REFERENCE="002P_   017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="1589" HEIGHT="280" DEPTH="15" TEXTDIMENSION="1589 x 280 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Acabamentos/Painéis" GROUP="15mm" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Tamponamentos Paineis\Paineis_Edit\15mm\Vertical.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="53" UNIQUEPARENTID="-2" GUID="7c9af8ee-c1d9-4711-93f9-a22b0a1059ac" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="197.71" UNIT="87.97" TOTAL="87.97" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="tam_pai">
+                  <ORDER UNIT="108.38" TOTAL="108.38" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="87.97" INVALUE="87.97" OUTVALUE="87.97" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="10" CALCULUSVALUE="87.97" INVALUE="87.97" OUTVALUE="96.77" MONETARYVALUE="8.8" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="0" CALCULUSVALUE="96.77" INVALUE="96.77" OUTVALUE="96.77" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="0" CALCULUSVALUE="96.77" INVALUE="96.77" OUTVALUE="96.77" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="96.77" INVALUE="96.77" OUTVALUE="96.77" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="96.77" INVALUE="96.77" OUTVALUE="96.77" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="96.77" INVALUE="96.77" OUTVALUE="96.77" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="96.77" INVALUE="96.77" OUTVALUE="108.38" MONETARYVALUE="11.61" />
+                  </ORDER>
+                  <BUDGET UNIT="316.04" TOTAL="316.04" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="108.38" INVALUE="108.38" OUTVALUE="292.63" MONETARYVALUE="184.25" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="292.63" INVALUE="292.63" OUTVALUE="316.04" MONETARYVALUE="23.41" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="316.04" INVALUE="316.04" OUTVALUE="316.04" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="002P_   017" />
+                <MODEL REFERENCE="017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="vit_fre_inf_edit_1703" DESCRIPTION="Porta Editável 396x2195 - Branco Txt - 017" OBSERVATIONS="" REFERENCE="1703F15 017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="2195" HEIGHT="396" DEPTH="15" TEXTDIMENSION="2195 x 396 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Furações" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Modulos Editaveis\Modelos Formato\Furacoes\Edit_2_2_2_3.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="233" UNIQUEPARENTID="-2" GUID="d763233b-a89c-4ad7-b640-996b30ea474f" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="244.33" UNIT="212.38" TOTAL="212.38" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="181.99" TOTAL="181.99" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="212.38" INVALUE="212.38" OUTVALUE="212.38" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="212.38" INVALUE="212.38" OUTVALUE="219.28" MONETARYVALUE="6.9" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="219.28" INVALUE="219.28" OUTVALUE="171.04" MONETARYVALUE="-48.24" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="171.04" INVALUE="171.04" OUTVALUE="162.49" MONETARYVALUE="-8.55" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="162.49" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="162.49" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="162.49" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="181.99" MONETARYVALUE="19.5" />
+                  </ORDER>
+                  <BUDGET UNIT="530.68" TOTAL="530.68" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="181.99" INVALUE="181.99" OUTVALUE="491.37" MONETARYVALUE="309.38" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="491.37" INVALUE="491.37" OUTVALUE="530.68" MONETARYVALUE="39.31" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="530.68" INVALUE="530.68" OUTVALUE="530.68" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="1703F15 017" />
+                <MODELO REFERENCE="15 017" />
+                <PUXADOR REFERENCE="NORMAL" />
+                <FORMATO REFERENCE="1703F" />
+                <PORTA REFERENCE="15" />
+                <PRICE REFERENCE="1703F_  @vit_18(REF_PRICE)@" />
+                <CODIGO REFERENCE="1703F15 017" />
+                <TEM_PARCEIRO REFERENCE="Nao" />
+                <CODIGO_PARCEIRO REFERENCE="15 017" />
+                <ALTURA_PORTA REFERENCE="2195" />
+                <INVERSAO REFERENCE="TRUE" />
+                <ACABAMENTOPORTA REFERENCE="Branco Txt - 017" />
+                <MODEL_DOB REFERENCE="SLOW" />
+                <MODEL_DOBR REFERENCE="" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="vit_fre_inf_edit_1703" DESCRIPTION="Porta Editável 396x2195&#xD;&#xA; - Branco Txt - 017" OBSERVATIONS="" REFERENCE="1703F15 017" UNIT="UN" REPETITION="1" QUANTITY="1" WIDTH="2195" HEIGHT="396" DEPTH="15" TEXTDIMENSION="2195 x 396 x 15" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Furações" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Modulos Editaveis\Modelos Formato\Furacoes\Edit_2_2_2_3.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="253" UNIQUEPARENTID="-2" GUID="109213f7-1ed2-4a7d-9291-9ab5342c8b4f" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="UN_PAI_FRO">
+              <SHAPE />
+              <PRICE TABLE="244.33" UNIT="212.38" TOTAL="212.38" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="181.99" TOTAL="181.99" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="212.38" INVALUE="212.38" OUTVALUE="212.38" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="212.38" INVALUE="212.38" OUTVALUE="219.28" MONETARYVALUE="6.9" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="219.28" INVALUE="219.28" OUTVALUE="171.04" MONETARYVALUE="-48.24" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="171.04" INVALUE="171.04" OUTVALUE="162.49" MONETARYVALUE="-8.55" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="162.49" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="162.49" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="162.49" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="162.49" INVALUE="162.49" OUTVALUE="181.99" MONETARYVALUE="19.5" />
+                  </ORDER>
+                  <BUDGET UNIT="530.68" TOTAL="530.68" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="181.99" INVALUE="181.99" OUTVALUE="491.37" MONETARYVALUE="309.38" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="491.37" INVALUE="491.37" OUTVALUE="530.68" MONETARYVALUE="39.31" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="530.68" INVALUE="530.68" OUTVALUE="530.68" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="1703F15 017" />
+                <MODELO REFERENCE="15 017" />
+                <PUXADOR REFERENCE="NORMAL" />
+                <FORMATO REFERENCE="1703F" />
+                <PORTA REFERENCE="15" />
+                <PRICE REFERENCE="1703F_  @vit_18(REF_PRICE)@" />
+                <CODIGO REFERENCE="1703F15 017" />
+                <TEM_PARCEIRO REFERENCE="Nao" />
+                <CODIGO_PARCEIRO REFERENCE="15 017" />
+                <ALTURA_PORTA REFERENCE="2195&#xD;&#xA;" />
+                <INVERSAO REFERENCE="TRUE" />
+                <ACABAMENTOPORTA REFERENCE="Branco Txt - 017" />
+                <MODEL_DOB REFERENCE="SLOW" />
+                <MODEL_DOBR REFERENCE="" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_com_pra_mod_edi_760" DESCRIPTION="Prateleira  Editada Móvel/Fixa - Branco Txt - 017" OBSERVATIONS="" REFERENCE="683C_15 017" UNIT="M2" REPETITION="1" QUANTITY="1" WIDTH="327" HEIGHT="280" DEPTH="15" TEXTDIMENSION="327 x 15 x 280" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Prateleiras Editáveis" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Complementos\Prateleiras\Prateleiras Editaveis\mov_mol_2_2_2_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="195" UNIQUEPARENTID="-2" GUID="3f597b58-9fea-47e9-aa29-442177f42c73" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="M2_PRATELEIRAS">
+              <SHAPE />
+              <PRICE TABLE="247.41" UNIT="22.65" TOTAL="22.65" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="19.41" TOTAL="19.41" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="22.65" INVALUE="22.65" OUTVALUE="22.65" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="22.65" INVALUE="22.65" OUTVALUE="23.39" MONETARYVALUE="0.74" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="23.39" INVALUE="23.39" OUTVALUE="18.24" MONETARYVALUE="-5.15" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="18.24" INVALUE="18.24" OUTVALUE="17.33" MONETARYVALUE="-0.91" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="19.41" MONETARYVALUE="2.08" />
+                  </ORDER>
+                  <BUDGET UNIT="56.6" TOTAL="56.6" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="19.41" INVALUE="19.41" OUTVALUE="52.41" MONETARYVALUE="33" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="52.41" INVALUE="52.41" OUTVALUE="56.6" MONETARYVALUE="4.19" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="56.6" INVALUE="56.6" OUTVALUE="56.6" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="683C_15 017" />
+                <MODEL REFERENCE="15 017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_com_pra_mod_edi_760" DESCRIPTION="Prateleira  Editada Móvel/Fixa - Branco Txt - 017" OBSERVATIONS="" REFERENCE="683C_15 017" UNIT="M2" REPETITION="1" QUANTITY="1" WIDTH="327" HEIGHT="280" DEPTH="15" TEXTDIMENSION="327 x 15 x 280" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Prateleiras Editáveis" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Complementos\Prateleiras\Prateleiras Editaveis\mov_mol_2_2_2_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="190" UNIQUEPARENTID="-2" GUID="db5510dc-9110-4db7-a14a-f2cc9c2946c0" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="M2_PRATELEIRAS">
+              <SHAPE />
+              <PRICE TABLE="247.41" UNIT="22.65" TOTAL="22.65" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="19.41" TOTAL="19.41" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="22.65" INVALUE="22.65" OUTVALUE="22.65" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="22.65" INVALUE="22.65" OUTVALUE="23.39" MONETARYVALUE="0.74" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="23.39" INVALUE="23.39" OUTVALUE="18.24" MONETARYVALUE="-5.15" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="18.24" INVALUE="18.24" OUTVALUE="17.33" MONETARYVALUE="-0.91" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="19.41" MONETARYVALUE="2.08" />
+                  </ORDER>
+                  <BUDGET UNIT="56.6" TOTAL="56.6" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="19.41" INVALUE="19.41" OUTVALUE="52.41" MONETARYVALUE="33" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="52.41" INVALUE="52.41" OUTVALUE="56.6" MONETARYVALUE="4.19" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="56.6" INVALUE="56.6" OUTVALUE="56.6" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="683C_15 017" />
+                <MODEL REFERENCE="15 017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_com_pra_mod_edi_760" DESCRIPTION="Prateleira  Editada Móvel/Fixa - Branco Txt - 017" OBSERVATIONS="" REFERENCE="683C_15 017" UNIT="M2" REPETITION="1" QUANTITY="1" WIDTH="327" HEIGHT="280" DEPTH="15" TEXTDIMENSION="327 x 15 x 280" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Prateleiras Editáveis" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Complementos\Prateleiras\Prateleiras Editaveis\mov_mol_2_2_2_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="32" UNIQUEPARENTID="-2" GUID="c2688843-6b19-45c9-bad2-baa4717d99b7" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="M2_PRATELEIRAS">
+              <SHAPE />
+              <PRICE TABLE="247.41" UNIT="22.65" TOTAL="22.65" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="19.41" TOTAL="19.41" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="22.65" INVALUE="22.65" OUTVALUE="22.65" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="22.65" INVALUE="22.65" OUTVALUE="23.39" MONETARYVALUE="0.74" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="23.39" INVALUE="23.39" OUTVALUE="18.24" MONETARYVALUE="-5.15" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="18.24" INVALUE="18.24" OUTVALUE="17.33" MONETARYVALUE="-0.91" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="17.33" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="17.33" INVALUE="17.33" OUTVALUE="19.41" MONETARYVALUE="2.08" />
+                  </ORDER>
+                  <BUDGET UNIT="56.6" TOTAL="56.6" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="19.41" INVALUE="19.41" OUTVALUE="52.41" MONETARYVALUE="33" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="52.41" INVALUE="52.41" OUTVALUE="56.6" MONETARYVALUE="4.19" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="56.6" INVALUE="56.6" OUTVALUE="56.6" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="683C_15 017" />
+                <MODEL REFERENCE="15 017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_com_pra_mod_edi_760" DESCRIPTION="Prateleira  Editada Móvel/Fixa - Branco Txt - 017" OBSERVATIONS="" REFERENCE="683C_15 017" UNIT="M2" REPETITION="1" QUANTITY="1" WIDTH="769" HEIGHT="280" DEPTH="15" TEXTDIMENSION="769 x 15 x 280" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Prateleiras Editáveis" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Complementos\Prateleiras\Prateleiras Editaveis\mov_mol_2_2_2_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="47" UNIQUEPARENTID="-2" GUID="fa06d17b-243e-43d0-8f4b-d5578d8c9ea9" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="M2_PRATELEIRAS">
+              <SHAPE />
+              <PRICE TABLE="247.41" UNIT="53.27" TOTAL="53.27" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="45.65" TOTAL="45.65" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="53.27" INVALUE="53.27" OUTVALUE="53.27" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="53.27" INVALUE="53.27" OUTVALUE="55" MONETARYVALUE="1.73" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="55" INVALUE="55" OUTVALUE="42.9" MONETARYVALUE="-12.1" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="42.9" INVALUE="42.9" OUTVALUE="40.76" MONETARYVALUE="-2.14" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="40.76" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="40.76" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="40.76" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="45.65" MONETARYVALUE="4.89" />
+                  </ORDER>
+                  <BUDGET UNIT="133.12" TOTAL="133.12" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="45.65" INVALUE="45.65" OUTVALUE="123.26" MONETARYVALUE="77.61" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="123.26" INVALUE="123.26" OUTVALUE="133.12" MONETARYVALUE="9.86" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="133.12" INVALUE="133.12" OUTVALUE="133.12" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="683C_15 017" />
+                <MODEL REFERENCE="15 017" />
+              </REFERENCES>
+            </ITEM>
+            <ITEM ID="coz_com_pra_mod_edi_760" DESCRIPTION="Prateleira  Editada Móvel/Fixa - Branco Txt - 017" OBSERVATIONS="" REFERENCE="683C_15 017" UNIT="M2" REPETITION="1" QUANTITY="1" WIDTH="769" HEIGHT="280" DEPTH="15" TEXTDIMENSION="769 x 15 x 280" COMPONENT="N" STRUCTURE="N" FAMILY="Cozinhas" GROUP="Prateleiras Editáveis" ISGEOMETRY="N" ISAGGREGATEGROUP="N" IMAGE="%PastaSistema%\Bibliotecas\Fabrica_\Complementos\Prateleiras\Prateleiras Editaveis\mov_mol_2_2_2_2.jpg" EXPLODEDIMAGE="" EXPLODEDIMAGECAPTION="" RULEQUANTITYINCREASE="N" SHOWPRICE="Y" RULEQUANTITYINCREASEPERCENT="0" IDPRICEPROVIDER="Vitta" IDPRICESOURCE="Manager" IDPRICETABLE="B5F0CBB5-CBD3-4F2D-BC9A-D798CC12E1FF" PRICECANMODIFY="N" UNIQUEID="260" UNIQUEPARENTID="-2" GUID="da582f39-f0c1-415c-b227-7cb22a94bd2b" INVERTED="" PLATECUTTINGROTATE="NONE" RULE="M2_PRATELEIRAS">
+              <SHAPE />
+              <PRICE TABLE="247.41" UNIT="53.27" TOTAL="53.27" TOTALCOMPONENTS="0">
+                <MARGINS IDCATEGORY="Vit_vit">
+                  <ORDER UNIT="45.65" TOTAL="45.65" TOTALCOMPONENTS="0">
+                    <MARGIN ID="icms" DESCRIPTION="ICMS" OPERATOR="E" VALUE="0" CALCULUSVALUE="53.27" INVALUE="53.27" OUTVALUE="53.27" MONETARYVALUE="0" />
+                    <MARGIN ID="IPI" DESCRIPTION="IPI" OPERATOR="+" VALUE="3.25" CALCULUSVALUE="53.27" INVALUE="53.27" OUTVALUE="55" MONETARYVALUE="1.73" />
+                    <MARGIN ID="desc_1" DESCRIPTION="Desconto 1" OPERATOR="-" VALUE="22" CALCULUSVALUE="55" INVALUE="55" OUTVALUE="42.9" MONETARYVALUE="-12.1" />
+                    <MARGIN ID="desc_2" DESCRIPTION="Desconto 2" OPERATOR="-" VALUE="5" CALCULUSVALUE="42.9" INVALUE="42.9" OUTVALUE="40.76" MONETARYVALUE="-2.14" />
+                    <MARGIN ID="desc_3" DESCRIPTION="Desconto 3" OPERATOR="-" VALUE="0" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="40.76" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_4_2" DESCRIPTION="Desconto 4" OPERATOR="-" VALUE="0" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="40.76" MONETARYVALUE="0" />
+                    <MARGIN ID="desc_5_2_2" DESCRIPTION="Desconto 5" OPERATOR="-" VALUE="0" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="40.76" MONETARYVALUE="0" />
+                    <MARGIN ID="acr_1" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="12" CALCULUSVALUE="40.76" INVALUE="40.76" OUTVALUE="45.65" MONETARYVALUE="4.89" />
+                  </ORDER>
+                  <BUDGET UNIT="133.12" TOTAL="133.12" TOTALCOMPONENTS="0">
+                    <MARGIN ID="acr_2" DESCRIPTION="Acréscimo" OPERATOR="+" VALUE="170" CALCULUSVALUE="45.65" INVALUE="45.65" OUTVALUE="123.26" MONETARYVALUE="77.61" />
+                    <MARGIN ID="frete" DESCRIPTION="Frete" OPERATOR="+" VALUE="8" CALCULUSVALUE="123.26" INVALUE="123.26" OUTVALUE="133.12" MONETARYVALUE="9.86" />
+                    <MARGIN ID="montagem" DESCRIPTION="Montagem" OPERATOR="+" VALUE="0" CALCULUSVALUE="133.12" INVALUE="133.12" OUTVALUE="133.12" MONETARYVALUE="0" />
+                  </BUDGET>
+                </MARGINS>
+              </PRICE>
+              <REFERENCES>
+                <COMPLETE REFERENCE="683C_15 017" />
+                <MODEL REFERENCE="15 017" />
+              </REFERENCES>
+            </ITEM>
+          </ITEMS>
+        </CATEGORY>
+      </CATEGORIES>
+    </AMBIENT>
+  </AMBIENTS>
+  <METADATAS>
+    <METADATA ID="ONLINETABLEPRICE" VALUE="Tabela de Preços Vitta - 17062026" />
+    <METADATA ID="ONLINESTARTDATE" VALUE="20260617" />
+    <METADATA ID="ONLINEENDDATE" VALUE="20300401" />
+  </METADATAS>
+  <PAYMENTTERMS>
+    <ADITIONALENTRYCOLLECTION>
+      <ADITIONALENTRY ID="0" DESCRIPTION="Entrada Adicional" OPERATIONTYPE="Discount" VALUE="0" DELETED="N" SYSTEMMD5="26FEB5941EE29F11CE6512755464BF" />
+      <ADITIONALENTRY ID="1" DESCRIPTION="Desconto Comercial 1" OPERATIONTYPE="Discount" VALUE="0" DELETED="N" SYSTEMMD5="0C0B4B6E0F083C136AF664380ECF793" />
+      <ADITIONALENTRY ID="2" DESCRIPTION="Desconto Comercial 2" OPERATIONTYPE="Discount" VALUE="0" DELETED="N" SYSTEMMD5="922B503957E15F91B6A9E78288754E" />
+      <ADITIONALENTRY ID="3" DESCRIPTION="Desconto Financeiro" OPERATIONTYPE="Discount" VALUE="0" DELETED="N" SYSTEMMD5="27EABCD644287FE319E24A1AA03284" />
+    </ADITIONALENTRYCOLLECTION>
+    <PAYMENTTERMCOLLECTION>
+      <PAYMENTTERM ID="0" DESCRIPTION="1+2" HASDOWNPAYMENT="Y" SELECTED="Y" PARCELQUANTITY="2" PERCENTUALDISCOUNT="0" PARCELVALUE="2546.44" INITIALVALUE="5092.87" PARCELEDTOTAL="5092.87" GENERALTOTAL="5092.87" CALCULUSVALUE="5092.87" DELETED="N" HASCUSTOMPARCELS="N" />
+    </PAYMENTTERMCOLLECTION>
+  </PAYMENTTERMS>
+</LISTING>

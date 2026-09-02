@@ -3560,8 +3560,10 @@ function renderBudgetList() {
     folderCell.appendChild(folderButton);
     row.appendChild(folderCell);
 
+    const codeValue = formatBudgetCodeForList(budget.code) || "-";
+    const nobiliaValue = budget.nobiliaId || "-";
     [
-      formatBudgetCodeForList(budget.code) || "-",
+      `${codeValue} / ${nobiliaValue}`,
       client.name,
       budget.status || "Negociação",
     ].forEach((value) => {

@@ -1,0 +1,322 @@
+﻿[
+    {
+        "id":  "import-validacao-001",
+        "name":  "Simone",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11985885606",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:02:51",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-002",
+        "name":  "Luiz",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11994197174",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:13:09",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-003",
+        "name":  "Priscila Ffigueira",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11930561080",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Henrique",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:14:44",
+                        "notes":  "Priffigueira@gmail.com",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-004",
+        "name":  "Luiz toledo",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "15997254440",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Alugar",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:16:31",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-005",
+        "name":  "Aparecida",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11977487607",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:18:12",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-006",
+        "name":  "Sheila",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11982189897",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:31:03",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-007",
+        "name":  "Eduardo",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11992277676",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:40:30",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-008",
+        "name":  "Luis Claudio Pinto da Fonte",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11994197174",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Henrique",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:49:48",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-009",
+        "name":  "Rafarl",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11978767126",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:50:27",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    },
+    {
+        "id":  "import-validacao-010",
+        "name":  "Mari",
+        "email":  "",
+        "phone":  "",
+        "mobile":  "11984430054",
+        "contact":  "",
+        "personType":  "Fisica",
+        "finalUse":  "Residir",
+        "leadHunter":  "Iris",
+        "city":  "Embu",
+        "state":  "SP",
+        "status":  "Novo",
+        "createdBy":  "Importacao",
+        "owner":  "Usuario",
+        "cpf":  "",
+        "address":  {
+                        "cep":  "6817000",
+                        "street":  "Avenida João Paulo I",
+                        "number":  "1973",
+                        "complement":  "Grupo 15",
+                        "district":  "Jardim Esplanada"
+                    },
+        "project":  {
+                        "deadline":  "",
+                        "created":  "27/05/2026 10:59:57",
+                        "notes":  "",
+                        "environments":  [
+
+                                         ]
+                    }
+    }
+]

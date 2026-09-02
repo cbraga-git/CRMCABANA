@@ -1,0 +1,9 @@
+{
+  "name": "gmail-xml-exporter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "baixar": "node baixar-xml-gmail.js"
+  }
+}

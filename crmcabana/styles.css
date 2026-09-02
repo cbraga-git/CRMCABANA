@@ -1778,6 +1778,15 @@ body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard table 
   table-layout: fixed;
 }
 
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th:nth-child(2),
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard th:nth-child(2),
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard td:nth-child(2),
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard td:nth-child(2) {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th,
 body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard th {
   position: sticky;
@@ -2359,13 +2368,13 @@ body[data-view="order"] .order-material-editor {
 
 .budget-table th:first-child,
 .budget-table td:first-child {
-  min-width: 190px;
-  width: 190px;
+  min-width: 120px;
+  width: 120px;
 }
 
 .budget-table td:first-child select,
 .budget-table td:first-child input {
-  min-width: 180px;
+  min-width: 110px;
 }
 
 .budget-table .icon-button {

@@ -1,0 +1,118 @@
+tipo_pessoa;nome_razao_social;nome_fantasia;cpf_cnpj;rg_ie;telefone;celular;email;cep;endereco;numero;complemento;bairro;cidade;estado;pais;data_nascimento_abertura;sexo;profissao;empresa;cargo;origem_cliente;data_cadastro;lead_hunter;uso_final;status;vendedor_responsavel;observacoes;ativo
+Fisica;Renato;Renato;;;;11994988583;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:03:04;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Alex;Alex;;;;11940132780;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:08:32;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Ana Carolina Moraes Martins;Ana Carolina Moraes Martins;;;;11947278657;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:20:33;Henrique;Moradia;Novo;Daniela Moreira;Motosentral7@gmail.com;Sim
+Fisica;Eliza;Eliza;;;;11980139294;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:21:03;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Miriam;Miriam;;;;11994413001;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:23:42;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Edilanilo;Edilanilo;;;;11985630020;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:25:16;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Jossica;Jossica;;;;11941731377;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:26:26;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Amands;Amands;;;;11959117868;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:27:58;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Stefhani;Stefhani;;;;11987383483;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 11:46:42;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Ednilson;Ednilson;;;;119547493333;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 12:01:02;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Cleuza;Cleuza;;;;11971876300;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 12:14:10;Iris;Investimento;Novo;Daniela Moreira;;Sim
+Fisica;Jose robeto;Jose robeto;;;;11999639292;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 12:30:39;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Edigar;Edigar;;;;11983665439;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 12:37:18;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Leonardo;Leonardo;;;;0;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 12:40:13;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Felipe;Felipe;;;;11972055791;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 12:42:01;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Fatima Maria Gomes Pereira;Fatima Maria Gomes Pereira;;;;11989716439/11960776785;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 13:23:25;Iris;Vai Alugar;Novo;Daniela Moreira;fatima.pepa@gmail.com;Sim
+Fisica;Rodrigo massini;Rodrigo massini;;;;11940317051;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 13:33:20;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Andre;Andre;;;;11947503903;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 13:42:53;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Adeiana;Adeiana;;;;11977000560;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 13:43:44;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Daniel;Daniel;;;;11982667873;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 13:44:40;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Fernando;Fernando;;;;11985789983;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 13:52:38;Iris;Investimento;Novo;Daniela Moreira;;Sim
+Fisica;Vitor;Vitor;;;;11934622102;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 14:00:50;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Edésio;Edésio;;;;447708373622;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 14:02:14;Iris;Vai Alugar;Novo;Daniela Moreira;Falar com Victor - WhatsApp Inglaterra;Sim
+Fisica;Viviane;Viviane;;;;11981061828;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 14:12:09;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Silmaria;Silmaria;;;;11987066400;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 14:22:08;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Livania;Livania;;;;11984220040;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 14:28:18;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Emanuele;Emanuele;;;;11970823558;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 14:32:18;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Zelita;Zelita;;;;11970638010;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:05:39;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Fernanda;Fernanda;;;;11944708310;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:15:41;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Giovanni;Giovanni;;;;11959864352;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:26:36;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Daniela;Daniela;;;;11958820439;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:29:25;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Helaine;Helaine;;;;11992394981;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:31:58;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Katia;Katia;;;;11982336387;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:32:53;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Adriana;Adriana;;;;11961855071;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:35:41;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Nataly;Nataly;;;;11952383012;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:49:01;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Jose arimateia;Jose arimateia;;;;998453401;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 15:59:34;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Lilian;Lilian;;;;11980845063;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:04:47;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Danilo;Danilo;;;;11982059011;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:12:45;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Rita;Rita;;;;11965506482;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:39:05;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Glaysya;Glaysya;;;;11946719894;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:39:59;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Eliane;Eliane;;;;11963414035;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:41:34;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Amanda;Amanda;;;;11969311064;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:42:15;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Fátima;Fátima;;;;11989716439;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:44:17;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Jesus ou Jose;Jesus ou Jose;;;;11911940102806;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:47:04;Iris;Vai Morar;Novo;Daniela Moreira;;Sim
+Fisica;Regiane;Regiane;;;;11986169271;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:54:19;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Elaine;Elaine;;;;11934232890;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 16:57:08;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Celio;Celio;;;;11996570071;;6817000;Avenida João Paulo I;1973;Grupo 15;Jardim Esplanada;Embu;SP;BR;;;;;;;27/05/2026 17:05:12;Iris;Vai Alugar;Novo;Daniela Moreira;;Sim
+Fisica;??NOME?? (Emiro?);??NOME?? (Emiro?);;;;11991763740;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Alessandra;Alessandra;;;;11984070092;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Alex;Alex;;;;11958549209;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;13C42 Reformar tudo;Sim
+Fisica;Alexandre;Alexandre;;;;11984858968;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Amanda;Amanda;;;;11980981104;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Amilton;Amilton;;;;11991044080;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Ana Paula;Ana Paula;;;;13981212128;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Augusto;Augusto;;;;11996809790;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Bruno;Bruno;;;;11932078118;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Carlos;Carlos;;;;11999993860;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Cristiana;Cristiana;;;;11966124362;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Daniel;Daniel;;;;11996544600;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Edileusa;Edileusa;;;;11949622982;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Édison;Édison;;;;11999538226;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Eduardo (Cobertura);Eduardo (Cobertura);;;;11981235805;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Elaine;Elaine;;;;11993425405;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Eliezer;Eliezer;;;;11999462583;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Eliezer;Eliezer;;;;11994625834;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Elizaete;Elizaete;;;;11977387878;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Elvis;Elvis;;;;11942898875;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Érika;Érika;;;;11984992911;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Everton;Everton;;;;11947238880;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Felipe;Felipe;;;;11948738082;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Fernanda;Fernanda;;;;11984650813;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Francilene;Francilene;;;;11986980335;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Giovanna;Giovanna;;;;11977853235;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Giovanni;Giovanni;;;;11988790753;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Giulia;Giulia;;;;11940876910;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Investimento;Novo;Daniela Moreira;;Sim
+Fisica;Helena;Helena;;;;11996948004;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Henrique;Henrique;;;;11943719551;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Ilda;Ilda;;;;11993941658;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Jacqueline;Jacqueline;;;;11985642067;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Jacqueline;Jacqueline;;;;11987815537;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Jairo;Jairo;;;;11996907898;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;Projetopara Cozinha;Sim
+Fisica;Jefferson;Jefferson;;;;11948244720;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Johnathan;Johnathan;;;;11981099291;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Investimento;Novo;Daniela Moreira;;Sim
+Fisica;Josué;Josué;;;;11983338889;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Juliana;Juliana;;;;11961324588;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Laís;Laís;;;;11974024866;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Larissa;Larissa;;;;11952232166;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Letícia;Letícia;;;;11984721216;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Lígia;Lígia;;;;11999834013;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Luana;Luana;;;;11992745922;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Manuel;Manuel;;;;11998448997;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Mara;Mara;;;;11999288888;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Maria;Maria;;;;11963301494;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Maurício;Maurício;;;;11988958713;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Michel;Michel;;;;11984299963;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Priscilla;Priscilla;;;;11974986847;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;Quer Vídeo Cozinha Íris;Sim
+Fisica;Rafaela;Rafaela;;;;11941758499;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Rafaela;Rafaela;;;;11965046645;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Renato;Renato;;;;11956559112;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Renato;Renato;;;;11999867562;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Ronaldo;Ronaldo;;;;11961314789;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Sandra;Sandra;;;;11991167595;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Sandra;Sandra;;;;11965688849;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Sara;Sara;;;;11959979934;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Sônia;Sônia;;;;11948485001;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Stephanie;Stephanie;;;;11985710742;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Sueli (Cobertura);Sueli (Cobertura);;;;11976536666;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Suzana;Suzana;;;;11991318790;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Tiana;Tiana;;;;11968305826;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Vagner;Vagner;;;;11982177150;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Valdemir;Valdemir;;;;11987858884;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Vaneide;Vaneide;;;;11985511293;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Vanessa;Vanessa;;;;11911736586;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Vanessa;Vanessa;;;;11993173374;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Vanessa;Vanessa;;;;1199462148;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;Sim
+Fisica;Walmir;Walmir;;;;11999886336;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Alugar;Novo;Daniela Moreira;;Sim
+Fisica;Wander;Wander;;;;11968347307;;6817000;Avenida João Paulo I;1973;Grupo 13;Jardim Esplanada;Embu;SP;BR;;;;;;;26/03/2026 08:00;Iris;Moradia;Novo;Daniela Moreira;;

@@ -43,8 +43,13 @@ test("pagina define politica de seguranca de conteudo", () => {
 test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {
   assert.match(html, /id="budgetNobiliaId"/);
   assert.match(html, /id="budgetNobiliaDate"/);
-  assert.match(html, /hidden[^\n]*id="budgetSeller"/i);
+  assert.match(html, /<label\s+hidden>\s*Vendedor\s*<input[^>]*id="budgetSeller"[^>]*>/i);
   assert.match(app, /nobiliaId|nobiliaDate/);
+});
+
+test("listagem de orcamentos exibe o campo ID Nobilia apos o ID do orçamento", () => {
+  assert.match(html, /ID Nobilia|ID NOBILIA/);
+  assert.match(app, /budget\.nobiliaId|nobiliaId.*budget\.code|budget\.code.*nobiliaId/);
 });
 
 test("actions do deploy usam commits imutaveis", () => {
