@@ -40,6 +40,13 @@ test("pagina define politica de seguranca de conteudo", () => {
   assert.match(html, /frame-ancestors 'none'/);
 });
 
+test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {
+  assert.match(html, /id="budgetNobiliaId"/);
+  assert.match(html, /id="budgetNobiliaDate"/);
+  assert.match(html, /hidden[^\n]*id="budgetSeller"/i);
+  assert.match(app, /nobiliaId|nobiliaDate/);
+});
+
 test("actions do deploy usam commits imutaveis", () => {
   const actionRefs = [...workflow.matchAll(/uses:\s+[^@\s]+@([^\s]+)/g)].map((match) => match[1]);
   assert.ok(actionRefs.length >= 3);

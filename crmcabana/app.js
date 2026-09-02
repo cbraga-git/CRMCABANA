@@ -2179,6 +2179,14 @@ function readBudgetCreatedAt() {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
+function readBudgetNobiliaId() {
+  return document.querySelector("#budgetNobiliaId")?.value.trim() || "";
+}
+
+function readBudgetNobiliaDate() {
+  return document.querySelector("#budgetNobiliaDate")?.value || "";
+}
+
 function readDateTimeInputAsIso(input) {
   const value = input?.value || "";
   if (!value) return "";
@@ -2235,6 +2243,8 @@ function currentBudgetDraft() {
     status,
     createdAt: readBudgetCreatedAt(),
     saleAt: status === "Aprovado" ? readBudgetSaleAt() : "",
+    nobiliaId: readBudgetNobiliaId(),
+    nobiliaDate: readBudgetNobiliaDate(),
     settings: readBudgetSettings(),
     rows: readBudgetRows(),
     orderMaterials: readOrderMaterialRows(),
@@ -2334,6 +2344,8 @@ function clientBudget(client) {
     status: configuredDocumentStatuses().includes(saved.status) ? saved.status : BUDGET_STATUS[0],
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     saleAt: saved.saleAt || "",
+    nobiliaId: saved.nobiliaId || "",
+    nobiliaDate: saved.nobiliaDate || "",
     settings: normalizeBudgetSettings(saved.settings, rows),
     rows,
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
@@ -2350,6 +2362,8 @@ function blankBudget() {
     status: BUDGET_STATUS[0],
     createdAt: new Date().toISOString(),
     saleAt: "",
+    nobiliaId: "",
+    nobiliaDate: "",
     settings: { ...DEFAULT_BUDGET_SETTINGS },
     rows: [{ name: "", gross: 0, factory: 0, hardware: 0 }],
     orderMaterials: [],
@@ -3356,6 +3370,8 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetEditClientBtn").setAttribute("aria-label", targetClient ? "Editar cliente" : "Cadastrar cliente");
   document.querySelector("#budgetCode").value = budget.code || nextBudgetCode();
   document.querySelector("#budgetCreatedAt").value = formatDateTimeLocal(budget.createdAt || new Date());
+  document.querySelector("#budgetNobiliaId").value = budget.nobiliaId || "";
+  document.querySelector("#budgetNobiliaDate").value = budget.nobiliaDate || "";
   document.querySelector("#budgetStatus").value = budget.status || BUDGET_STATUS[0];
   document.querySelector("#budgetEntry").value = formatMoneyInput(settings.entry);
   document.querySelector("#budgetEntryTerm").value = String(settings.entryTerm || 30);
@@ -3620,6 +3636,8 @@ async function saveBudget(options = {}) {
     status: budgetStatus,
     createdAt: readBudgetCreatedAt(),
     saleAt: budgetStatus === "Aprovado" ? readBudgetSaleAt() : "",
+    nobiliaId: readBudgetNobiliaId(),
+    nobiliaDate: readBudgetNobiliaDate(),
     settings,
     rows,
     orderMaterials: readOrderMaterialRows(),
