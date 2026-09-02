@@ -1782,9 +1782,11 @@ body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th:nt
 body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard th:nth-child(2),
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard td:nth-child(2),
 body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard td:nth-child(2) {
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th,
