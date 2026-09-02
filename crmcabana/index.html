@@ -235,6 +235,17 @@
                 <span>Buscar</span>
                 <input id="budgetSearch" type="search" placeholder="Buscar por cliente, vendedor ou status..." />
               </label>
+              <div class="date-filter compact-date-filter" aria-label="Filtro por data do orçamento">
+                <label>
+                  <span>De</span>
+                  <input id="budgetStartDate" type="date" />
+                </label>
+                <span class="date-separator">até</span>
+                <label>
+                  <span>Até</span>
+                  <input id="budgetEndDate" type="date" />
+                </label>
+              </div>
             </section>
             <div class="header-actions">
               <button class="button primary" id="budgetNewBtn" type="button">
@@ -248,16 +259,6 @@
               <div>
                 <span class="filter-title">Status</span>
                 <div class="status-filters" data-filter-group="budget"></div>
-              </div>
-              <div class="date-filter">
-                <span class="filter-title">Data do orcamento</span>
-                <label>
-                  <input id="budgetStartDate" type="date" />
-                </label>
-                <span>ate</span>
-                <label>
-                  <input id="budgetEndDate" type="date" />
-                </label>
               </div>
           </section>
 

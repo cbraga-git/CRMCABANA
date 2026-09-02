@@ -759,6 +759,35 @@ button:focus-visible {
   padding: 10px 12px;
 }
 
+.compact-date-filter {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.compact-date-filter label {
+  display: grid;
+  gap: 4px;
+  min-width: 142px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.compact-date-filter input {
+  min-height: 38px;
+}
+
+.date-separator {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+
 .budget-dashboard-stats {
   gap: 8px;
   margin-bottom: 8px;
@@ -1860,11 +1889,17 @@ body[data-view="order"][data-budget-editing="true"] .budget-view > .page-header 
 }
 
 .budget-search-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 0;
+  width: 100%;
 }
 
 .budget-search-toolbar .search-box {
-  width: 100%;
+  flex: 1 1 320px;
+  width: auto;
   min-height: 38px;
 }
 
