@@ -3562,7 +3562,7 @@ function renderBudgetList() {
 
     const codeValue = formatBudgetCodeForList(budget.code) || "-";
     const nobiliaValue = budget.nobiliaId || "";
-    const combinedCodeValue = nobiliaValue ? `${codeValue}-${nobiliaValue}` : codeValue;
+    const combinedCodeValue = nobiliaValue ? `${codeValue} - ${nobiliaValue}` : codeValue;
     [
       combinedCodeValue,
       client.name,
