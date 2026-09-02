@@ -1655,6 +1655,7 @@ function budgetSortValue(item, key) {
     status: item.budget.status || "",
     gross: totals.gross,
     net: totals.net,
+    factoryFreight: totals.factoryFreight,
     cost: totals.cost,
     profit: totals.profit,
     margin: totals.margin,
@@ -2606,10 +2607,11 @@ function budgetTotals(calculatedRows, settings) {
     (summary, row) => ({
       gross: summary.gross + row.gross,
       net: summary.net + row.net,
+      factoryFreight: summary.factoryFreight + row.factoryFreight,
       cost: summary.cost + row.totalCost,
       profit: summary.profit + row.profit,
     }),
-    { gross: 0, net: 0, cost: 0, profit: 0 }
+    { gross: 0, net: 0, factoryFreight: 0, cost: 0, profit: 0 }
   );
   const dailyTotal = (Number(settings.dailyQuantity) || 0) * parseMoney(settings.dailyValue);
   const totals = {
@@ -3501,12 +3503,12 @@ function renderBudgetList() {
   if (!rows) return;
   const budgets = filteredBudgets();
   const orderMode = state.view === "order";
-  const grossHeader = document.querySelector('#budgetListCard th[data-sort="gross"], #budgetListCard th[data-sort="net"]');
+  const grossHeader = document.querySelector('#budgetListCard th[data-sort="factoryFreight"], #budgetListCard th[data-sort="net"]');
   const netHeader = document.querySelector("#budgetListCard th[data-budget-net-column]");
   const costHeader = document.querySelector('#budgetListCard th[data-sort="cost"], #budgetListCard th[data-sort="deliveryForecastAt"]');
   if (grossHeader) {
-    grossHeader.dataset.sort = orderMode ? "net" : "gross";
-    grossHeader.textContent = orderMode ? "Faturado" : "Total ambientes";
+    grossHeader.dataset.sort = orderMode ? "net" : "factoryFreight";
+    grossHeader.textContent = orderMode ? "Faturado" : "Fábrica + frete";
     grossHeader.tabIndex = 0;
   }
   if (netHeader) netHeader.hidden = orderMode;
@@ -3554,7 +3556,7 @@ function renderBudgetList() {
     });
 
     const amountValues = [
-      { value: BRL.format(orderMode ? totals.net : totals.gross) },
+      { value: BRL.format(orderMode ? totals.net : totals.factoryFreight) },
       { value: orderMode ? formatPrintDateTime(budget.deliveryForecastAt) || "-" : BRL.format(totals.cost) },
       { value: BRL.format(totals.profit), hidden: orderMode },
       { value: BRL.format(totals.net), hidden: orderMode },
