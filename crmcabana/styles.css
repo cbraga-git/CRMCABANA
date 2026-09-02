@@ -641,13 +641,32 @@ h2 {
 }
 
 .pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fffaf0;
   color: var(--muted);
-  padding: 0 14px;
+  padding: 0 12px;
   font-size: 13px;
+}
+
+.pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(141, 106, 34, 0.12);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .pill.active {
@@ -655,6 +674,11 @@ h2 {
   color: #ffffff;
   border-color: var(--accent-dark);
   font-weight: 800;
+}
+
+.pill.active .pill-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 .date-filter {

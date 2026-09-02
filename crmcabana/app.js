@@ -1688,17 +1688,48 @@ function filteredClients(group) {
   return group === "clients" ? sortClients(clients) : clients;
 }
 
+function budgetStatusCounts() {
+  const orderMode = state.view === "order";
+  const budgets = state.clients
+    .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
+    .filter(({ client, budget }) => {
+      const searchableValues = orderMode ? [client.name] : [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id];
+      const search = state.budgetSearch.toLowerCase();
+      const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
+      const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
+      return matchesSearch && matchesDate;
+    });
+
+  const statusNames = orderMode ? ORDER_STATUS : BUDGET_STATUS;
+  const counts = { Todos: budgets.length };
+  statusNames.forEach((status) => {
+    counts[status] = budgets.filter(({ budget }) => budget.status === status).length;
+  });
+  return counts;
+}
+
 function renderStatusFilters(container, activeStatus, group) {
   if (!container) return;
   container.innerHTML = "";
 
   const documentStatuses = group === "budget" && state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
   const statuses = group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
+  const statusCounts = group === "budget" || group === "financial" ? budgetStatusCounts() : {};
+
   statuses.forEach((status) => {
     const button = document.createElement("button");
     button.className = `pill ${status === activeStatus ? "active" : ""}`;
     button.type = "button";
-    button.textContent = status;
+
+    const label = document.createElement("span");
+    label.textContent = status;
+
+    const count = document.createElement("span");
+    count.className = "pill-count";
+    count.textContent = String(statusCounts[status] ?? 0);
+
+    button.appendChild(label);
+    button.appendChild(count);
     button.addEventListener("click", () => setStatusFilter(group, status));
     container.appendChild(button);
   });

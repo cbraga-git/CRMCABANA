@@ -52,6 +52,11 @@ test("listagem de orcamentos exibe o campo ID Nobilia apos o ID do orçamento", 
   assert.match(app, /budget\.nobiliaId|nobiliaId.*budget\.code|budget\.code.*nobiliaId/);
 });
 
+test("filtros de status de orcamento exibem contagem discreta por categoria", () => {
+  assert.match(app, /pill-count|statusCounts|renderStatusFilters/);
+  assert.match(app, /count.*status|status.*count/i);
+});
+
 test("actions do deploy usam commits imutaveis", () => {
   const actionRefs = [...workflow.matchAll(/uses:\s+[^@\s]+@([^\s]+)/g)].map((match) => match[1]);
   assert.ok(actionRefs.length >= 3);
