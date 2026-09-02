@@ -132,7 +132,7 @@ button {
 
 .auth-message {
   min-height: 18px;
-  color: #8a4a4a;
+  color: #a42121;
   font-size: 13px;
 }
 
@@ -1860,9 +1860,9 @@ body[data-view="order"] .budget-auxiliary-toolbar .order-only-field {
 .budget-finance-grid label,
 .budget-assembly-grid label {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1877,10 +1877,10 @@ body[data-view="order"] .budget-auxiliary-toolbar .order-only-field {
 .budget-assembly-grid input,
 .budget-table select,
 .budget-table input {
-  min-height: 28px;
+  min-height: 30px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 0 8px;
+  border-radius: 8px;
+  padding: 0 10px;
   background: #fffdf7;
   color: var(--text);
   font: inherit;
@@ -2144,44 +2144,50 @@ body[data-view="order"] .budget-table {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 12px;
+  padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(255, 250, 240, 0.72);
 }
 
 .budget-action-button {
-  width: 34px;
-  min-width: 34px;
-  min-height: 30px;
+  width: 38px;
+  min-width: 38px;
+  min-height: 34px;
   padding: 0;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 9px;
+  font-size: 18px;
   line-height: 1;
 }
 
 .budget-action-button.danger {
-  border-color: rgba(168, 97, 102, 0.45);
-  color: #8d4d52;
+  border-color: rgba(244, 63, 104, 0.62);
+  color: #b42343;
 }
 
 .budget-action-button.danger:hover {
-  background: #f7e4e4;
+  background: #fee2e2;
 }
 
 .budget-editor-main {
   display: flex;
   align-items: end;
+  gap: 18px;
   min-width: 0;
-  width: 100%;
+}
+
+.budget-editor-heading-copy {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: end;
 }
 
 .budget-header-toolbar {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 7px;
   margin-bottom: 0;
   width: 100%;
 }
@@ -2193,7 +2199,6 @@ body[data-view="order"] .budget-table {
 .budget-header-toolbar input,
 .budget-header-toolbar select {
   width: 100%;
-  min-height: 28px;
 }
 
 .budget-editor-header h2 {
