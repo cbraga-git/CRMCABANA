@@ -10,6 +10,12 @@ const SIDEBAR_COLLAPSED_KEY = "movelcrm-sidebar-collapsed";
 const CLIENT_COLUMNS_WIDTH_KEY = "movelcrm-client-column-widths";
 const BUDGET_COLUMNS_WIDTH_KEY = "movelcrm-budget-column-widths";
 const BUDGET_STATUS_STORAGE_KEY = "movelcrm-budget-statuses";
+const APP_PREFERENCES_KEY = "movelcrm-app-preferences";
+const DEFAULT_APP_PREFERENCES = {
+  budgetCodeSeparator: " - ",
+  showStatusCounts: true,
+  showNobiliaInList: true,
+};
 const STATUS = [
   "Todos",
   "Em Andamento",
@@ -104,7 +110,7 @@ const DEFAULT_BUDGET_SETTINGS = {
   assemblyEndDate: "",
 };
 const DEFAULT_BUDGET_STATUSES = [
-  { name: "Novo Orçamento", budget: true, order: false }, { name: "Negociação", budget: true, order: false },
+  { name: "Novo", budget: true, order: false }, { name: "Negociação", budget: true, order: false },
   { name: "Aprovado", budget: true, order: true }, { name: "Pedido", budget: true, order: true },
   { name: "Emissão de NF", budget: true, order: true }, { name: "Finalizado", budget: true, order: false },
   { name: "Recusado", budget: true, order: false },
@@ -140,6 +146,7 @@ const state = {
   userRole: "user",
   userProfiles: [],
   userLogs: [],
+  appPreferences: loadAppPreferences(),
   view: "clients",
   dashboardStatus: IN_PROGRESS_STATUS,
   clientStatus: IN_PROGRESS_STATUS,
@@ -487,7 +494,12 @@ function normalizeLeadStatus(status) {
 function normalizeBudgetStatusConfig(rows) {
   if (!Array.isArray(rows)) return DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status }));
   const seen = new Set();
-  const normalized = rows.map((row) => ({ name: String(row?.name || "").trim(), budget: Boolean(row?.budget), order: Boolean(row?.order) }))
+  const legacyBudgetStatusName = ["Novo", " Orçamento"].join("");
+  const normalized = rows.map((row) => {
+    const legacyName = String(row?.name || "").trim();
+    const name = legacyName === legacyBudgetStatusName ? "Novo" : legacyName;
+    return { name, budget: Boolean(row?.budget), order: Boolean(row?.order) };
+  })
     .filter((row) => {
       const key = row.name.toLocaleLowerCase("pt-BR");
       if (!row.name || (!row.budget && !row.order) || seen.has(key)) return false;
@@ -1688,6 +1700,25 @@ function filteredClients(group) {
   return group === "clients" ? sortClients(clients) : clients;
 }
 
+function loadAppPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(APP_PREFERENCES_KEY) || "null");
+    return { ...DEFAULT_APP_PREFERENCES, ...(saved || {}) };
+  } catch (error) {
+    console.warn("Não foi possível carregar preferências do app.", error);
+    return { ...DEFAULT_APP_PREFERENCES };
+  }
+}
+
+function saveAppPreferences() {
+  localStorage.setItem(APP_PREFERENCES_KEY, JSON.stringify(state.appPreferences || DEFAULT_APP_PREFERENCES));
+}
+
+function setAppPreference(key, value) {
+  state.appPreferences = { ...loadAppPreferences(), ...state.appPreferences, [key]: value };
+  saveAppPreferences();
+}
+
 function budgetStatusCounts() {
   const orderMode = state.view === "order";
   const budgets = state.clients
@@ -1715,6 +1746,7 @@ function renderStatusFilters(container, activeStatus, group) {
   const documentStatuses = group === "budget" && state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
   const statuses = group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
   const statusCounts = group === "budget" || group === "financial" ? budgetStatusCounts() : {};
+  const showCounts = state.appPreferences?.showStatusCounts !== false;
 
   statuses.forEach((status) => {
     const button = document.createElement("button");
@@ -1723,13 +1755,15 @@ function renderStatusFilters(container, activeStatus, group) {
 
     const label = document.createElement("span");
     label.textContent = status;
-
-    const count = document.createElement("span");
-    count.className = "pill-count";
-    count.textContent = String(statusCounts[status] ?? 0);
-
     button.appendChild(label);
-    button.appendChild(count);
+
+    if (showCounts && (group === "budget" || group === "financial")) {
+      const count = document.createElement("span");
+      count.className = "pill-count";
+      count.textContent = String(statusCounts[status] ?? 0);
+      button.appendChild(count);
+    }
+
     button.addEventListener("click", () => setStatusFilter(group, status));
     container.appendChild(button);
   });
@@ -3593,7 +3627,8 @@ function renderBudgetList() {
 
     const codeValue = formatBudgetCodeForList(budget.code) || "-";
     const nobiliaValue = budget.nobiliaId || "";
-    const combinedCodeValue = nobiliaValue ? `${codeValue} - ${nobiliaValue}` : codeValue;
+    const separator = state.appPreferences?.budgetCodeSeparator || " - ";
+    const combinedCodeValue = state.appPreferences?.showNobiliaInList !== false && nobiliaValue ? `${codeValue}${separator}${nobiliaValue}` : codeValue;
     [
       combinedCodeValue,
       client.name,

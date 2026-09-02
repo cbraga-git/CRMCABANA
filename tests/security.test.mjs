@@ -57,6 +57,17 @@ test("filtros de status de orcamento exibem contagem discreta por categoria", ()
   assert.match(app, /count.*status|status.*count/i);
 });
 
+test("preferencias visuais do CRM persistem no navegador entre sessoes", () => {
+  assert.match(app, /APP_PREFERENCES_KEY|appPreferences|localStorage\.setItem\(APP_PREFERENCES_KEY/);
+  assert.match(app, /budgetCodeSeparator|statusCountsVisible|showNobilia/);
+});
+
+test("status padrao de orcamento usa Novo e aparece imediatamente apos Todos", () => {
+  assert.match(app, /name:\s*"Novo"|"Novo"/);
+  assert.doesNotMatch(app, /Novo\s+Orçamento/);
+  assert.match(app, /\[\s*"Todos"\s*,\s*\.\.\.documentStatuses\s*\]|\[\s*"Todos"\s*,\s*\.\.\./);
+});
+
 test("actions do deploy usam commits imutaveis", () => {
   const actionRefs = [...workflow.matchAll(/uses:\s+[^@\s]+@([^\s]+)/g)].map((match) => match[1]);
   assert.ok(actionRefs.length >= 3);
