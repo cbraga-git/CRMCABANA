@@ -3526,7 +3526,7 @@ function renderBudgetList() {
   rows.innerHTML = "";
 
   if (!budgets.length) {
-    rows.innerHTML = `<tr><td colspan="10" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="9" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
     return;
   }
 
@@ -3547,7 +3547,6 @@ function renderBudgetList() {
     [
       formatBudgetCodeForList(budget.code) || "-",
       client.name,
-      responsibleSeller(client),
       budget.status || "Negociação",
     ].forEach((value) => {
       const cell = document.createElement("td");
