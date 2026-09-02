@@ -227,7 +227,7 @@
         <section class="view budget-view" id="budgetView">
           <header class="page-header" id="budgetHeader">
             <div>
-              <h1>Orçamento</h1>
+              <h1 id="budgetHeaderTitle" aria-label="Titulo do cabeçalho"></h1>
               <p><span id="budgetCount">0</span> orçamentos disponíveis</p>
             </div>
             <section class="client-toolbar budget-search-toolbar">
@@ -283,9 +283,6 @@
           <section class="budget-editor" id="budgetEditor" hidden>
             <header class="budget-editor-header">
               <div class="budget-editor-main">
-                <div class="budget-editor-heading-copy">
-                  <h2 id="budgetEditorTitle">Orçamento</h2>
-                </div>
                 <section class="budget-toolbar budget-header-toolbar" aria-label="Identificação do orçamento">
                   <label>ID Orçamento
                     <input id="budgetCode" readonly />

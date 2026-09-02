@@ -3603,7 +3603,8 @@ function renderBudget() {
   }
   const dateFilterTitle = document.querySelector(".budget-dashboard-filters .date-filter .filter-title");
   if (dateFilterTitle) dateFilterTitle.textContent = orderMode ? "Data da venda" : "Data do orcamento";
-  document.querySelector("#budgetHeader h1").textContent = orderMode ? "Pedido" : "Orçamento";
+  const budgetHeaderTitle = document.querySelector("#budgetHeaderTitle");
+  if (budgetHeaderTitle) budgetHeaderTitle.textContent = "";
   document.body.dataset.budgetEditing = editing ? "true" : "false";
   document.querySelector("#budgetHeader").hidden = editing;
   document.querySelector("#budgetFiltersPanel").hidden = editing;
