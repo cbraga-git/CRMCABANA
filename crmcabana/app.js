@@ -491,13 +491,29 @@ function normalizeLeadStatus(status) {
   return STATUS_MIGRATION[status] || (STATUS.includes(status) ? status : DEFAULT_STATUS);
 }
 
+function normalizeBudgetStatusValue(status, fallback = DEFAULT_STATUS) {
+  const value = String(status || "").trim();
+  if (!value) return fallback;
+  const legacyMap = {
+    [["Novo", " ", "Orçamento"].join("")]: "Novo",
+    [["Novo", " ", "Orcamento"].join("")]: "Novo",
+  };
+  const normalized = legacyMap[value] || value;
+  return BUDGET_STATUS.includes(normalized) ? normalized : fallback;
+}
+
 function normalizeBudgetStatusConfig(rows) {
   if (!Array.isArray(rows)) return DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status }));
   const seen = new Set();
-  const legacyBudgetStatusName = ["Novo", " Orçamento"].join("");
+  const legacyBudgetStatusNames = new Set([
+    ["Novo", " ", "Orçamento"].join(""),
+    ["Novo", " ", "Orcamento"].join(""),
+    ["Novo", " ", "Orçamento", " "].join(""),
+    ["Novo", " ", "Orcamento", " "].join(""),
+  ]);
   const normalized = rows.map((row) => {
     const legacyName = String(row?.name || "").trim();
-    const name = legacyName === legacyBudgetStatusName ? "Novo" : legacyName;
+    const name = legacyBudgetStatusNames.has(legacyName) ? "Novo" : legacyName;
     return { name, budget: Boolean(row?.budget), order: Boolean(row?.order) };
   })
     .filter((row) => {
@@ -598,8 +614,25 @@ function normalizeClientStatus(client) {
   };
 }
 
+function normalizeClientBudgetStatus(client) {
+  if (!client || typeof client !== "object") return client;
+  const budget = client.budget && typeof client.budget === "object" ? { ...client.budget, status: normalizeBudgetStatusValue(client.budget.status, DEFAULT_STATUS) } : client.budget;
+  const budgets = Array.isArray(client.budgets)
+    ? client.budgets.map((savedBudget) => ({
+        ...savedBudget,
+        status: normalizeBudgetStatusValue(savedBudget?.status, DEFAULT_STATUS),
+      }))
+    : client.budgets;
+
+  return {
+    ...client,
+    budget,
+    budgets,
+  };
+}
+
 function normalizeClients(clients) {
-  return clients.map(normalizeClientStatus);
+  return clients.map((client) => normalizeClientBudgetStatus(normalizeClientStatus(client)));
 }
 
 function showAuthScreen(message = "") {
@@ -1312,6 +1345,7 @@ async function deleteRemoteClient(clientId) {
 // banco apenas esses registros (nunca o array inteiro em memoria), para que uma sessao com
 // dados desatualizados de OUTROS clientes nunca sobrescreva o que outra sessao salvou.
 async function saveClients(changedIds = []) {
+  state.clients = state.clients.map((client) => normalizeClientBudgetStatus(normalizeClientStatus(client)));
   localStorage.setItem(userStorageKey(), JSON.stringify(state.clients));
   if (!remoteDatabaseEnabled() || !currentUserId() || !changedIds.length) return true;
 
@@ -2403,10 +2437,11 @@ function defaultBudgetRows(client) {
 function clientBudget(client) {
   const saved = client?.budget || {};
   const rows = Array.isArray(saved.rows) && saved.rows.length ? saved.rows : defaultBudgetRows(client);
+  const status = normalizeBudgetStatusValue(saved.status, BUDGET_STATUS[0] || DEFAULT_STATUS);
   return {
     id: saved.id || saved.code || "",
     code: saved.code || (saved.updatedAt ? fallbackBudgetCode(client) : ""),
-    status: configuredDocumentStatuses().includes(saved.status) ? saved.status : BUDGET_STATUS[0],
+    status,
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     saleAt: saved.saleAt || "",
     nobiliaId: saved.nobiliaId || "",
@@ -2492,6 +2527,7 @@ function clientBudgetHistory(client) {
       ...budget,
       id: budgetIdentity(budget) || `budget-${budgets.length + 1}`,
       createdAt: budget.createdAt || budget.updatedAt,
+      status: normalizeBudgetStatusValue(budget.status, BUDGET_STATUS[0] || DEFAULT_STATUS),
       settings: normalizeBudgetSettings(budget.settings, budget.rows || []),
     };
     const identity = budgetIdentity(normalized);

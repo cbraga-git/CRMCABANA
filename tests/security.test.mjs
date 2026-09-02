@@ -68,6 +68,11 @@ test("status padrao de orcamento usa Novo e aparece imediatamente apos Todos", (
   assert.match(app, /\[\s*"Todos"\s*,\s*\.\.\.documentStatuses\s*\]|\[\s*"Todos"\s*,\s*\.\.\./);
 });
 
+test("status legado de orcamento e pedido sao migrados para os nomes atuais", () => {
+  assert.match(app, /function\s+normalizeBudgetStatusValue\s*\(/);
+  assert.doesNotMatch(app, /Novo\s+Orçamento/);
+});
+
 test("actions do deploy usam commits imutaveis", () => {
   const actionRefs = [...workflow.matchAll(/uses:\s+[^@\s]+@([^\s]+)/g)].map((match) => match[1]);
   assert.ok(actionRefs.length >= 3);
