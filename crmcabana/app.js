@@ -5380,8 +5380,10 @@ async function startApp() {
     return false;
   }
   showAuthenticatedApp();
-  state.clients = await loadClients();
+  // Os orcamentos podem usar status personalizados. Carregue a configuracao antes
+  // dos clientes para que a normalizacao nao substitua um status valido por "Novo".
   await loadBudgetStatuses();
+  state.clients = await loadClients();
   if (isAdmin()) {
     try {
       await loadUserProfiles();

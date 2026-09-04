@@ -73,6 +73,11 @@ test("status legado de orcamento e pedido sao migrados para os nomes atuais", ()
   assert.doesNotMatch(app, /Novo\s+Orçamento/);
 });
 
+test("status de orcamento sao carregados antes dos clientes", () => {
+  const startApp = app.match(/async function startApp\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  assert.ok(startApp.indexOf("await loadBudgetStatuses()") < startApp.indexOf("state.clients = await loadClients()"));
+});
+
 test("actions do deploy usam commits imutaveis", () => {
   const actionRefs = [...workflow.matchAll(/uses:\s+[^@\s]+@([^\s]+)/g)].map((match) => match[1]);
   assert.ok(actionRefs.length >= 3);
