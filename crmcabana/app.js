@@ -1702,6 +1702,7 @@ async function submitFinancialCategory(event) {
       checkedIds.add(targetItemId);
       checkedIds.forEach((id) => { const checkbox = elements.financialStatementItemRows.querySelector(`[data-statement-select="${id}"]`); if (checkbox) checkbox.checked = true; });
       selectedCategories.forEach((value, id) => { const select = elements.financialStatementItemRows.querySelector(`[data-statement-category="${id}"]`); if (select && value !== "__new__") select.value = value; });
+      elements.financialStatementItemRows.querySelectorAll("[data-statement-category]").forEach(syncStatementTransferField);
       const targetSelect = elements.financialStatementItemRows.querySelector(`[data-statement-category="${targetItemId}"]`);
       if (targetSelect && saved?.id) targetSelect.value = saved.id;
       state.financialCategoryTargetItemId = null;
@@ -1814,12 +1815,16 @@ async function openFinancialImport(importId) {
 
 function statementCategoryOptions(item) {
   const expectedType = Number(item.amount) >= 0 ? "income" : "expense";
-  return '<option value="">Selecione</option>' + state.financialCategories.filter((category) => category.active && (category.category_type === expectedType || category.category_type === "both")).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("") + '<option value="__new__">+ Criar nova categoria...</option>';
+  return '<option value="">Selecione</option><option value="__transfer__">Transferência entre contas</option>' + state.financialCategories.filter((category) => category.active && (category.category_type === expectedType || category.category_type === "both")).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("") + '<option value="__new__">+ Criar nova categoria...</option>';
+}
+
+function statementTransferAccountOptions(item) {
+  return '<option value="">Selecione a outra conta</option>' + state.financialAccounts.filter((account) => account.active && account.id !== item.account_id).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join("");
 }
 
 function renderFinancialStatementItems() {
   const statusLabels = { pending: "Pendente", reconciled: "Confirmado", ignored: "Ignorado" };
-  elements.financialStatementItemRows.innerHTML = state.financialStatementItems.length ? state.financialStatementItems.map((item) => { const pending = item.reconciliation_status === "pending"; return `<tr><td><input type="checkbox" data-statement-select="${item.id}" ${pending ? "" : "disabled"} aria-label="Selecionar lançamento" /></td><td>${formatFinancialDate(item.transaction_date)}</td><td><strong>${escapeHtml(item.description)}</strong></td><td class="${Number(item.amount) >= 0 ? "financial-positive" : "financial-negative"}">${BRL.format(Number(item.amount))}</td><td>${item.balance == null ? "—" : BRL.format(Number(item.balance))}</td><td>${pending ? `<select data-statement-category="${item.id}">${statementCategoryOptions(item)}</select>` : "—"}</td><td><span class="financial-status ${item.reconciliation_status}">${statusLabels[item.reconciliation_status] || item.reconciliation_status}</span></td></tr>`; }).join("") : '<tr><td colspan="7" class="empty-table-cell">O arquivo não possui lançamentos.</td></tr>';
+  elements.financialStatementItemRows.innerHTML = state.financialStatementItems.length ? state.financialStatementItems.map((item) => { const pending = item.reconciliation_status === "pending"; return `<tr><td><input type="checkbox" data-statement-select="${item.id}" ${pending ? "" : "disabled"} aria-label="Selecionar lançamento" /></td><td>${formatFinancialDate(item.transaction_date)}</td><td><strong>${escapeHtml(item.description)}</strong></td><td class="${Number(item.amount) >= 0 ? "financial-positive" : "financial-negative"}">${BRL.format(Number(item.amount))}</td><td>${item.balance == null ? "—" : BRL.format(Number(item.balance))}</td><td>${pending ? `<select data-statement-category="${item.id}">${statementCategoryOptions(item)}</select><select class="statement-transfer-account" data-statement-transfer-account="${item.id}" hidden>${statementTransferAccountOptions(item)}</select>` : "—"}</td><td><span class="financial-status ${item.reconciliation_status}">${statusLabels[item.reconciliation_status] || item.reconciliation_status}</span></td></tr>`; }).join("") : '<tr><td colspan="7" class="empty-table-cell">O arquivo não possui lançamentos.</td></tr>';
   const selectAll = document.querySelector("#selectAllStatementItems"); if (selectAll) selectAll.checked = false;
 }
 
@@ -1840,9 +1845,14 @@ async function ignoreSelectedStatementItems() {
 
 async function confirmSelectedStatementItems() {
   const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
-  const selections = items.map((item) => ({ item, categoryId: elements.financialStatementItemRows.querySelector(`[data-statement-category="${item.id}"]`)?.value || "" }));
-  if (selections.some(({ categoryId }) => !categoryId)) return alert("Selecione a categoria de todos os lançamentos marcados.");
-  const entries = selections.map(({ item, categoryId }) => ({ id: createId(), entry_type: Number(item.amount) >= 0 ? "income" : "expense", status: "paid", account_id: item.account_id, category_id: categoryId, description: item.description, amount: Math.abs(Number(item.amount)), issue_date: item.transaction_date, competence_date: item.transaction_date, due_date: item.transaction_date, paid_at: `${item.transaction_date}T12:00:00.000Z`, source_type: "statement" }));
+  const selections = items.map((item) => ({ item, categoryId: elements.financialStatementItemRows.querySelector(`[data-statement-category="${item.id}"]`)?.value || "", transferAccountId: elements.financialStatementItemRows.querySelector(`[data-statement-transfer-account="${item.id}"]`)?.value || "" }));
+  if (selections.some(({ categoryId }) => !categoryId || categoryId === "__new__")) return alert("Selecione a categoria de todos os lançamentos marcados.");
+  if (selections.some(({ categoryId, transferAccountId }) => categoryId === "__transfer__" && !transferAccountId)) return alert("Selecione a outra conta em todas as transferências marcadas.");
+  const entries = selections.map(({ item, categoryId, transferAccountId }) => {
+    const transfer = categoryId === "__transfer__";
+    const incoming = Number(item.amount) >= 0;
+    return { id: createId(), entry_type: transfer ? "transfer" : incoming ? "income" : "expense", status: "paid", account_id: transfer && incoming ? transferAccountId : item.account_id, transfer_account_id: transfer ? (incoming ? item.account_id : transferAccountId) : null, category_id: transfer ? null : categoryId, description: item.description, amount: Math.abs(Number(item.amount)), issue_date: item.transaction_date, competence_date: item.transaction_date, due_date: item.transaction_date, paid_at: `${item.transaction_date}T12:00:00.000Z`, source_type: "statement" };
+  });
   try {
     const entryResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(entries) }));
     if (!entryResponse.ok) throw new Error("Não foi possível criar as transações do extrato.");
@@ -5497,7 +5507,9 @@ elements.financialStatementFile?.addEventListener("change", async (event) => {
 });
 elements.financialStatementItemRows?.addEventListener("change", (event) => {
   const select = event.target.closest("[data-statement-category]");
-  if (!select || select.value !== "__new__") return;
+  if (!select) return;
+  syncStatementTransferField(select);
+  if (select.value !== "__new__") return;
   const item = state.financialStatementItems.find((candidate) => candidate.id === select.dataset.statementCategory);
   select.value = "";
   state.financialCategoryTargetItemId = item?.id || null;
@@ -5505,6 +5517,14 @@ elements.financialStatementItemRows?.addEventListener("change", (event) => {
   document.querySelector("#financialCategoryType").value = Number(item?.amount) >= 0 ? "income" : "expense";
   document.querySelector("#financialCategoryName").focus();
 });
+
+function syncStatementTransferField(select) {
+  const transferSelect = elements.financialStatementItemRows.querySelector(`[data-statement-transfer-account="${select.dataset.statementCategory}"]`);
+  if (transferSelect) {
+    transferSelect.hidden = select.value !== "__transfer__";
+    transferSelect.required = select.value === "__transfer__";
+  }
+}
 
 document.querySelectorAll("#clientsView th[data-sort], #budgetListCard th[data-sort]").forEach((header) => {
   const type = header.closest("#budgetListCard") ? "budget" : "clients";

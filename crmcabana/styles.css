@@ -822,6 +822,7 @@ button:focus-visible {
 .financial-import-detail > header p { margin-top: 4px; color: var(--muted); font-size: 12px; }
 .financial-import-detail > header > div:last-child { display: flex; gap: 8px; }
 .financial-import-detail select { min-width: 170px; min-height: 34px; }
+.financial-import-detail .statement-transfer-account { display: block; margin-top: 6px; }
 .financial-positive { color: #14733a; font-weight: 800; }
 .financial-negative { color: #a51d3e; font-weight: 800; }
 .financial-status.reconciled { color: #126a36; background: #d8f4e2; }
