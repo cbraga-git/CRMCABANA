@@ -51,6 +51,10 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /supabaseTableEndpoint\("crm_financial_categories"/);
   assert.match(app, /function submitFinancialAccount/);
   assert.match(app, /function submitFinancialCategory/);
+  assert.match(app, /function submitFinancialEntry/);
+  assert.match(app, /function importFinancialStatement/);
+  assert.match(app, /crm_financial_statement_imports/);
+  assert.match(html, /data-delete-financial-entry|id="financialEntryDialog"/);
 });
 
 test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {

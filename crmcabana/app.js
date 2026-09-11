@@ -196,6 +196,9 @@ const state = {
   financialCategories: [],
   financialEditingAccountId: null,
   financialEditingCategoryId: null,
+  financialEntries: [],
+  financialImports: [],
+  financialEditingEntryId: null,
 };
 
 const elements = {
@@ -249,6 +252,13 @@ const elements = {
   financialAccountForm: document.querySelector("#financialAccountForm"),
   financialCategoryDialog: document.querySelector("#financialCategoryDialog"),
   financialCategoryForm: document.querySelector("#financialCategoryForm"),
+  financialEntriesPanel: document.querySelector("#financialEntriesPanel"),
+  financialEntryRows: document.querySelector("#financialEntryRows"),
+  financialEntryDialog: document.querySelector("#financialEntryDialog"),
+  financialEntryForm: document.querySelector("#financialEntryForm"),
+  financialImportPanel: document.querySelector("#financialImportPanel"),
+  financialImportRows: document.querySelector("#financialImportRows"),
+  financialStatementFile: document.querySelector("#financialStatementFile"),
   clientsHeader: document.querySelector("#clientsHeader"),
   clientsDashboardFilters: document.querySelector("#clientsDashboardFilters"),
   clientsDashboardStats: document.querySelector("#clientsDashboardStats"),
@@ -1565,12 +1575,18 @@ function renderFinanceModuleView(view) {
   if (emptyTextElement) emptyTextElement.textContent = emptyText;
   const showingAccounts = view === "financeAccounts";
   const showingCategories = view === "financeCategories";
+  const showingEntries = ["financeTransactions", "financePayable", "financeReceivable"].includes(view);
+  const showingImport = view === "financeImport";
   if (elements.financialAccountsPanel) elements.financialAccountsPanel.hidden = !showingAccounts;
   if (elements.financialCategoriesPanel) elements.financialCategoriesPanel.hidden = !showingCategories;
-  if (elements.financialModuleEmpty) elements.financialModuleEmpty.hidden = showingAccounts || showingCategories;
+  if (elements.financialEntriesPanel) elements.financialEntriesPanel.hidden = !showingEntries;
+  if (elements.financialImportPanel) elements.financialImportPanel.hidden = !showingImport;
+  if (elements.financialModuleEmpty) elements.financialModuleEmpty.hidden = showingAccounts || showingCategories || showingEntries || showingImport;
   if (elements.financialModuleStats) elements.financialModuleStats.hidden = view !== "financeOverview";
   if (showingAccounts) renderFinancialAccounts();
   if (showingCategories) renderFinancialCategories();
+  if (showingEntries) renderFinancialEntries(view);
+  if (showingImport) renderFinancialImports();
   if (elements.financialSubmenu?.hidden) {
     elements.financialSubmenu.hidden = false;
     elements.financialNavToggle?.setAttribute("aria-expanded", "true");
@@ -1582,25 +1598,29 @@ const FINANCIAL_CATEGORY_TYPES = { income: "Receita", expense: "Despesa", both: 
 
 async function loadFinancialRegisters() {
   if (!remoteDatabaseEnabled() || !currentUserId() || !isAdmin()) return;
-  const [accountsResponse, categoriesResponse] = await Promise.all([
+  const [accountsResponse, categoriesResponse, entriesResponse, importsResponse] = await Promise.all([
     authorizedFetch(supabaseTableEndpoint("crm_financial_accounts", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
     authorizedFetch(supabaseTableEndpoint("crm_financial_categories", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
+    authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?select=*&order=competence_date.desc,created_at.desc"), () => ({ headers: supabaseHeaders() })),
+    authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", "?select=*&order=created_at.desc"), () => ({ headers: supabaseHeaders() })),
   ]);
-  if (!accountsResponse.ok || !categoriesResponse.ok) throw new Error("Não foi possível carregar contas e categorias financeiras.");
+  if (!accountsResponse.ok || !categoriesResponse.ok || !entriesResponse.ok || !importsResponse.ok) throw new Error("Não foi possível carregar os dados financeiros. Confirme se o script do Supabase foi executado.");
   state.financialAccounts = await accountsResponse.json();
   state.financialCategories = await categoriesResponse.json();
+  state.financialEntries = await entriesResponse.json();
+  state.financialImports = await importsResponse.json();
 }
 
 function renderFinancialAccounts() {
   if (!elements.financialAccountRows) return;
-  elements.financialAccountRows.innerHTML = state.financialAccounts.length ? state.financialAccounts.map((account) => `<tr><td><strong>${escapeHtml(account.name)}</strong></td><td>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</td><td>${escapeHtml(account.institution || "—")}</td><td>${BRL.format(Number(account.initial_balance) || 0)}</td><td><span class="financial-status ${account.active ? "active" : "inactive"}">${account.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-account="${account.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-account="${account.id}">${account.active ? "Inativar" : "Ativar"}</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhuma conta cadastrada.</td></tr>';
+  elements.financialAccountRows.innerHTML = state.financialAccounts.length ? state.financialAccounts.map((account) => `<tr><td><strong>${escapeHtml(account.name)}</strong></td><td>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</td><td>${escapeHtml(account.institution || "—")}</td><td>${BRL.format(Number(account.initial_balance) || 0)}</td><td><span class="financial-status ${account.active ? "active" : "inactive"}">${account.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-account="${account.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-account="${account.id}">${account.active ? "Inativar" : "Ativar"}</button> <button class="link-button danger" type="button" data-delete-financial-account="${account.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhuma conta cadastrada.</td></tr>';
 }
 
 function renderFinancialCategories() {
   if (!elements.financialCategoryRows) return;
   const byId = new Map(state.financialCategories.map((category) => [category.id, category.name]));
   const safeColor = (value) => /^#[0-9a-f]{6}$/i.test(value || "") ? value : "#aa8e34";
-  elements.financialCategoryRows.innerHTML = state.financialCategories.length ? state.financialCategories.map((category) => `<tr><td><span class="financial-color" style="background:${safeColor(category.color)}"></span><strong>${escapeHtml(category.name)}</strong></td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[category.category_type] || category.category_type)}</td><td>${escapeHtml(byId.get(category.parent_id) || "—")}</td><td><span class="financial-status ${category.active ? "active" : "inactive"}">${category.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-category="${category.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-category="${category.id}">${category.active ? "Inativar" : "Ativar"}</button></td></tr>`).join("") : '<tr><td colspan="5" class="empty-table-cell">Nenhuma categoria cadastrada.</td></tr>';
+  elements.financialCategoryRows.innerHTML = state.financialCategories.length ? state.financialCategories.map((category) => `<tr><td><span class="financial-color" style="background:${safeColor(category.color)}"></span><strong>${escapeHtml(category.name)}</strong></td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[category.category_type] || category.category_type)}</td><td>${escapeHtml(byId.get(category.parent_id) || "—")}</td><td><span class="financial-status ${category.active ? "active" : "inactive"}">${category.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-category="${category.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-category="${category.id}">${category.active ? "Inativar" : "Ativar"}</button> <button class="link-button danger" type="button" data-delete-financial-category="${category.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="5" class="empty-table-cell">Nenhuma categoria cadastrada.</td></tr>';
 }
 
 function syncFinancialCreditCardFields() {
@@ -1667,6 +1687,131 @@ async function submitFinancialCategory(event) {
 
 async function toggleFinancialRecord(table, id, active, renderFunction) {
   try { await saveFinancialRecord(table, id, { active }); await loadFinancialRegisters(); renderFunction(); } catch (error) { alert(error.message); }
+}
+
+async function deleteFinancialRecord(table, id, label) {
+  if (!confirm(`Excluir ${label}? Esta ação não poderá ser desfeita.`)) return false;
+  const response = await authorizedFetch(supabaseTableEndpoint(table, `?id=eq.${encodeURIComponent(id)}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+  if (!response.ok) {
+    const details = await response.json().catch(() => null);
+    throw new Error(details?.code === "23503" ? "Este registro está em uso e não pode ser excluído. Inative-o em vez disso." : details?.message || "Não foi possível excluir o registro.");
+  }
+  await loadFinancialRegisters();
+  return true;
+}
+
+function financialEntryViewType(view = state.view) {
+  return view === "financePayable" ? "expense" : view === "financeReceivable" ? "income" : null;
+}
+
+function formatFinancialDate(value) {
+  if (!value) return "—";
+  const dateOnly = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("pt-BR");
+}
+
+function renderFinancialEntries(view = state.view) {
+  const filterType = financialEntryViewType(view);
+  const entries = filterType ? state.financialEntries.filter((entry) => entry.entry_type === filterType) : state.financialEntries;
+  const accounts = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
+  const title = document.querySelector("#financialEntriesTitle");
+  if (title) title.textContent = filterType === "expense" ? "Contas a pagar" : filterType === "income" ? "Contas a receber" : "Transações";
+  elements.financialEntryRows.innerHTML = entries.length ? entries.map((entry) => `<tr><td><strong>${escapeHtml(entry.description)}</strong></td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[entry.entry_type] || (entry.entry_type === "transfer" ? "Transferência" : entry.entry_type))}</td><td>${escapeHtml(accounts.get(entry.account_id) || "—")}</td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${BRL.format(Number(entry.amount) || 0)}</td><td>${escapeHtml({ pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status)}</td><td><button class="link-button" type="button" data-edit-financial-entry="${entry.id}">Editar</button> <button class="link-button danger" type="button" data-delete-financial-entry="${entry.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento cadastrado.</td></tr>';
+}
+
+function fillFinancialEntryOptions() {
+  const accountOptions = state.financialAccounts.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
+  document.querySelector("#financialEntryAccount").innerHTML = accountOptions;
+  document.querySelector("#financialEntryTransferAccount").innerHTML = accountOptions;
+  document.querySelector("#financialEntryCategory").innerHTML = '<option value="">Sem categoria</option>' + state.financialCategories.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
+}
+
+function syncFinancialEntryTypeFields() {
+  const transfer = document.querySelector("#financialEntryType").value === "transfer";
+  document.querySelector("#financialEntryTransferField").hidden = !transfer;
+  document.querySelector("#financialEntryCategoryField").hidden = transfer;
+  document.querySelector("#financialEntryTransferAccount").required = transfer;
+}
+
+function openFinancialEntryDialog(entryId = null) {
+  if (!state.financialAccounts.some((item) => item.active)) { alert("Cadastre uma conta ativa antes de criar lançamentos."); return; }
+  const entry = state.financialEntries.find((item) => item.id === entryId);
+  state.financialEditingEntryId = entry?.id || null;
+  elements.financialEntryForm.reset();
+  fillFinancialEntryOptions();
+  const today = new Date().toISOString().slice(0, 10);
+  document.querySelector("#financialEntryDialogTitle").textContent = entry ? "Editar lançamento" : "Novo lançamento";
+  document.querySelector("#financialEntryType").value = entry?.entry_type || financialEntryViewType() || "expense";
+  document.querySelector("#financialEntryStatus").value = entry?.status === "overdue" ? "pending" : entry?.status || "pending";
+  document.querySelector("#financialEntryDescription").value = entry?.description || "";
+  document.querySelector("#financialEntryAmount").value = entry?.amount || "";
+  document.querySelector("#financialEntryAccount").value = entry?.account_id || state.financialAccounts.find((item) => item.active)?.id || "";
+  document.querySelector("#financialEntryTransferAccount").value = entry?.transfer_account_id || "";
+  document.querySelector("#financialEntryCategory").value = entry?.category_id || "";
+  document.querySelector("#financialEntryIssueDate").value = entry?.issue_date || today;
+  document.querySelector("#financialEntryCompetenceDate").value = entry?.competence_date || today;
+  document.querySelector("#financialEntryDueDate").value = entry?.due_date || "";
+  document.querySelector("#financialEntryNotes").value = entry?.notes || "";
+  syncFinancialEntryTypeFields();
+  elements.financialEntryDialog.showModal();
+}
+
+async function submitFinancialEntry(event) {
+  event.preventDefault();
+  const type = document.querySelector("#financialEntryType").value;
+  const status = document.querySelector("#financialEntryStatus").value;
+  const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: document.querySelector("#financialEntryDescription").value.trim(), amount: Number(document.querySelector("#financialEntryAmount").value), issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: document.querySelector("#financialEntryNotes").value.trim() || null };
+  if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
+  try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, payload); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
+}
+
+function renderFinancialImports() {
+  const accounts = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
+  const select = document.querySelector("#financialImportAccount");
+  const selected = select.value;
+  select.innerHTML = '<option value="">Selecione uma conta</option>' + state.financialAccounts.filter((item) => item.active && item.account_type !== "credit_card").map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
+  if (selected) select.value = selected;
+  elements.financialImportRows.innerHTML = state.financialImports.length ? state.financialImports.map((item) => `<tr><td>${escapeHtml(item.file_name)}</td><td>${escapeHtml(accounts.get(item.account_id) || "—")}</td><td>${escapeHtml(item.file_type.toUpperCase())}</td><td>${item.item_count}</td><td>${escapeHtml(formatFinancialDate(item.created_at))}</td><td><button class="link-button danger" type="button" data-delete-financial-import="${item.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhum extrato importado.</td></tr>';
+}
+
+function parseCsvLine(line, delimiter) {
+  const values = []; let value = ""; let quoted = false;
+  for (let i = 0; i < line.length; i += 1) { const char = line[i]; if (char === '"' && line[i + 1] === '"' && quoted) { value += '"'; i += 1; } else if (char === '"') quoted = !quoted; else if (char === delimiter && !quoted) { values.push(value.trim()); value = ""; } else value += char; }
+  values.push(value.trim()); return values;
+}
+
+function normalizeStatementDate(value) {
+  const text = String(value || "").trim();
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/); if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = text.match(/^(\d{4})-?(\d{2})-?(\d{2})/); return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : null;
+}
+
+function parseStatementFile(text, extension) {
+  if (extension === "ofx") return Array.from(text.matchAll(/<STMTTRN>([\s\S]*?)(?:<\/STMTTRN>|(?=<STMTTRN>))/gi)).map((match) => { const block = match[1]; const get = (tag) => block.match(new RegExp(`<${tag}>([^<\\r\\n]+)`, "i"))?.[1]?.trim() || ""; return { date: normalizeStatementDate(get("DTPOSTED")), amount: Number(get("TRNAMT").replace(",", ".")), description: get("MEMO") || get("NAME") || "Lançamento importado", externalId: get("FITID") || null }; }).filter((item) => item.date && item.amount);
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim()); if (lines.length < 2) throw new Error("O CSV não contém lançamentos.");
+  const delimiter = lines[0].includes(";") ? ";" : ","; const headers = parseCsvLine(lines[0], delimiter).map((item) => item.toLowerCase());
+  const find = (...names) => headers.findIndex((header) => names.some((name) => header.includes(name)));
+  const dateIndex = find("data", "date"); const descriptionIndex = find("descr", "hist", "memo"); const amountIndex = find("valor", "amount");
+  if ([dateIndex, descriptionIndex, amountIndex].some((index) => index < 0)) throw new Error("O CSV precisa ter colunas de data, descrição e valor.");
+  return lines.slice(1).map((line) => { const row = parseCsvLine(line, delimiter); const rawAmount = row[amountIndex].replace(/[^0-9,.-]/g, ""); const amount = delimiter === ";" ? Number(rawAmount.replace(/\./g, "").replace(",", ".")) : Number(rawAmount); return { date: normalizeStatementDate(row[dateIndex]), description: row[descriptionIndex] || "Lançamento importado", amount, externalId: null }; }).filter((item) => item.date && item.amount);
+}
+
+async function sha256(value) { const data = new TextEncoder().encode(value); const hash = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
+
+async function importFinancialStatement(file) {
+  const accountId = document.querySelector("#financialImportAccount").value;
+  if (!accountId) throw new Error("Selecione a conta antes do arquivo.");
+  const extension = file.name.split(".").pop().toLowerCase(); if (!["ofx", "csv"].includes(extension)) throw new Error("Use um arquivo OFX ou CSV.");
+  const text = await file.text(); const items = parseStatementFile(text, extension); if (!items.length) throw new Error("Nenhum lançamento válido foi encontrado.");
+  const fileHash = await sha256(text); const importResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports"), () => ({ method: "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify({ account_id: accountId, file_name: file.name, file_type: extension, file_hash: fileHash, period_start: items.map((item) => item.date).sort()[0], period_end: items.map((item) => item.date).sort().at(-1), item_count: items.length, status: "completed", completed_at: new Date().toISOString() }) }));
+  if (!importResponse.ok) { const details = await importResponse.json().catch(() => null); throw new Error(details?.code === "23505" ? "Este extrato já foi importado para essa conta." : details?.message || "Não foi possível registrar a importação."); }
+  const importRow = (await importResponse.json())[0];
+  const rows = await Promise.all(items.map(async (item, index) => ({ import_id: importRow.id, account_id: accountId, external_id: item.externalId, transaction_date: item.date, description: item.description.slice(0, 500), amount: item.amount, fingerprint: await sha256(`${accountId}|${item.externalId || ""}|${item.date}|${item.amount}|${item.description}|${index}`), raw_data: item })));
+  const itemResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(rows) }));
+  if (!itemResponse.ok) { await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", `?id=eq.${importRow.id}`), () => ({ method: "DELETE", headers: supabaseHeaders() })); throw new Error("Não foi possível salvar os itens do extrato."); }
+  await loadFinancialRegisters(); renderFinancialImports();
 }
 
 function setStatusFilter(group, status) {
@@ -5185,7 +5330,7 @@ elements.navItems.forEach((item) => {
         alert(error.message || "Nao foi possivel carregar os usuarios.");
       }
     }
-    if ((item.dataset.view === "financeAccounts" || item.dataset.view === "financeCategories") && isAdmin()) {
+    if (isFinanceModuleView(item.dataset.view) && isAdmin()) {
       try {
         await loadFinancialRegisters();
       } catch (error) {
@@ -5200,26 +5345,50 @@ elements.navItems.forEach((item) => {
 document.querySelector("#newFinancialAccountBtn")?.addEventListener("click", () => openFinancialAccountDialog());
 document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", () => openFinancialCategoryDialog());
 document.querySelector("#financialAccountType")?.addEventListener("change", syncFinancialCreditCardFields);
+document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
-document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => button.addEventListener("click", () => button.dataset.closeFinancialDialog === "account" ? elements.financialAccountDialog.close() : elements.financialCategoryDialog.close()));
+elements.financialEntryForm?.addEventListener("submit", submitFinancialEntry);
+document.querySelector("#newFinancialEntryBtn")?.addEventListener("click", () => openFinancialEntryDialog());
+document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => button.addEventListener("click", () => ({ account: elements.financialAccountDialog, category: elements.financialCategoryDialog, entry: elements.financialEntryDialog }[button.dataset.closeFinancialDialog]?.close())));
 elements.financialAccountRows?.addEventListener("click", (event) => {
   const edit = event.target.closest("[data-edit-financial-account]");
   const toggle = event.target.closest("[data-toggle-financial-account]");
+  const remove = event.target.closest("[data-delete-financial-account]");
   if (edit) openFinancialAccountDialog(edit.dataset.editFinancialAccount);
   if (toggle) {
     const account = state.financialAccounts.find((item) => item.id === toggle.dataset.toggleFinancialAccount);
     if (account) toggleFinancialRecord("crm_financial_accounts", account.id, !account.active, renderFinancialAccounts);
   }
+  if (remove) deleteFinancialRecord("crm_financial_accounts", remove.dataset.deleteFinancialAccount, "esta conta").then((deleted) => { if (deleted) renderFinancialAccounts(); }).catch((error) => alert(error.message));
 });
 elements.financialCategoryRows?.addEventListener("click", (event) => {
   const edit = event.target.closest("[data-edit-financial-category]");
   const toggle = event.target.closest("[data-toggle-financial-category]");
+  const remove = event.target.closest("[data-delete-financial-category]");
   if (edit) openFinancialCategoryDialog(edit.dataset.editFinancialCategory);
   if (toggle) {
     const category = state.financialCategories.find((item) => item.id === toggle.dataset.toggleFinancialCategory);
     if (category) toggleFinancialRecord("crm_financial_categories", category.id, !category.active, renderFinancialCategories);
   }
+  if (remove) deleteFinancialRecord("crm_financial_categories", remove.dataset.deleteFinancialCategory, "esta categoria").then((deleted) => { if (deleted) renderFinancialCategories(); }).catch((error) => alert(error.message));
+});
+elements.financialEntryRows?.addEventListener("click", (event) => {
+  const edit = event.target.closest("[data-edit-financial-entry]");
+  const remove = event.target.closest("[data-delete-financial-entry]");
+  if (edit) openFinancialEntryDialog(edit.dataset.editFinancialEntry);
+  if (remove) deleteFinancialRecord("crm_financial_entries", remove.dataset.deleteFinancialEntry, "este lançamento").then((deleted) => { if (deleted) renderFinancialEntries(); }).catch((error) => alert(error.message));
+});
+elements.financialImportRows?.addEventListener("click", (event) => {
+  const remove = event.target.closest("[data-delete-financial-import]");
+  if (remove) deleteFinancialRecord("crm_financial_statement_imports", remove.dataset.deleteFinancialImport, "esta importação e todos os seus itens").then((deleted) => { if (deleted) renderFinancialImports(); }).catch((error) => alert(error.message));
+});
+elements.financialStatementFile?.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const message = document.querySelector("#financialImportMessage");
+  message.textContent = "Importando...";
+  try { await importFinancialStatement(file); message.textContent = `${file.name} importado com sucesso.`; } catch (error) { message.textContent = error.message; alert(error.message); } finally { event.target.value = ""; }
 });
 
 document.querySelectorAll("#clientsView th[data-sort], #budgetListCard th[data-sort]").forEach((header) => {

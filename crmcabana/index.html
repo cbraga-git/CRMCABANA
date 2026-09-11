@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="referrer" content="no-referrer" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=101" />
+    <link rel="stylesheet" href="styles.css?v=102" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -587,6 +587,17 @@
             <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Categoria principal</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialCategoryRows"></tbody></table></div>
           </section>
 
+          <section class="financial-register" id="financialEntriesPanel" hidden>
+            <header><div><h2 id="financialEntriesTitle">Lançamentos</h2><p>Receitas, despesas e transferências financeiras.</p></div><button class="button primary" id="newFinancialEntryBtn" type="button">+ Novo lançamento</button></header>
+            <div class="table-wrap"><table><thead><tr><th>Descrição</th><th>Tipo</th><th>Conta</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
+          </section>
+
+          <section class="financial-register" id="financialImportPanel" hidden>
+            <header><div><h2>Importar extrato</h2><p>Selecione uma conta e um arquivo OFX ou CSV.</p></div><label class="button primary financial-file-button">Selecionar arquivo<input id="financialStatementFile" type="file" accept=".ofx,.csv,application/x-ofx,text/csv" hidden /></label></header>
+            <div class="financial-import-controls"><label>Conta *<select id="financialImportAccount"><option value="">Selecione uma conta</option></select></label><span id="financialImportMessage">Nenhum arquivo selecionado.</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Arquivo</th><th>Conta</th><th>Formato</th><th>Itens</th><th>Data</th><th>Ações</th></tr></thead><tbody id="financialImportRows"></tbody></table></div>
+          </section>
+
           <section class="financial-module-empty" aria-live="polite">
             <span class="financial-module-empty-icon" aria-hidden="true">$</span>
             <h2 id="financialModuleEmptyTitle">Módulo financeiro iniciado</h2>
@@ -839,6 +850,26 @@
       </form>
     </dialog>
 
+    <dialog id="financialEntryDialog">
+      <form method="dialog" id="financialEntryForm" class="dialog-card">
+        <header><h2 id="financialEntryDialogTitle">Novo lançamento</h2><button type="button" data-close-financial-dialog="entry">x</button></header>
+        <div class="dialog-grid">
+          <label>Tipo *<select id="financialEntryType"><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência</option></select></label>
+          <label>Status *<select id="financialEntryStatus"><option value="pending">Pendente</option><option value="paid">Pago/recebido</option><option value="cancelled">Cancelado</option></select></label>
+          <label>Descrição *<input id="financialEntryDescription" maxlength="240" required /></label>
+          <label>Valor *<input id="financialEntryAmount" type="number" min="0.01" step="0.01" required /></label>
+          <label>Conta *<select id="financialEntryAccount" required></select></label>
+          <label id="financialEntryTransferField" hidden>Conta de destino *<select id="financialEntryTransferAccount"></select></label>
+          <label id="financialEntryCategoryField">Categoria<select id="financialEntryCategory"><option value="">Sem categoria</option></select></label>
+          <label>Emissão<input id="financialEntryIssueDate" type="date" required /></label>
+          <label>Competência<input id="financialEntryCompetenceDate" type="date" required /></label>
+          <label>Vencimento<input id="financialEntryDueDate" type="date" /></label>
+          <label class="span-2">Observações<textarea id="financialEntryNotes" rows="3"></textarea></label>
+        </div>
+        <footer><button class="button secondary" type="button" data-close-financial-dialog="entry">Cancelar</button><button class="button primary" type="submit">Salvar</button></footer>
+      </form>
+    </dialog>
+
     <dialog id="clientDialog">
       <form method="dialog" id="clientForm" class="dialog-card">
         <header>
@@ -1003,6 +1034,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=126"></script>
+    <script src="app.js?v=127"></script>
   </body>
 </html>
