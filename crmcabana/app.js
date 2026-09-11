@@ -141,6 +141,22 @@ const DEFAULT_ENVIRONMENTS = [
 ];
 const CONFIG = window.CRM_CONFIG || {};
 
+const FINANCE_MODULE_VIEWS = {
+  financeOverview: ["Visão geral", "Acompanhe o fluxo financeiro da empresa.", "Módulo financeiro iniciado", "Cadastre contas e importe um extrato para começar."],
+  financeAccounts: ["Contas", "Organize contas bancárias, caixas e cartões.", "Nenhuma conta cadastrada", "As contas financeiras serão mantidas separadas dos cadastros atuais do CRM."],
+  financeTransactions: ["Transações", "Consulte receitas, despesas e transferências.", "Nenhuma transação registrada", "Os lançamentos poderão ser incluídos manualmente ou por importação de extrato."],
+  financePayable: ["Contas a pagar", "Controle compromissos, parcelas e vencimentos.", "Nenhuma conta a pagar", "Aqui ficarão as despesas pendentes, pagas e vencidas."],
+  financeReceivable: ["Contas a receber", "Controle recebimentos e inadimplência.", "Nenhuma conta a receber", "Futuramente, parcelas de vendas poderão ser vinculadas sem alterar os pedidos existentes."],
+  financeImport: ["Importar extrato", "Importe arquivos OFX ou CSV para conferência.", "Importação de extratos", "O fluxo terá pré-visualização, detecção de duplicidades, categorização e confirmação antes de gravar."],
+  financeCategories: ["Categorias", "Classifique receitas e despesas.", "Nenhuma categoria financeira", "Categorias e centros de custo terão cadastros próprios."],
+  financePlanning: ["Planejamento", "Projete receitas, despesas e saldo futuro.", "Planejamento financeiro", "Orçamentos mensais e lançamentos recorrentes serão exibidos aqui."],
+  financeReports: ["Relatórios", "Analise resultados por período, conta e categoria.", "Relatórios financeiros", "Os relatórios serão liberados quando houver lançamentos financeiros."],
+};
+
+function isFinanceModuleView(view) {
+  return Boolean(FINANCE_MODULE_VIEWS[view]);
+}
+
 const state = {
   session: null,
   userRole: "user",
@@ -176,6 +192,10 @@ const state = {
   clients: [],
   environments: [],
   budgetStatuses: DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status })),
+  financialAccounts: [],
+  financialCategories: [],
+  financialEditingAccountId: null,
+  financialEditingCategoryId: null,
 };
 
 const elements = {
@@ -219,6 +239,16 @@ const elements = {
   budgetEndDate: document.querySelector("#budgetEndDate"),
   financialStartDate: document.querySelector("#financialStartDate"),
   financialEndDate: document.querySelector("#financialEndDate"),
+  financialModuleStats: document.querySelector("#financialModuleStats"),
+  financialModuleEmpty: document.querySelector(".financial-module-empty"),
+  financialAccountsPanel: document.querySelector("#financialAccountsPanel"),
+  financialCategoriesPanel: document.querySelector("#financialCategoriesPanel"),
+  financialAccountRows: document.querySelector("#financialAccountRows"),
+  financialCategoryRows: document.querySelector("#financialCategoryRows"),
+  financialAccountDialog: document.querySelector("#financialAccountDialog"),
+  financialAccountForm: document.querySelector("#financialAccountForm"),
+  financialCategoryDialog: document.querySelector("#financialCategoryDialog"),
+  financialCategoryForm: document.querySelector("#financialCategoryForm"),
   clientsHeader: document.querySelector("#clientsHeader"),
   clientsDashboardFilters: document.querySelector("#clientsDashboardFilters"),
   clientsDashboardStats: document.querySelector("#clientsDashboardStats"),
@@ -1475,7 +1505,7 @@ function markProjectDirty() {
 }
 
 async function showView(view, selectedId) {
-  if ((view === "users" || view === "maintenance" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial") && !isAdmin()) {
+  if ((view === "users" || view === "maintenance" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial" || isFinanceModuleView(view)) && !isAdmin()) {
     alert("Acesso restrito a administradores.");
     view = "clients";
   }
@@ -1509,16 +1539,134 @@ async function showView(view, selectedId) {
   }
 
   elements.views.forEach((viewElement) => viewElement.classList.remove("active"));
-  const viewElementId = view === "order" ? "budgetView" : `${view}View`;
+  const viewElementId = view === "order" ? "budgetView" : isFinanceModuleView(view) ? "financialModuleView" : `${view}View`;
   document.querySelector(`#${viewElementId}`)?.classList.add("active");
 
   elements.navItems.forEach((item) => {
     item.classList.toggle("active", item.dataset.view === view);
   });
-  elements.financialNavGroup?.classList.toggle("active", view === "financial");
+  elements.financialNavGroup?.classList.toggle("active", view === "financial" || isFinanceModuleView(view));
+  if (isFinanceModuleView(view)) renderFinanceModuleView(view);
   if (view === "budget" || view === "order") refreshBudgetStatusSelect();
 
   render();
+}
+
+function renderFinanceModuleView(view) {
+  const content = FINANCE_MODULE_VIEWS[view] || FINANCE_MODULE_VIEWS.financeOverview;
+  const [title, description, emptyTitle, emptyText] = content;
+  const titleElement = document.querySelector("#financialModuleTitle");
+  const descriptionElement = document.querySelector("#financialModuleDescription");
+  const emptyTitleElement = document.querySelector("#financialModuleEmptyTitle");
+  const emptyTextElement = document.querySelector("#financialModuleEmptyText");
+  if (titleElement) titleElement.textContent = title;
+  if (descriptionElement) descriptionElement.textContent = description;
+  if (emptyTitleElement) emptyTitleElement.textContent = emptyTitle;
+  if (emptyTextElement) emptyTextElement.textContent = emptyText;
+  const showingAccounts = view === "financeAccounts";
+  const showingCategories = view === "financeCategories";
+  if (elements.financialAccountsPanel) elements.financialAccountsPanel.hidden = !showingAccounts;
+  if (elements.financialCategoriesPanel) elements.financialCategoriesPanel.hidden = !showingCategories;
+  if (elements.financialModuleEmpty) elements.financialModuleEmpty.hidden = showingAccounts || showingCategories;
+  if (elements.financialModuleStats) elements.financialModuleStats.hidden = view !== "financeOverview";
+  if (showingAccounts) renderFinancialAccounts();
+  if (showingCategories) renderFinancialCategories();
+  if (elements.financialSubmenu?.hidden) {
+    elements.financialSubmenu.hidden = false;
+    elements.financialNavToggle?.setAttribute("aria-expanded", "true");
+  }
+}
+
+const FINANCIAL_ACCOUNT_TYPES = { bank: "Conta bancária", cash: "Caixa", credit_card: "Cartão de crédito", investment: "Investimento", other: "Outra" };
+const FINANCIAL_CATEGORY_TYPES = { income: "Receita", expense: "Despesa", both: "Receita e despesa" };
+
+async function loadFinancialRegisters() {
+  if (!remoteDatabaseEnabled() || !currentUserId() || !isAdmin()) return;
+  const [accountsResponse, categoriesResponse] = await Promise.all([
+    authorizedFetch(supabaseTableEndpoint("crm_financial_accounts", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
+    authorizedFetch(supabaseTableEndpoint("crm_financial_categories", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
+  ]);
+  if (!accountsResponse.ok || !categoriesResponse.ok) throw new Error("Não foi possível carregar contas e categorias financeiras.");
+  state.financialAccounts = await accountsResponse.json();
+  state.financialCategories = await categoriesResponse.json();
+}
+
+function renderFinancialAccounts() {
+  if (!elements.financialAccountRows) return;
+  elements.financialAccountRows.innerHTML = state.financialAccounts.length ? state.financialAccounts.map((account) => `<tr><td><strong>${escapeHtml(account.name)}</strong></td><td>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</td><td>${escapeHtml(account.institution || "—")}</td><td>${BRL.format(Number(account.initial_balance) || 0)}</td><td><span class="financial-status ${account.active ? "active" : "inactive"}">${account.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-account="${account.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-account="${account.id}">${account.active ? "Inativar" : "Ativar"}</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhuma conta cadastrada.</td></tr>';
+}
+
+function renderFinancialCategories() {
+  if (!elements.financialCategoryRows) return;
+  const byId = new Map(state.financialCategories.map((category) => [category.id, category.name]));
+  const safeColor = (value) => /^#[0-9a-f]{6}$/i.test(value || "") ? value : "#aa8e34";
+  elements.financialCategoryRows.innerHTML = state.financialCategories.length ? state.financialCategories.map((category) => `<tr><td><span class="financial-color" style="background:${safeColor(category.color)}"></span><strong>${escapeHtml(category.name)}</strong></td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[category.category_type] || category.category_type)}</td><td>${escapeHtml(byId.get(category.parent_id) || "—")}</td><td><span class="financial-status ${category.active ? "active" : "inactive"}">${category.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-category="${category.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-category="${category.id}">${category.active ? "Inativar" : "Ativar"}</button></td></tr>`).join("") : '<tr><td colspan="5" class="empty-table-cell">Nenhuma categoria cadastrada.</td></tr>';
+}
+
+function syncFinancialCreditCardFields() {
+  const visible = document.querySelector("#financialAccountType")?.value === "credit_card";
+  document.querySelectorAll(".credit-card-field").forEach((field) => { field.hidden = !visible; });
+}
+
+function openFinancialAccountDialog(accountId = null) {
+  const account = state.financialAccounts.find((item) => item.id === accountId);
+  state.financialEditingAccountId = account?.id || null;
+  elements.financialAccountForm.reset();
+  document.querySelector("#financialAccountDialogTitle").textContent = account ? "Editar conta" : "Nova conta";
+  document.querySelector("#financialAccountName").value = account?.name || "";
+  document.querySelector("#financialAccountType").value = account?.account_type || "bank";
+  document.querySelector("#financialAccountInstitution").value = account?.institution || "";
+  document.querySelector("#financialAccountBalance").value = account?.initial_balance ?? 0;
+  document.querySelector("#financialAccountBalanceDate").value = account?.initial_balance_date || new Date().toISOString().slice(0, 10);
+  document.querySelector("#financialAccountActive").value = String(account?.active ?? true);
+  document.querySelector("#financialAccountClosingDay").value = account?.closing_day || "";
+  document.querySelector("#financialAccountDueDay").value = account?.due_day || "";
+  document.querySelector("#financialAccountCreditLimit").value = account?.credit_limit ?? "";
+  syncFinancialCreditCardFields();
+  elements.financialAccountDialog.showModal();
+}
+
+function refreshFinancialCategoryParentOptions(excludedId = null) {
+  const select = document.querySelector("#financialCategoryParent");
+  select.innerHTML = '<option value="">Nenhuma</option>' + state.financialCategories.filter((category) => category.active && category.id !== excludedId && !category.parent_id).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("");
+}
+
+function openFinancialCategoryDialog(categoryId = null) {
+  const category = state.financialCategories.find((item) => item.id === categoryId);
+  state.financialEditingCategoryId = category?.id || null;
+  elements.financialCategoryForm.reset();
+  refreshFinancialCategoryParentOptions(category?.id);
+  document.querySelector("#financialCategoryDialogTitle").textContent = category ? "Editar categoria" : "Nova categoria";
+  document.querySelector("#financialCategoryName").value = category?.name || "";
+  document.querySelector("#financialCategoryType").value = category?.category_type || "expense";
+  document.querySelector("#financialCategoryParent").value = category?.parent_id || "";
+  document.querySelector("#financialCategoryColor").value = category?.color || "#aa8e34";
+  document.querySelector("#financialCategoryActive").value = String(category?.active ?? true);
+  elements.financialCategoryDialog.showModal();
+}
+
+async function saveFinancialRecord(table, id, payload) {
+  const path = id ? `?id=eq.${encodeURIComponent(id)}` : "";
+  const response = await authorizedFetch(supabaseTableEndpoint(table, path), () => ({ method: id ? "PATCH" : "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify(payload) }));
+  if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível salvar o registro financeiro."); }
+}
+
+async function submitFinancialAccount(event) {
+  event.preventDefault();
+  const type = document.querySelector("#financialAccountType").value;
+  const numberOrNull = (selector) => document.querySelector(selector).value ? Number(document.querySelector(selector).value) : null;
+  const payload = { name: document.querySelector("#financialAccountName").value.trim(), account_type: type, institution: document.querySelector("#financialAccountInstitution").value.trim() || null, initial_balance: Number(document.querySelector("#financialAccountBalance").value), initial_balance_date: document.querySelector("#financialAccountBalanceDate").value, active: document.querySelector("#financialAccountActive").value === "true", closing_day: type === "credit_card" ? numberOrNull("#financialAccountClosingDay") : null, due_day: type === "credit_card" ? numberOrNull("#financialAccountDueDay") : null, credit_limit: type === "credit_card" ? numberOrNull("#financialAccountCreditLimit") : null };
+  try { await saveFinancialRecord("crm_financial_accounts", state.financialEditingAccountId, payload); await loadFinancialRegisters(); renderFinancialAccounts(); elements.financialAccountDialog.close(); } catch (error) { alert(error.message); }
+}
+
+async function submitFinancialCategory(event) {
+  event.preventDefault();
+  const payload = { name: document.querySelector("#financialCategoryName").value.trim(), category_type: document.querySelector("#financialCategoryType").value, parent_id: document.querySelector("#financialCategoryParent").value || null, color: document.querySelector("#financialCategoryColor").value, active: document.querySelector("#financialCategoryActive").value === "true" };
+  try { await saveFinancialRecord("crm_financial_categories", state.financialEditingCategoryId, payload); await loadFinancialRegisters(); renderFinancialCategories(); elements.financialCategoryDialog.close(); } catch (error) { alert(error.message); }
+}
+
+async function toggleFinancialRecord(table, id, active, renderFunction) {
+  try { await saveFinancialRecord(table, id, { active }); await loadFinancialRegisters(); renderFunction(); } catch (error) { alert(error.message); }
 }
 
 function setStatusFilter(group, status) {
@@ -5037,8 +5185,41 @@ elements.navItems.forEach((item) => {
         alert(error.message || "Nao foi possivel carregar os usuarios.");
       }
     }
+    if ((item.dataset.view === "financeAccounts" || item.dataset.view === "financeCategories") && isAdmin()) {
+      try {
+        await loadFinancialRegisters();
+      } catch (error) {
+        console.warn(error);
+        alert(error.message);
+      }
+    }
     await showView(item.dataset.view);
   });
+});
+
+document.querySelector("#newFinancialAccountBtn")?.addEventListener("click", () => openFinancialAccountDialog());
+document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", () => openFinancialCategoryDialog());
+document.querySelector("#financialAccountType")?.addEventListener("change", syncFinancialCreditCardFields);
+elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
+elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
+document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => button.addEventListener("click", () => button.dataset.closeFinancialDialog === "account" ? elements.financialAccountDialog.close() : elements.financialCategoryDialog.close()));
+elements.financialAccountRows?.addEventListener("click", (event) => {
+  const edit = event.target.closest("[data-edit-financial-account]");
+  const toggle = event.target.closest("[data-toggle-financial-account]");
+  if (edit) openFinancialAccountDialog(edit.dataset.editFinancialAccount);
+  if (toggle) {
+    const account = state.financialAccounts.find((item) => item.id === toggle.dataset.toggleFinancialAccount);
+    if (account) toggleFinancialRecord("crm_financial_accounts", account.id, !account.active, renderFinancialAccounts);
+  }
+});
+elements.financialCategoryRows?.addEventListener("click", (event) => {
+  const edit = event.target.closest("[data-edit-financial-category]");
+  const toggle = event.target.closest("[data-toggle-financial-category]");
+  if (edit) openFinancialCategoryDialog(edit.dataset.editFinancialCategory);
+  if (toggle) {
+    const category = state.financialCategories.find((item) => item.id === toggle.dataset.toggleFinancialCategory);
+    if (category) toggleFinancialRecord("crm_financial_categories", category.id, !category.active, renderFinancialCategories);
+  }
 });
 
 document.querySelectorAll("#clientsView th[data-sort], #budgetListCard th[data-sort]").forEach((header) => {
@@ -5387,6 +5568,11 @@ async function startApp() {
   if (isAdmin()) {
     try {
       await loadUserProfiles();
+    } catch (error) {
+      console.warn(error);
+    }
+    try {
+      await loadFinancialRegisters();
     } catch (error) {
       console.warn(error);
     }

@@ -40,6 +40,19 @@ test("pagina define politica de seguranca de conteudo", () => {
   assert.match(html, /frame-ancestors 'none'/);
 });
 
+test("financeiro usa navegacao propria e preserva o painel de orcamentos", () => {
+  assert.match(html, /<span class="nav-label">Financeiro<\/span>/);
+  for (const view of ["financeOverview", "financeAccounts", "financeTransactions", "financePayable", "financeReceivable", "financeImport", "financeCategories", "financePlanning", "financeReports"]) {
+    assert.match(html, new RegExp(`data-view="${view}"`));
+  }
+  assert.match(html, /data-view="financial" title="Resultados de orçamentos"/);
+  assert.match(app, /isFinanceModuleView\(view\)/);
+  assert.match(app, /supabaseTableEndpoint\("crm_financial_accounts"/);
+  assert.match(app, /supabaseTableEndpoint\("crm_financial_categories"/);
+  assert.match(app, /function submitFinancialAccount/);
+  assert.match(app, /function submitFinancialCategory/);
+});
+
 test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {
   assert.match(html, /id="budgetNobiliaId"/);
   assert.match(html, /id="budgetNobiliaDate"/);

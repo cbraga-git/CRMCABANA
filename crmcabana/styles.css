@@ -754,6 +754,69 @@ button:focus-visible {
   margin-top: 16px;
 }
 
+.financial-module-view {
+  max-width: 1440px;
+}
+
+.financial-module-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.financial-module-empty {
+  display: grid;
+  min-height: 300px;
+  margin-top: 18px;
+  padding: 48px 24px;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.financial-module-empty-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 14px;
+  place-items: center;
+  border-radius: 16px;
+  color: #fff;
+  background: var(--accent-dark);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.financial-module-empty h2 {
+  margin: 0 0 8px;
+}
+
+.financial-module-empty p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.financial-register { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.financial-register > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+.financial-register h2, .financial-register p { margin: 0; }
+.financial-register p { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.financial-register table { width: 100%; border-collapse: collapse; }
+.financial-register th, .financial-register td { padding: 14px 16px; border-bottom: 1px solid rgba(217, 199, 121, .45); text-align: left; }
+.financial-register th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.financial-status { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.financial-status.active { color: #126a36; background: #d8f4e2; }
+.financial-status.inactive { color: #7a263b; background: #fde1e8; }
+.financial-color { display: inline-block; width: 11px; height: 11px; margin-right: 8px; border-radius: 50%; }
+.empty-table-cell { padding: 40px !important; color: var(--muted); text-align: center !important; }
+
+@media (max-width: 1100px) {
+  .financial-module-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .budget-dashboard-filters {
   margin-bottom: 8px;
   padding: 10px 12px;

@@ -68,15 +68,42 @@
             <span class="nav-label">Status</span>
           </button>
           <div class="nav-group" id="financialNavGroup" hidden>
-            <button class="nav-parent" id="financialNavToggle" type="button" aria-expanded="true" aria-controls="financialSubmenu" title="Gestão Financeira">
+            <button class="nav-parent" id="financialNavToggle" type="button" aria-expanded="true" aria-controls="financialSubmenu" title="Financeiro">
               <span class="nav-icon">$</span>
-              <span class="nav-label">Gestão Financeira</span>
+              <span class="nav-label">Financeiro</span>
               <span class="nav-chevron" aria-hidden="true">⌄</span>
             </button>
             <div class="nav-submenu" id="financialSubmenu">
-              <button class="nav-item nav-subitem" id="financialOverviewNavItem" type="button" data-view="financial" title="Visão geral">
+              <button class="nav-item nav-subitem" id="financialOverviewNavItem" type="button" data-view="financeOverview" title="Visão geral">
                 <span class="nav-icon" aria-hidden="true">•</span>
                 <span class="nav-label">Visão geral</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeAccounts" title="Contas">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Contas</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeTransactions" title="Transações">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Transações</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financePayable" title="Contas a pagar">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Contas a pagar</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeReceivable" title="Contas a receber">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Contas a receber</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeImport" title="Importar extrato">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Importar extrato</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeCategories" title="Categorias">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Categorias</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financePlanning" title="Planejamento">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Planejamento</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeReports" title="Relatórios">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Relatórios</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financial" title="Resultados de orçamentos">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Resultados de orçamentos</span>
               </button>
             </div>
           </div>
@@ -535,10 +562,42 @@
           </section>
         </section>
 
+        <section class="view financial-module-view" id="financialModuleView">
+          <header class="page-header">
+            <div>
+              <h1 id="financialModuleTitle">Visão geral</h1>
+              <p id="financialModuleDescription">Acompanhe o fluxo financeiro da empresa.</p>
+            </div>
+          </header>
+
+          <section class="stats-grid financial-module-stats" id="financialModuleStats" aria-label="Resumo financeiro">
+            <article class="stat-card"><span class="stat-icon teal">$</span><div><span>Saldo atual</span><strong>R$ 0,00</strong></div></article>
+            <article class="stat-card"><span class="stat-icon green">↑</span><div><span>Receitas no mês</span><strong>R$ 0,00</strong></div></article>
+            <article class="stat-card"><span class="stat-icon rose">↓</span><div><span>Despesas no mês</span><strong>R$ 0,00</strong></div></article>
+            <article class="stat-card"><span class="stat-icon orange">!</span><div><span>Pendências</span><strong>0</strong></div></article>
+          </section>
+
+          <section class="financial-register" id="financialAccountsPanel" hidden>
+            <header><div><h2>Contas cadastradas</h2><p>Contas bancárias, caixa, cartões e investimentos.</p></div><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></header>
+            <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Instituição</th><th>Saldo inicial</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialAccountRows"></tbody></table></div>
+          </section>
+
+          <section class="financial-register" id="financialCategoriesPanel" hidden>
+            <header><div><h2>Categorias cadastradas</h2><p>Classificações para receitas e despesas.</p></div><button class="button primary" id="newFinancialCategoryBtn" type="button">+ Nova categoria</button></header>
+            <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Categoria principal</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialCategoryRows"></tbody></table></div>
+          </section>
+
+          <section class="financial-module-empty" aria-live="polite">
+            <span class="financial-module-empty-icon" aria-hidden="true">$</span>
+            <h2 id="financialModuleEmptyTitle">Módulo financeiro iniciado</h2>
+            <p id="financialModuleEmptyText">As novas estruturas serão independentes dos clientes e orçamentos existentes.</p>
+          </section>
+        </section>
+
         <section class="view financial-view" id="financialView">
           <header class="page-header">
             <div>
-              <h1>Gestão Financeira</h1>
+              <h1>Resultados de orçamentos</h1>
               <p>Visão geral dos resultados dos orçamentos</p>
             </div>
           </header>
@@ -747,6 +806,38 @@
         </section>
       </main>
     </div>
+
+    <dialog id="financialAccountDialog">
+      <form method="dialog" id="financialAccountForm" class="dialog-card">
+        <header><h2 id="financialAccountDialogTitle">Nova conta</h2><button type="button" data-close-financial-dialog="account">x</button></header>
+        <div class="dialog-grid">
+          <label>Nome *<input id="financialAccountName" maxlength="120" required /></label>
+          <label>Tipo *<select id="financialAccountType"><option value="bank">Conta bancária</option><option value="cash">Caixa</option><option value="credit_card">Cartão de crédito</option><option value="investment">Investimento</option><option value="other">Outra</option></select></label>
+          <label>Instituição<input id="financialAccountInstitution" maxlength="120" /></label>
+          <label>Saldo inicial<input id="financialAccountBalance" type="number" step="0.01" value="0" required /></label>
+          <label>Data do saldo inicial<input id="financialAccountBalanceDate" type="date" required /></label>
+          <label>Ativa<select id="financialAccountActive"><option value="true">Sim</option><option value="false">Não</option></select></label>
+          <label class="credit-card-field" hidden>Dia do fechamento<input id="financialAccountClosingDay" type="number" min="1" max="31" /></label>
+          <label class="credit-card-field" hidden>Dia do vencimento<input id="financialAccountDueDay" type="number" min="1" max="31" /></label>
+          <label class="credit-card-field" hidden>Limite<input id="financialAccountCreditLimit" type="number" min="0" step="0.01" /></label>
+        </div>
+        <footer><button class="button secondary" type="button" data-close-financial-dialog="account">Cancelar</button><button class="button primary" type="submit">Salvar</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="financialCategoryDialog">
+      <form method="dialog" id="financialCategoryForm" class="dialog-card">
+        <header><h2 id="financialCategoryDialogTitle">Nova categoria</h2><button type="button" data-close-financial-dialog="category">x</button></header>
+        <div class="dialog-grid">
+          <label>Nome *<input id="financialCategoryName" maxlength="100" required /></label>
+          <label>Tipo *<select id="financialCategoryType"><option value="expense">Despesa</option><option value="income">Receita</option><option value="both">Receita e despesa</option></select></label>
+          <label>Categoria principal<select id="financialCategoryParent"><option value="">Nenhuma</option></select></label>
+          <label>Cor<input id="financialCategoryColor" type="color" value="#aa8e34" /></label>
+          <label>Ativa<select id="financialCategoryActive"><option value="true">Sim</option><option value="false">Não</option></select></label>
+        </div>
+        <footer><button class="button secondary" type="button" data-close-financial-dialog="category">Cancelar</button><button class="button primary" type="submit">Salvar</button></footer>
+      </form>
+    </dialog>
 
     <dialog id="clientDialog">
       <form method="dialog" id="clientForm" class="dialog-card">
