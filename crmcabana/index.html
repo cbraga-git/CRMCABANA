@@ -596,6 +596,10 @@
             <header><div><h2>Importar extrato</h2><p>Selecione uma conta e um arquivo OFX ou CSV.</p></div><label class="button primary financial-file-button">Selecionar arquivo<input id="financialStatementFile" type="file" accept=".ofx,.csv,application/x-ofx,text/csv" hidden /></label></header>
             <div class="financial-import-controls"><label>Conta *<select id="financialImportAccount"><option value="">Selecione uma conta</option></select></label><span id="financialImportMessage">Nenhum arquivo selecionado.</span></div>
             <div class="table-wrap"><table><thead><tr><th>Arquivo</th><th>Conta</th><th>Formato</th><th>Itens</th><th>Data</th><th>Ações</th></tr></thead><tbody id="financialImportRows"></tbody></table></div>
+            <section class="financial-import-detail" id="financialImportDetail" hidden>
+              <header><div><h3 id="financialImportDetailTitle">Lançamentos importados</h3><p>Selecione uma categoria antes de confirmar.</p></div><div><button class="button secondary" id="ignoreStatementItemsBtn" type="button">Ignorar selecionados</button><button class="button primary" id="confirmStatementItemsBtn" type="button">Confirmar selecionados</button></div></header>
+              <div class="table-wrap"><table><thead><tr><th><input id="selectAllStatementItems" type="checkbox" aria-label="Selecionar todos" /></th><th>Data</th><th>Descrição</th><th>Valor</th><th>Saldo</th><th>Categoria</th><th>Situação</th></tr></thead><tbody id="financialStatementItemRows"></tbody></table></div>
+            </section>
           </section>
 
           <section class="financial-module-empty" aria-live="polite">
@@ -1034,6 +1038,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=128"></script>
+    <script src="app.js?v=129"></script>
   </body>
 </html>

@@ -59,6 +59,10 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /transaction_net_amount/);
   assert.match(app, /reference_id/);
   assert.match(app, /partial_balance/);
+  assert.match(app, /function openFinancialImport/);
+  assert.match(app, /function confirmSelectedStatementItems/);
+  assert.match(app, /crm_financial_reconciliations/);
+  assert.match(html, /id="financialStatementItemRows"/);
 });
 
 test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {

@@ -199,6 +199,8 @@ const state = {
   financialEntries: [],
   financialImports: [],
   financialEditingEntryId: null,
+  financialStatementItems: [],
+  financialSelectedImportId: null,
 };
 
 const elements = {
@@ -259,6 +261,8 @@ const elements = {
   financialImportPanel: document.querySelector("#financialImportPanel"),
   financialImportRows: document.querySelector("#financialImportRows"),
   financialStatementFile: document.querySelector("#financialStatementFile"),
+  financialImportDetail: document.querySelector("#financialImportDetail"),
+  financialStatementItemRows: document.querySelector("#financialStatementItemRows"),
   clientsHeader: document.querySelector("#clientsHeader"),
   clientsDashboardFilters: document.querySelector("#clientsDashboardFilters"),
   clientsDashboardStats: document.querySelector("#clientsDashboardStats"),
@@ -1773,7 +1777,66 @@ function renderFinancialImports() {
   const selected = select.value;
   select.innerHTML = '<option value="">Selecione uma conta</option>' + state.financialAccounts.filter((item) => item.active && item.account_type !== "credit_card").map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
   if (selected) select.value = selected;
-  elements.financialImportRows.innerHTML = state.financialImports.length ? state.financialImports.map((item) => `<tr><td>${escapeHtml(item.file_name)}</td><td>${escapeHtml(accounts.get(item.account_id) || "—")}</td><td>${escapeHtml(item.file_type.toUpperCase())}</td><td>${item.item_count}</td><td>${escapeHtml(formatFinancialDate(item.created_at))}</td><td><button class="link-button danger" type="button" data-delete-financial-import="${item.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhum extrato importado.</td></tr>';
+  elements.financialImportRows.innerHTML = state.financialImports.length ? state.financialImports.map((item) => `<tr class="${state.financialSelectedImportId === item.id ? "selected-row" : ""}"><td>${escapeHtml(item.file_name)}</td><td>${escapeHtml(accounts.get(item.account_id) || "—")}</td><td>${escapeHtml(item.file_type.toUpperCase())}</td><td>${item.item_count}</td><td>${escapeHtml(formatFinancialDate(item.created_at))}</td><td><button class="link-button" type="button" data-view-financial-import="${item.id}">Visualizar</button> <button class="link-button danger" type="button" data-delete-financial-import="${item.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhum extrato importado.</td></tr>';
+  if (!state.financialSelectedImportId && elements.financialImportDetail) elements.financialImportDetail.hidden = true;
+}
+
+async function openFinancialImport(importId) {
+  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items", `?import_id=eq.${encodeURIComponent(importId)}&select=*&order=transaction_date.asc,created_at.asc`), () => ({ headers: supabaseHeaders() }));
+  if (!response.ok) throw new Error("Não foi possível carregar os lançamentos importados.");
+  state.financialSelectedImportId = importId;
+  state.financialStatementItems = await response.json();
+  renderFinancialImports();
+  renderFinancialStatementItems();
+  elements.financialImportDetail.hidden = false;
+  elements.financialImportDetail.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function statementCategoryOptions(item) {
+  const expectedType = Number(item.amount) >= 0 ? "income" : "expense";
+  return '<option value="">Selecione</option>' + state.financialCategories.filter((category) => category.active && (category.category_type === expectedType || category.category_type === "both")).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("");
+}
+
+function renderFinancialStatementItems() {
+  const statusLabels = { pending: "Pendente", reconciled: "Confirmado", ignored: "Ignorado" };
+  elements.financialStatementItemRows.innerHTML = state.financialStatementItems.length ? state.financialStatementItems.map((item) => { const pending = item.reconciliation_status === "pending"; return `<tr><td><input type="checkbox" data-statement-select="${item.id}" ${pending ? "" : "disabled"} aria-label="Selecionar lançamento" /></td><td>${formatFinancialDate(item.transaction_date)}</td><td><strong>${escapeHtml(item.description)}</strong></td><td class="${Number(item.amount) >= 0 ? "financial-positive" : "financial-negative"}">${BRL.format(Number(item.amount))}</td><td>${item.balance == null ? "—" : BRL.format(Number(item.balance))}</td><td>${pending ? `<select data-statement-category="${item.id}">${statementCategoryOptions(item)}</select>` : "—"}</td><td><span class="financial-status ${item.reconciliation_status}">${statusLabels[item.reconciliation_status] || item.reconciliation_status}</span></td></tr>`; }).join("") : '<tr><td colspan="7" class="empty-table-cell">O arquivo não possui lançamentos.</td></tr>';
+  const selectAll = document.querySelector("#selectAllStatementItems"); if (selectAll) selectAll.checked = false;
+}
+
+function selectedStatementItems() {
+  return Array.from(elements.financialStatementItemRows.querySelectorAll("[data-statement-select]:checked")).map((checkbox) => state.financialStatementItems.find((item) => item.id === checkbox.dataset.statementSelect)).filter(Boolean);
+}
+
+async function patchStatementItemStatus(ids, status) {
+  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items", `?id=in.(${ids.join(",")})`), () => ({ method: "PATCH", headers: supabaseHeaders(), body: JSON.stringify({ reconciliation_status: status }) }));
+  if (!response.ok) throw new Error("Não foi possível atualizar os lançamentos selecionados.");
+}
+
+async function ignoreSelectedStatementItems() {
+  const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
+  if (!confirm(`Ignorar ${items.length} lançamento(s) selecionado(s)?`)) return;
+  try { await patchStatementItemStatus(items.map((item) => item.id), "ignored"); await openFinancialImport(state.financialSelectedImportId); } catch (error) { alert(error.message); }
+}
+
+async function confirmSelectedStatementItems() {
+  const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
+  const selections = items.map((item) => ({ item, categoryId: elements.financialStatementItemRows.querySelector(`[data-statement-category="${item.id}"]`)?.value || "" }));
+  if (selections.some(({ categoryId }) => !categoryId)) return alert("Selecione a categoria de todos os lançamentos marcados.");
+  const entries = selections.map(({ item, categoryId }) => ({ id: createId(), entry_type: Number(item.amount) >= 0 ? "income" : "expense", status: "paid", account_id: item.account_id, category_id: categoryId, description: item.description, amount: Math.abs(Number(item.amount)), issue_date: item.transaction_date, competence_date: item.transaction_date, due_date: item.transaction_date, paid_at: `${item.transaction_date}T12:00:00.000Z`, source_type: "statement" }));
+  try {
+    const entryResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(entries) }));
+    if (!entryResponse.ok) throw new Error("Não foi possível criar as transações do extrato.");
+    const reconciliations = entries.map((entry, index) => ({ statement_item_id: selections[index].item.id, entry_id: entry.id, amount: entry.amount }));
+    const reconciliationResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_reconciliations"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(reconciliations) }));
+    if (!reconciliationResponse.ok) throw new Error("Não foi possível conciliar as transações do extrato.");
+    await patchStatementItemStatus(items.map((item) => item.id), "reconciled");
+    await loadFinancialRegisters(); await openFinancialImport(state.financialSelectedImportId);
+    alert(`${items.length} lançamento(s) confirmado(s) e enviado(s) para Transações.`);
+  } catch (error) {
+    const ids = entries.map((entry) => entry.id).join(",");
+    await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids})`), () => ({ method: "DELETE", headers: supabaseHeaders() })).catch(() => null);
+    alert(error.message);
+  }
 }
 
 function parseCsvLine(line, delimiter) {
@@ -5393,9 +5456,14 @@ elements.financialEntryRows?.addEventListener("click", (event) => {
   if (remove) deleteFinancialRecord("crm_financial_entries", remove.dataset.deleteFinancialEntry, "este lançamento").then((deleted) => { if (deleted) renderFinancialEntries(); }).catch((error) => alert(error.message));
 });
 elements.financialImportRows?.addEventListener("click", (event) => {
+  const view = event.target.closest("[data-view-financial-import]");
   const remove = event.target.closest("[data-delete-financial-import]");
-  if (remove) deleteFinancialRecord("crm_financial_statement_imports", remove.dataset.deleteFinancialImport, "esta importação e todos os seus itens").then((deleted) => { if (deleted) renderFinancialImports(); }).catch((error) => alert(error.message));
+  if (view) openFinancialImport(view.dataset.viewFinancialImport).catch((error) => alert(error.message));
+  if (remove) deleteFinancialRecord("crm_financial_statement_imports", remove.dataset.deleteFinancialImport, "esta importação e todos os seus itens").then((deleted) => { if (deleted) { if (state.financialSelectedImportId === remove.dataset.deleteFinancialImport) { state.financialSelectedImportId = null; state.financialStatementItems = []; } renderFinancialImports(); } }).catch((error) => alert(error.message));
 });
+document.querySelector("#selectAllStatementItems")?.addEventListener("change", (event) => elements.financialStatementItemRows.querySelectorAll("[data-statement-select]:not(:disabled)").forEach((checkbox) => { checkbox.checked = event.target.checked; }));
+document.querySelector("#ignoreStatementItemsBtn")?.addEventListener("click", ignoreSelectedStatementItems);
+document.querySelector("#confirmStatementItemsBtn")?.addEventListener("click", confirmSelectedStatementItems);
 elements.financialStatementFile?.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
