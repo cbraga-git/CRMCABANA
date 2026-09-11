@@ -1784,18 +1784,31 @@ function parseCsvLine(line, delimiter) {
 
 function normalizeStatementDate(value) {
   const text = String(value || "").trim();
-  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/); if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const br = text.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/); if (br) return `${br[3]}-${br[2]}-${br[1]}`;
   const iso = text.match(/^(\d{4})-?(\d{2})-?(\d{2})/); return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : null;
+}
+
+function parseStatementAmount(value) {
+  const cleaned = String(value || "").trim().replace(/[^0-9,.-]/g, "");
+  const comma = cleaned.lastIndexOf(",");
+  const dot = cleaned.lastIndexOf(".");
+  if (comma > dot) return Number(cleaned.replace(/\./g, "").replace(",", "."));
+  if (dot > comma && comma >= 0) return Number(cleaned.replace(/,/g, ""));
+  if (comma >= 0) return Number(cleaned.replace(",", "."));
+  return Number(cleaned);
 }
 
 function parseStatementFile(text, extension) {
   if (extension === "ofx") return Array.from(text.matchAll(/<STMTTRN>([\s\S]*?)(?:<\/STMTTRN>|(?=<STMTTRN>))/gi)).map((match) => { const block = match[1]; const get = (tag) => block.match(new RegExp(`<${tag}>([^<\\r\\n]+)`, "i"))?.[1]?.trim() || ""; return { date: normalizeStatementDate(get("DTPOSTED")), amount: Number(get("TRNAMT").replace(",", ".")), description: get("MEMO") || get("NAME") || "Lançamento importado", externalId: get("FITID") || null }; }).filter((item) => item.date && item.amount);
   const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim()); if (lines.length < 2) throw new Error("O CSV não contém lançamentos.");
-  const delimiter = lines[0].includes(";") ? ";" : ","; const headers = parseCsvLine(lines[0], delimiter).map((item) => item.toLowerCase());
+  const headerLineIndex = lines.findIndex((line) => /(?:data|date|release_date)/i.test(line) && /(?:valor|amount)/i.test(line));
+  if (headerLineIndex < 0) throw new Error("Não foi possível localizar o cabeçalho de lançamentos do CSV.");
+  const delimiter = lines[headerLineIndex].includes(";") ? ";" : ","; const headers = parseCsvLine(lines[headerLineIndex], delimiter).map((item) => item.toLowerCase());
   const find = (...names) => headers.findIndex((header) => names.some((name) => header.includes(name)));
-  const dateIndex = find("data", "date"); const descriptionIndex = find("descr", "hist", "memo"); const amountIndex = find("valor", "amount");
+  const dateIndex = find("release_date", "data", "date"); const descriptionIndex = find("transaction_type", "descr", "hist", "memo"); const amountIndex = find("transaction_net_amount", "valor", "amount");
+  const externalIdIndex = find("reference_id", "fitid", "identificador"); const balanceIndex = find("partial_balance", "saldo", "balance");
   if ([dateIndex, descriptionIndex, amountIndex].some((index) => index < 0)) throw new Error("O CSV precisa ter colunas de data, descrição e valor.");
-  return lines.slice(1).map((line) => { const row = parseCsvLine(line, delimiter); const rawAmount = row[amountIndex].replace(/[^0-9,.-]/g, ""); const amount = delimiter === ";" ? Number(rawAmount.replace(/\./g, "").replace(",", ".")) : Number(rawAmount); return { date: normalizeStatementDate(row[dateIndex]), description: row[descriptionIndex] || "Lançamento importado", amount, externalId: null }; }).filter((item) => item.date && item.amount);
+  return lines.slice(headerLineIndex + 1).map((line) => { const row = parseCsvLine(line, delimiter); return { date: normalizeStatementDate(row[dateIndex]), description: row[descriptionIndex] || "Lançamento importado", amount: parseStatementAmount(row[amountIndex]), externalId: externalIdIndex >= 0 ? row[externalIdIndex] || null : null, balance: balanceIndex >= 0 ? parseStatementAmount(row[balanceIndex]) : null }; }).filter((item) => item.date && item.amount);
 }
 
 async function sha256(value) { const data = new TextEncoder().encode(value); const hash = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
@@ -1808,7 +1821,7 @@ async function importFinancialStatement(file) {
   const fileHash = await sha256(text); const importResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports"), () => ({ method: "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify({ account_id: accountId, file_name: file.name, file_type: extension, file_hash: fileHash, period_start: items.map((item) => item.date).sort()[0], period_end: items.map((item) => item.date).sort().at(-1), item_count: items.length, status: "completed", completed_at: new Date().toISOString() }) }));
   if (!importResponse.ok) { const details = await importResponse.json().catch(() => null); throw new Error(details?.code === "23505" ? "Este extrato já foi importado para essa conta." : details?.message || "Não foi possível registrar a importação."); }
   const importRow = (await importResponse.json())[0];
-  const rows = await Promise.all(items.map(async (item, index) => ({ import_id: importRow.id, account_id: accountId, external_id: item.externalId, transaction_date: item.date, description: item.description.slice(0, 500), amount: item.amount, fingerprint: await sha256(`${accountId}|${item.externalId || ""}|${item.date}|${item.amount}|${item.description}|${index}`), raw_data: item })));
+  const rows = await Promise.all(items.map(async (item, index) => ({ import_id: importRow.id, account_id: accountId, external_id: item.externalId, transaction_date: item.date, description: item.description.slice(0, 500), amount: item.amount, balance: Number.isFinite(item.balance) ? item.balance : null, fingerprint: await sha256(`${accountId}|${item.externalId || ""}|${item.date}|${item.amount}|${item.description}|${index}`), raw_data: item })));
   const itemResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(rows) }));
   if (!itemResponse.ok) { await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", `?id=eq.${importRow.id}`), () => ({ method: "DELETE", headers: supabaseHeaders() })); throw new Error("Não foi possível salvar os itens do extrato."); }
   await loadFinancialRegisters(); renderFinancialImports();
