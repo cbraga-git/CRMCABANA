@@ -201,6 +201,7 @@ const state = {
   financialEditingEntryId: null,
   financialStatementItems: [],
   financialSelectedImportId: null,
+  financialCategoryTargetItemId: null,
 };
 
 const elements = {
@@ -1673,6 +1674,8 @@ async function saveFinancialRecord(table, id, payload) {
   const path = id ? `?id=eq.${encodeURIComponent(id)}` : "";
   const response = await authorizedFetch(supabaseTableEndpoint(table, path), () => ({ method: id ? "PATCH" : "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify(payload) }));
   if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível salvar o registro financeiro."); }
+  const saved = await response.json().catch(() => []);
+  return saved[0] || null;
 }
 
 async function submitFinancialAccount(event) {
@@ -1686,7 +1689,24 @@ async function submitFinancialAccount(event) {
 async function submitFinancialCategory(event) {
   event.preventDefault();
   const payload = { name: document.querySelector("#financialCategoryName").value.trim(), category_type: document.querySelector("#financialCategoryType").value, parent_id: document.querySelector("#financialCategoryParent").value || null, color: document.querySelector("#financialCategoryColor").value, active: document.querySelector("#financialCategoryActive").value === "true" };
-  try { await saveFinancialRecord("crm_financial_categories", state.financialEditingCategoryId, payload); await loadFinancialRegisters(); renderFinancialCategories(); elements.financialCategoryDialog.close(); } catch (error) { alert(error.message); }
+  try {
+    const saved = await saveFinancialRecord("crm_financial_categories", state.financialEditingCategoryId, payload);
+    await loadFinancialRegisters();
+    renderFinancialCategories();
+    elements.financialCategoryDialog.close();
+    if (state.financialCategoryTargetItemId && !elements.financialImportDetail.hidden) {
+      const targetItemId = state.financialCategoryTargetItemId;
+      const checkedIds = new Set(selectedStatementItems().map((item) => item.id));
+      const selectedCategories = new Map(Array.from(elements.financialStatementItemRows.querySelectorAll("[data-statement-category]")).map((select) => [select.dataset.statementCategory, select.value]));
+      renderFinancialStatementItems();
+      checkedIds.add(targetItemId);
+      checkedIds.forEach((id) => { const checkbox = elements.financialStatementItemRows.querySelector(`[data-statement-select="${id}"]`); if (checkbox) checkbox.checked = true; });
+      selectedCategories.forEach((value, id) => { const select = elements.financialStatementItemRows.querySelector(`[data-statement-category="${id}"]`); if (select && value !== "__new__") select.value = value; });
+      const targetSelect = elements.financialStatementItemRows.querySelector(`[data-statement-category="${targetItemId}"]`);
+      if (targetSelect && saved?.id) targetSelect.value = saved.id;
+      state.financialCategoryTargetItemId = null;
+    }
+  } catch (error) { alert(error.message); }
 }
 
 async function toggleFinancialRecord(table, id, active, renderFunction) {
@@ -1794,7 +1814,7 @@ async function openFinancialImport(importId) {
 
 function statementCategoryOptions(item) {
   const expectedType = Number(item.amount) >= 0 ? "income" : "expense";
-  return '<option value="">Selecione</option>' + state.financialCategories.filter((category) => category.active && (category.category_type === expectedType || category.category_type === "both")).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("");
+  return '<option value="">Selecione</option>' + state.financialCategories.filter((category) => category.active && (category.category_type === expectedType || category.category_type === "both")).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("") + '<option value="__new__">+ Criar nova categoria...</option>';
 }
 
 function renderFinancialStatementItems() {
@@ -5419,14 +5439,18 @@ elements.navItems.forEach((item) => {
 });
 
 document.querySelector("#newFinancialAccountBtn")?.addEventListener("click", () => openFinancialAccountDialog());
-document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", () => openFinancialCategoryDialog());
+document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", () => { state.financialCategoryTargetItemId = null; openFinancialCategoryDialog(); });
 document.querySelector("#financialAccountType")?.addEventListener("change", syncFinancialCreditCardFields);
 document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
+elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; });
 elements.financialEntryForm?.addEventListener("submit", submitFinancialEntry);
 document.querySelector("#newFinancialEntryBtn")?.addEventListener("click", () => openFinancialEntryDialog());
-document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => button.addEventListener("click", () => ({ account: elements.financialAccountDialog, category: elements.financialCategoryDialog, entry: elements.financialEntryDialog }[button.dataset.closeFinancialDialog]?.close())));
+document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => button.addEventListener("click", () => {
+  if (button.dataset.closeFinancialDialog === "category") state.financialCategoryTargetItemId = null;
+  ({ account: elements.financialAccountDialog, category: elements.financialCategoryDialog, entry: elements.financialEntryDialog }[button.dataset.closeFinancialDialog]?.close());
+}));
 elements.financialAccountRows?.addEventListener("click", (event) => {
   const edit = event.target.closest("[data-edit-financial-account]");
   const toggle = event.target.closest("[data-toggle-financial-account]");
@@ -5470,6 +5494,16 @@ elements.financialStatementFile?.addEventListener("change", async (event) => {
   const message = document.querySelector("#financialImportMessage");
   message.textContent = "Importando...";
   try { await importFinancialStatement(file); message.textContent = `${file.name} importado com sucesso.`; } catch (error) { message.textContent = error.message; alert(error.message); } finally { event.target.value = ""; }
+});
+elements.financialStatementItemRows?.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-statement-category]");
+  if (!select || select.value !== "__new__") return;
+  const item = state.financialStatementItems.find((candidate) => candidate.id === select.dataset.statementCategory);
+  select.value = "";
+  state.financialCategoryTargetItemId = item?.id || null;
+  openFinancialCategoryDialog();
+  document.querySelector("#financialCategoryType").value = Number(item?.amount) >= 0 ? "income" : "expense";
+  document.querySelector("#financialCategoryName").focus();
 });
 
 document.querySelectorAll("#clientsView th[data-sort], #budgetListCard th[data-sort]").forEach((header) => {
