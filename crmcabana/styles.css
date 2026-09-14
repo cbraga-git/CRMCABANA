@@ -775,7 +775,8 @@ button:focus-visible {
 .financial-chart-legend i { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; }
 .financial-chart-legend strong { margin-left: auto; color: var(--text); }
 .financial-account-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-.financial-account-cards > article { padding: 16px; border: 1px solid rgba(217, 199, 121, .65); border-radius: 12px; background: #fffdf7; }
+.financial-account-cards > article { padding: 16px; border: 1px solid rgba(217, 199, 121, .65); border-radius: 12px; background: #fffdf7; cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.financial-account-cards > article:hover, .financial-account-cards > article:focus-visible { border-color: var(--gold); box-shadow: 0 8px 20px rgba(91, 72, 10, .12); outline: none; transform: translateY(-2px); }
 .financial-account-cards article > header { display: flex; align-items: center; gap: 10px; }
 .financial-account-cards header div { display: grid; gap: 3px; }
 .financial-account-cards small, .financial-account-cards dt { color: var(--muted); font-size: 11px; }
@@ -795,6 +796,8 @@ button:focus-visible {
 .financial-evolution-table tbody tr:last-child td { border-bottom: 0; }
 .financial-positive { color: #268f43; }
 .financial-negative { color: #c9362b; }
+.financial-entries-context { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 22px; border-bottom: 1px solid var(--line); background: #fff9df; color: var(--muted); font-size: 13px; }
+.financial-entries-context[hidden] { display: none; }
 
 @media (max-width: 760px) {
   .financial-evolution-header { flex-direction: column; }

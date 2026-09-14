@@ -206,6 +206,8 @@ const state = {
   financialDashboardMonth: new Date().toISOString().slice(0, 7),
   financialEvolutionView: "chart",
   financialEvolutionAccountId: "",
+  financialEntryAccountFilter: "",
+  financialEntryMonthFilter: "",
 };
 
 const elements = {
@@ -1678,7 +1680,7 @@ function renderFinancialDashboard() {
   const income = monthEntries.filter((entry) => entry.entry_type === "income" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const expense = monthEntries.filter((entry) => entry.entry_type === "expense" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, false), 0); const projected = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0);
   document.querySelector("#financialDashboardBalance").textContent = BRL.format(balance); document.querySelector("#financialDashboardIncome").textContent = BRL.format(income); document.querySelector("#financialDashboardExpense").textContent = BRL.format(expense); document.querySelector("#financialDashboardProjected").textContent = BRL.format(projected);
   renderFinancialDonut("financialExpenseChart", "financialExpenseLegend", financialCategorySummary(monthEntries, "expense")); renderFinancialDonut("financialIncomeChart", "financialIncomeLegend", financialCategorySummary(monthEntries, "income"));
-  document.querySelector("#financialDashboardAccounts").innerHTML = accounts.length ? accounts.map((account) => `<article><header><span class="stat-icon teal">$</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</small></div></header><dl><div><dt>Saldo realizado</dt><dd>${BRL.format(financialAccountBalance(account, end, false))}</dd></div><div><dt>Saldo previsto</dt><dd>${BRL.format(financialAccountBalance(account, end, true))}</dd></div></dl></article>`).join("") : '<p class="empty-table-cell">Nenhuma conta ativa cadastrada.</p>';
+  document.querySelector("#financialDashboardAccounts").innerHTML = accounts.length ? accounts.map((account) => `<article role="button" tabindex="0" data-dashboard-account="${account.id}" aria-label="Ver transações de ${escapeHtml(account.name)} no período selecionado"><header><span class="stat-icon teal">$</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</small></div></header><dl><div><dt>Saldo realizado</dt><dd>${BRL.format(financialAccountBalance(account, end, false))}</dd></div><div><dt>Saldo previsto</dt><dd>${BRL.format(financialAccountBalance(account, end, true))}</dd></div></dl></article>`).join("") : '<p class="empty-table-cell">Nenhuma conta ativa cadastrada.</p>';
   renderFinancialEvolution();
 }
 
@@ -1833,11 +1835,27 @@ function formatFinancialDate(value) {
 
 function renderFinancialEntries(view = state.view) {
   const filterType = financialEntryViewType(view);
-  const entries = filterType ? state.financialEntries.filter((entry) => entry.entry_type === filterType) : state.financialEntries;
+  const { start, end } = financialMonthBounds(state.financialEntryMonthFilter || state.financialDashboardMonth);
+  const entries = state.financialEntries.filter((entry) => {
+    if (filterType && entry.entry_type !== filterType) return false;
+    if (view !== "financeTransactions" || !state.financialEntryAccountFilter) return true;
+    const belongsToAccount = entry.account_id === state.financialEntryAccountFilter || (entry.entry_type === "transfer" && entry.transfer_account_id === state.financialEntryAccountFilter);
+    const entryDate = financialEntryDate(entry);
+    return belongsToAccount && entryDate >= start && entryDate <= end;
+  });
   const accounts = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
   const title = document.querySelector("#financialEntriesTitle");
   if (title) title.textContent = filterType === "expense" ? "Contas a pagar" : filterType === "income" ? "Contas a receber" : "Transações";
-  elements.financialEntryRows.innerHTML = entries.length ? entries.map((entry) => `<tr><td><strong>${escapeHtml(entry.description)}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[entry.entry_type] || (entry.entry_type === "transfer" ? "Transferência" : entry.entry_type))}</td><td>${escapeHtml(accounts.get(entry.account_id) || "—")}</td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${BRL.format(Number(entry.amount) || 0)}</td><td>${escapeHtml({ pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status)}</td><td><button class="link-button" type="button" data-edit-financial-entry="${entry.id}">Editar</button> <button class="link-button danger" type="button" data-delete-financial-entry="${entry.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento cadastrado.</td></tr>';
+  const context = document.querySelector("#financialEntriesContext");
+  if (context) {
+    const accountName = accounts.get(state.financialEntryAccountFilter);
+    context.hidden = view !== "financeTransactions" || !accountName;
+    if (accountName) context.querySelector("span").textContent = `${accountName} • ${formatFinancialDate(start)} a ${formatFinancialDate(end)}`;
+  }
+  elements.financialEntryRows.innerHTML = entries.length ? entries.map((entry) => {
+    const accountLabel = entry.entry_type === "transfer" ? `${accounts.get(entry.account_id) || "—"} → ${accounts.get(entry.transfer_account_id) || "—"}` : accounts.get(entry.account_id) || "—";
+    return `<tr><td><strong>${escapeHtml(entry.description)}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[entry.entry_type] || (entry.entry_type === "transfer" ? "Transferência" : entry.entry_type))}</td><td>${escapeHtml(accountLabel)}</td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${BRL.format(Number(entry.amount) || 0)}</td><td>${escapeHtml({ pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status)}</td><td><button class="link-button" type="button" data-edit-financial-entry="${entry.id}">Editar</button> <button class="link-button danger" type="button" data-delete-financial-entry="${entry.id}">Excluir</button></td></tr>`;
+  }).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
 }
 
 function fillFinancialEntryOptions() {
@@ -5666,6 +5684,10 @@ elements.financialNavToggle?.addEventListener("click", () => {
 
 elements.navItems.forEach((item) => {
   item.addEventListener("click", async () => {
+    if (item.dataset.view === "financeTransactions") {
+      state.financialEntryAccountFilter = "";
+      state.financialEntryMonthFilter = "";
+    }
     if (item.dataset.view === "users" && isAdmin()) {
       try {
         await loadUserProfiles();
@@ -5695,6 +5717,25 @@ document.querySelector("#financialDashboardMonth")?.addEventListener("change", (
 document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionChartBtn")?.addEventListener("click", () => { state.financialEvolutionView = "chart"; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionTableBtn")?.addEventListener("click", () => { state.financialEvolutionView = "table"; renderFinancialEvolution(); });
+document.querySelector("#financialDashboardAccounts")?.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-dashboard-account]");
+  if (!card) return;
+  state.financialEntryAccountFilter = card.dataset.dashboardAccount;
+  state.financialEntryMonthFilter = state.financialDashboardMonth;
+  showView("financeTransactions");
+});
+document.querySelector("#financialDashboardAccounts")?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const card = event.target.closest("[data-dashboard-account]");
+  if (!card) return;
+  event.preventDefault();
+  card.click();
+});
+document.querySelector("#clearFinancialEntryFilter")?.addEventListener("click", () => {
+  state.financialEntryAccountFilter = "";
+  state.financialEntryMonthFilter = "";
+  renderFinancialEntries("financeTransactions");
+});
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
 elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; });
