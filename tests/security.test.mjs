@@ -42,6 +42,8 @@ test("pagina define politica de seguranca de conteudo", () => {
 
 test("financeiro usa navegacao propria e preserva o painel de orcamentos", () => {
   assert.match(html, /<span class="nav-label">Financeiro<\/span>/);
+  assert.match(html, /id="financialNavToggle"[^>]*aria-expanded="false"/);
+  assert.match(html, /id="financialSubmenu" hidden/);
   for (const view of ["financeOverview", "financeAccounts", "financeTransactions", "financePayable", "financeReceivable", "financeImport", "financeCategories", "financePlanning", "financeReports"]) {
     assert.match(html, new RegExp(`data-view="${view}"`));
   }
