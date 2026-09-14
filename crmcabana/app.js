@@ -1743,7 +1743,7 @@ function renderFinancialEntries(view = state.view) {
   const accounts = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
   const title = document.querySelector("#financialEntriesTitle");
   if (title) title.textContent = filterType === "expense" ? "Contas a pagar" : filterType === "income" ? "Contas a receber" : "Transações";
-  elements.financialEntryRows.innerHTML = entries.length ? entries.map((entry) => `<tr><td><strong>${escapeHtml(entry.description)}</strong></td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[entry.entry_type] || (entry.entry_type === "transfer" ? "Transferência" : entry.entry_type))}</td><td>${escapeHtml(accounts.get(entry.account_id) || "—")}</td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${BRL.format(Number(entry.amount) || 0)}</td><td>${escapeHtml({ pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status)}</td><td><button class="link-button" type="button" data-edit-financial-entry="${entry.id}">Editar</button> <button class="link-button danger" type="button" data-delete-financial-entry="${entry.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento cadastrado.</td></tr>';
+  elements.financialEntryRows.innerHTML = entries.length ? entries.map((entry) => `<tr><td><strong>${escapeHtml(entry.description)}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[entry.entry_type] || (entry.entry_type === "transfer" ? "Transferência" : entry.entry_type))}</td><td>${escapeHtml(accounts.get(entry.account_id) || "—")}</td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${BRL.format(Number(entry.amount) || 0)}</td><td>${escapeHtml({ pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status)}</td><td><button class="link-button" type="button" data-edit-financial-entry="${entry.id}">Editar</button> <button class="link-button danger" type="button" data-delete-financial-entry="${entry.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento cadastrado.</td></tr>';
 }
 
 function fillFinancialEntryOptions() {
@@ -1758,6 +1758,28 @@ function syncFinancialEntryTypeFields() {
   document.querySelector("#financialEntryTransferField").hidden = !transfer;
   document.querySelector("#financialEntryCategoryField").hidden = transfer;
   document.querySelector("#financialEntryTransferAccount").required = transfer;
+  const installmentField = document.querySelector("#financialEntryInstallmentField");
+  if (installmentField) installmentField.hidden = transfer || Boolean(state.financialEditingEntryId);
+  if (transfer) document.querySelector("#financialEntryInstallment").value = "false";
+  syncFinancialInstallmentFields();
+}
+
+function syncFinancialInstallmentFields() {
+  const installment = !state.financialEditingEntryId && document.querySelector("#financialEntryType").value !== "transfer" && document.querySelector("#financialEntryInstallment").value === "true";
+  document.querySelector("#financialEntryInstallmentCountField").hidden = !installment;
+  document.querySelector("#financialEntryInstallmentHint").hidden = !installment;
+  document.querySelector("#financialEntryInstallmentCount").required = installment;
+  document.querySelector("#financialEntryAmountLabel").textContent = installment || state.financialEntries.find((item) => item.id === state.financialEditingEntryId)?.installment_count ? "Valor da parcela *" : "Valor *";
+}
+
+function addMonthsToFinancialDate(value, months) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value;
+  const year = Number(match[1]); const month = Number(match[2]) - 1; const day = Number(match[3]);
+  const targetFirst = new Date(year, month + months, 1);
+  const lastDay = new Date(targetFirst.getFullYear(), targetFirst.getMonth() + 1, 0).getDate();
+  const target = new Date(targetFirst.getFullYear(), targetFirst.getMonth(), Math.min(day, lastDay));
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
 }
 
 function openFinancialEntryDialog(entryId = null) {
@@ -1779,6 +1801,8 @@ function openFinancialEntryDialog(entryId = null) {
   document.querySelector("#financialEntryCompetenceDate").value = entry?.competence_date || today;
   document.querySelector("#financialEntryDueDate").value = entry?.due_date || "";
   document.querySelector("#financialEntryNotes").value = entry?.notes || "";
+  document.querySelector("#financialEntryInstallment").value = "false";
+  document.querySelector("#financialEntryInstallmentCount").value = "2";
   syncFinancialEntryTypeFields();
   elements.financialEntryDialog.showModal();
 }
@@ -1789,7 +1813,12 @@ async function submitFinancialEntry(event) {
   const status = document.querySelector("#financialEntryStatus").value;
   const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: document.querySelector("#financialEntryDescription").value.trim(), amount: Number(document.querySelector("#financialEntryAmount").value), issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: document.querySelector("#financialEntryNotes").value.trim() || null };
   if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
-  try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, payload); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
+  const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
+  if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
+  const groupId = installmentCount > 1 ? crypto.randomUUID() : null;
+  const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, competence_date: addMonthsToFinancialDate(payload.competence_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
+  if (installmentCount === 1) ["id", "installment_number", "installment_count", "installment_group_id"].forEach((key) => delete records[0][key]);
+  try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0]); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
 }
 
 function renderFinancialImports() {
@@ -5452,6 +5481,7 @@ document.querySelector("#newFinancialAccountBtn")?.addEventListener("click", () 
 document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", () => { state.financialCategoryTargetItemId = null; openFinancialCategoryDialog(); });
 document.querySelector("#financialAccountType")?.addEventListener("change", syncFinancialCreditCardFields);
 document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
+document.querySelector("#financialEntryInstallment")?.addEventListener("change", syncFinancialInstallmentFields);
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
 elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; });

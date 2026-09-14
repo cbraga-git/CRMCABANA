@@ -829,6 +829,8 @@ button:focus-visible {
 .financial-status.ignored { color: #625a44; background: #ece8dc; }
 .financial-status.pending { color: #815c00; background: #fff0bd; }
 .selected-row { background: rgba(217, 199, 121, .18); }
+.financial-installment-label { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.financial-installment-hint { margin: 0; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 1100px) {
   .financial-module-stats {
