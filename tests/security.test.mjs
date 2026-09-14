@@ -83,6 +83,8 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(html, /id="financialEvolutionTableBtn"/);
   assert.match(html, /id="financialEvolutionRows"/);
   assert.match(html, /id="financialEntriesContext"/);
+  assert.match(html, /id="financialEntryFilters"/);
+  assert.match(html, /financial-entry-dialog-grid/);
   assert.match(app, /function renderFinancialDashboard/);
   assert.match(app, /function financialAccountBalance/);
   assert.match(app, /entry\.entry_type === "transfer"/);

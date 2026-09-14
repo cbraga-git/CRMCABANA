@@ -604,6 +604,15 @@
           <section class="financial-register" id="financialEntriesPanel" hidden>
             <header><div><h2 id="financialEntriesTitle">Lançamentos</h2><p>Receitas, despesas e transferências financeiras.</p></div><button class="button primary" id="newFinancialEntryBtn" type="button">+ Novo lançamento</button></header>
             <div class="financial-entries-context" id="financialEntriesContext" hidden><span></span><button class="link-button" id="clearFinancialEntryFilter" type="button">Limpar filtro</button></div>
+            <div class="financial-entry-filters" id="financialEntryFilters">
+              <label>Buscar<input id="financialEntryFilterSearch" type="search" placeholder="Descrição" /></label>
+              <label>Conta<select id="financialEntryFilterAccount"><option value="">Todas as contas</option></select></label>
+              <label>Categoria<select id="financialEntryFilterCategory"><option value="">Todas as categorias</option></select></label>
+              <label>Situação<select id="financialEntryFilterStatus"><option value="">Todas</option><option value="pending">Pendente</option><option value="paid">Pago/recebido</option><option value="overdue">Vencido</option><option value="cancelled">Cancelado</option></select></label>
+              <label>De<input id="financialEntryFilterStart" type="date" /></label>
+              <label>Até<input id="financialEntryFilterEnd" type="date" /></label>
+              <button class="button secondary" id="clearFinancialEntryFilters" type="button">Limpar</button>
+            </div>
             <div class="table-wrap"><table><thead><tr><th>Descrição</th><th>Tipo</th><th>Conta</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
           </section>
 
@@ -872,7 +881,7 @@
     <dialog id="financialEntryDialog">
       <form method="dialog" id="financialEntryForm" class="dialog-card">
         <header><h2 id="financialEntryDialogTitle">Novo lançamento</h2><button type="button" data-close-financial-dialog="entry">x</button></header>
-        <div class="dialog-grid">
+        <div class="dialog-grid financial-entry-dialog-grid">
           <label>Tipo *<select id="financialEntryType"><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência</option></select></label>
           <label>Status *<select id="financialEntryStatus"><option value="pending">Pendente</option><option value="paid">Pago/recebido</option><option value="cancelled">Cancelado</option></select></label>
           <label>Descrição *<input id="financialEntryDescription" maxlength="240" required /></label>
@@ -1056,6 +1065,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=139"></script>
+    <script src="app.js?v=140"></script>
   </body>
 </html>
