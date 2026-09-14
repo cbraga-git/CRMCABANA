@@ -78,6 +78,10 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /resolution=ignore-duplicates/);
   assert.match(app, /ensureCategory/);
   assert.match(app, /account_id: accountMap[\s\S]*?transfer_account_id: null[\s\S]*?category_id:/);
+  assert.match(html, /id="financialDashboardMonth"/);
+  assert.match(app, /function renderFinancialDashboard/);
+  assert.match(app, /function financialAccountBalance/);
+  assert.match(app, /entry\.entry_type === "transfer"/);
 });
 
 test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {

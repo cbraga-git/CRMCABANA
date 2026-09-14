@@ -203,6 +203,7 @@ const state = {
   financialSelectedImportId: null,
   financialCategoryTargetItemId: null,
   financialCategoryTargetEntry: false,
+  financialDashboardMonth: new Date().toISOString().slice(0, 7),
 };
 
 const elements = {
@@ -1584,12 +1585,16 @@ function renderFinanceModuleView(view) {
   const showingCategories = view === "financeCategories";
   const showingEntries = ["financeTransactions", "financePayable", "financeReceivable"].includes(view);
   const showingImport = view === "financeImport";
+  const showingDashboard = view === "financeOverview";
   if (elements.financialAccountsPanel) elements.financialAccountsPanel.hidden = !showingAccounts;
   if (elements.financialCategoriesPanel) elements.financialCategoriesPanel.hidden = !showingCategories;
   if (elements.financialEntriesPanel) elements.financialEntriesPanel.hidden = !showingEntries;
   if (elements.financialImportPanel) elements.financialImportPanel.hidden = !showingImport;
-  if (elements.financialModuleEmpty) elements.financialModuleEmpty.hidden = showingAccounts || showingCategories || showingEntries || showingImport;
-  if (elements.financialModuleStats) elements.financialModuleStats.hidden = view !== "financeOverview";
+  const dashboardContent = document.querySelector("#financialDashboardContent"); if (dashboardContent) dashboardContent.hidden = !showingDashboard;
+  const periodFilter = document.querySelector("#financialPeriodFilter"); if (periodFilter) periodFilter.hidden = !showingDashboard;
+  if (elements.financialModuleEmpty) elements.financialModuleEmpty.hidden = showingDashboard || showingAccounts || showingCategories || showingEntries || showingImport;
+  if (elements.financialModuleStats) elements.financialModuleStats.hidden = !showingDashboard;
+  if (showingDashboard) renderFinancialDashboard();
   if (showingAccounts) renderFinancialAccounts();
   if (showingCategories) renderFinancialCategories();
   if (showingEntries) renderFinancialEntries(view);
@@ -1598,6 +1603,61 @@ function renderFinanceModuleView(view) {
     elements.financialSubmenu.hidden = false;
     elements.financialNavToggle?.setAttribute("aria-expanded", "true");
   }
+}
+
+const FINANCIAL_CHART_COLORS = ["#aa8e34", "#22a657", "#0e9b78", "#f59b05", "#f43f68", "#2563eb", "#8b5cf6", "#64748b", "#d97706", "#0891b2"];
+
+function financialEntryDate(entry) { return entry.due_date || entry.competence_date || entry.issue_date || ""; }
+function financialMonthBounds(month) { const [year, monthNumber] = month.split("-").map(Number); return { start: `${year}-${String(monthNumber).padStart(2, "0")}-01`, end: `${year}-${String(monthNumber).padStart(2, "0")}-${String(new Date(year, monthNumber, 0).getDate()).padStart(2, "0")}` }; }
+
+function financialAccountBalance(account, endDate, projected) {
+  let balance = account.initial_balance_date <= endDate ? Number(account.initial_balance) || 0 : 0;
+  state.financialEntries.forEach((entry) => {
+    if (entry.status === "cancelled" || financialEntryDate(entry) > endDate || (!projected && entry.status !== "paid")) return;
+    const amount = Number(entry.amount) || 0;
+    if (entry.entry_type === "income" && entry.account_id === account.id) balance += amount;
+    if (entry.entry_type === "expense" && entry.account_id === account.id) balance -= amount;
+    if (entry.entry_type === "transfer" && entry.account_id === account.id) balance -= amount;
+    if (entry.entry_type === "transfer" && entry.transfer_account_id === account.id) balance += amount;
+  });
+  return balance;
+}
+
+function financialCategorySummary(entries, type) {
+  const categories = new Map(state.financialCategories.map((category) => [category.id, category])); const totals = new Map();
+  entries.filter((entry) => entry.entry_type === type && entry.status !== "cancelled").forEach((entry) => { const category = categories.get(entry.category_id); const parent = category?.parent_id ? categories.get(category.parent_id) : category; const name = parent?.name || "Sem categoria"; totals.set(name, (totals.get(name) || 0) + (Number(entry.amount) || 0)); });
+  return Array.from(totals, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+}
+
+function prepareFinancialCanvas(canvas, height) {
+  const width = canvas.clientWidth || 500; const ratio = window.devicePixelRatio || 1; canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); const context = canvas.getContext("2d"); context.setTransform(ratio, 0, 0, ratio, 0, 0); context.clearRect(0, 0, width, height); return { context, width, height };
+}
+
+function renderFinancialDonut(canvasId, legendId, data) {
+  const canvas = document.querySelector(`#${canvasId}`); const legend = document.querySelector(`#${legendId}`); if (!canvas || !legend) return;
+  const { context, width, height } = prepareFinancialCanvas(canvas, 280); const total = data.reduce((sum, item) => sum + item.value, 0); const radius = Math.min(width, height) * 0.32; const thickness = Math.max(26, radius * .28); const centerX = width / 2; const centerY = height / 2; let angle = -Math.PI / 2;
+  if (!total) { context.strokeStyle = "#e6dcc0"; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, 0, Math.PI * 2); context.stroke(); }
+  data.forEach((item, index) => { const next = angle + item.value / total * Math.PI * 2; context.strokeStyle = FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, angle, next); context.stroke(); angle = next; });
+  context.fillStyle = "#1b1606"; context.textAlign = "center"; context.font = "700 18px Arial"; context.fillText(BRL.format(total), centerX, centerY + 2); context.font = "12px Arial"; context.fillStyle = "#6e6135"; context.fillText("Total", centerX, centerY + 23);
+  legend.innerHTML = data.length ? data.slice(0, 8).map((item, index) => `<span><i style="background:${FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]}"></i>${escapeHtml(item.name)} <strong>${BRL.format(item.value)}</strong></span>`).join("") : "<span>Sem lançamentos no período.</span>";
+}
+
+function renderFinancialBalanceChart(year) {
+  const canvas = document.querySelector("#financialBalanceChart"); if (!canvas) return; const { context, width, height } = prepareFinancialCanvas(canvas, 300); const accounts = state.financialAccounts.filter((account) => account.active); const values = Array.from({ length: 12 }, (_, index) => accounts.reduce((sum, account) => sum + financialAccountBalance(account, `${year}-${String(index + 1).padStart(2, "0")}-${String(new Date(year, index + 1, 0).getDate()).padStart(2, "0")}`, true), 0));
+  const padding = { top: 25, right: 25, bottom: 45, left: 78 }; const min = Math.min(0, ...values); const max = Math.max(1, ...values); const range = max - min || 1; const chartWidth = width - padding.left - padding.right; const chartHeight = height - padding.top - padding.bottom;
+  context.font = "11px Arial"; context.strokeStyle = "#e0d3aa"; context.fillStyle = "#6e6135"; context.textAlign = "right";
+  for (let tick = 0; tick <= 4; tick += 1) { const value = min + range * tick / 4; const y = height - padding.bottom - chartHeight * tick / 4; context.beginPath(); context.moveTo(padding.left, y); context.lineTo(width - padding.right, y); context.stroke(); context.fillText(BRL.format(value), padding.left - 8, y + 4); }
+  const points = values.map((value, index) => ({ x: padding.left + chartWidth * index / 11, y: padding.top + (max - value) / range * chartHeight })); context.strokeStyle = "#aa8e34"; context.lineWidth = 3; context.beginPath(); points.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.stroke();
+  points.forEach((point, index) => { context.fillStyle = "#aa8e34"; context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.fillStyle = "#6e6135"; context.textAlign = "center"; context.fillText(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][index], point.x, height - 18); });
+}
+
+function renderFinancialDashboard() {
+  const input = document.querySelector("#financialDashboardMonth"); if (!input) return; input.value = state.financialDashboardMonth; const { start, end } = financialMonthBounds(state.financialDashboardMonth); const monthEntries = state.financialEntries.filter((entry) => { const date = financialEntryDate(entry); return date >= start && date <= end; }); const accounts = state.financialAccounts.filter((account) => account.active);
+  const income = monthEntries.filter((entry) => entry.entry_type === "income" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const expense = monthEntries.filter((entry) => entry.entry_type === "expense" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, false), 0); const projected = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0);
+  document.querySelector("#financialDashboardBalance").textContent = BRL.format(balance); document.querySelector("#financialDashboardIncome").textContent = BRL.format(income); document.querySelector("#financialDashboardExpense").textContent = BRL.format(expense); document.querySelector("#financialDashboardProjected").textContent = BRL.format(projected);
+  renderFinancialDonut("financialExpenseChart", "financialExpenseLegend", financialCategorySummary(monthEntries, "expense")); renderFinancialDonut("financialIncomeChart", "financialIncomeLegend", financialCategorySummary(monthEntries, "income"));
+  document.querySelector("#financialDashboardAccounts").innerHTML = accounts.length ? accounts.map((account) => `<article><header><span class="stat-icon teal">$</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</small></div></header><dl><div><dt>Saldo realizado</dt><dd>${BRL.format(financialAccountBalance(account, end, false))}</dd></div><div><dt>Saldo previsto</dt><dd>${BRL.format(financialAccountBalance(account, end, true))}</dd></div></dl></article>`).join("") : '<p class="empty-table-cell">Nenhuma conta ativa cadastrada.</p>';
+  renderFinancialBalanceChart(Number(state.financialDashboardMonth.slice(0, 4)));
 }
 
 const FINANCIAL_ACCOUNT_TYPES = { bank: "Conta bancária", cash: "Caixa", credit_card: "Cartão de crédito", investment: "Investimento", other: "Outra" };
@@ -5609,6 +5669,7 @@ document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", ()
 document.querySelector("#financialAccountType")?.addEventListener("change", syncFinancialCreditCardFields);
 document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
 document.querySelector("#financialEntryInstallment")?.addEventListener("change", syncFinancialInstallmentFields);
+document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
 elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; });
@@ -6039,6 +6100,7 @@ window.addEventListener("resize", () => {
   if (state.view === "financial") {
     renderBudgetDashboard();
   }
+  if (state.view === "financeOverview") renderFinancialDashboard();
 });
 
 if (typeof ResizeObserver === "function") {
