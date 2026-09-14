@@ -202,6 +202,7 @@ const state = {
   financialStatementItems: [],
   financialSelectedImportId: null,
   financialCategoryTargetItemId: null,
+  financialCategoryTargetEntry: false,
 };
 
 const elements = {
@@ -1706,6 +1707,16 @@ async function submitFinancialCategory(event) {
       const targetSelect = elements.financialStatementItemRows.querySelector(`[data-statement-category="${targetItemId}"]`);
       if (targetSelect && saved?.id) targetSelect.value = saved.id;
       state.financialCategoryTargetItemId = null;
+    } else if (state.financialCategoryTargetEntry) {
+      const categorySelect = document.querySelector("#financialEntryCategory");
+      if (categorySelect && saved?.id) {
+        const option = document.createElement("option");
+        option.value = saved.id;
+        option.textContent = saved.name;
+        categorySelect.insertBefore(option, categorySelect.querySelector('option[value="__new__"]'));
+        categorySelect.value = saved.id;
+      }
+      state.financialCategoryTargetEntry = false;
     }
   } catch (error) { alert(error.message); }
 }
@@ -1750,7 +1761,7 @@ function fillFinancialEntryOptions() {
   const accountOptions = state.financialAccounts.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
   document.querySelector("#financialEntryAccount").innerHTML = accountOptions;
   document.querySelector("#financialEntryTransferAccount").innerHTML = accountOptions;
-  document.querySelector("#financialEntryCategory").innerHTML = '<option value="">Sem categoria</option>' + state.financialCategories.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
+  document.querySelector("#financialEntryCategory").innerHTML = '<option value="">Sem categoria</option>' + state.financialCategories.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("") + '<option value="__new__">+ Criar nova categoria...</option>';
 }
 
 function syncFinancialEntryTypeFields() {
@@ -5478,17 +5489,17 @@ elements.navItems.forEach((item) => {
 });
 
 document.querySelector("#newFinancialAccountBtn")?.addEventListener("click", () => openFinancialAccountDialog());
-document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", () => { state.financialCategoryTargetItemId = null; openFinancialCategoryDialog(); });
+document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", () => { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; openFinancialCategoryDialog(); });
 document.querySelector("#financialAccountType")?.addEventListener("change", syncFinancialCreditCardFields);
 document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
 document.querySelector("#financialEntryInstallment")?.addEventListener("change", syncFinancialInstallmentFields);
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
-elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; });
+elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; });
 elements.financialEntryForm?.addEventListener("submit", submitFinancialEntry);
 document.querySelector("#newFinancialEntryBtn")?.addEventListener("click", () => openFinancialEntryDialog());
 document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => button.addEventListener("click", () => {
-  if (button.dataset.closeFinancialDialog === "category") state.financialCategoryTargetItemId = null;
+  if (button.dataset.closeFinancialDialog === "category") { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; }
   ({ account: elements.financialAccountDialog, category: elements.financialCategoryDialog, entry: elements.financialEntryDialog }[button.dataset.closeFinancialDialog]?.close());
 }));
 elements.financialAccountRows?.addEventListener("click", (event) => {
@@ -5545,6 +5556,16 @@ elements.financialStatementItemRows?.addEventListener("change", (event) => {
   state.financialCategoryTargetItemId = item?.id || null;
   openFinancialCategoryDialog();
   document.querySelector("#financialCategoryType").value = Number(item?.amount) >= 0 ? "income" : "expense";
+  document.querySelector("#financialCategoryName").focus();
+});
+document.querySelector("#financialEntryCategory")?.addEventListener("change", (event) => {
+  if (event.target.value !== "__new__") return;
+  event.target.value = "";
+  state.financialCategoryTargetItemId = null;
+  state.financialCategoryTargetEntry = true;
+  const entryType = document.querySelector("#financialEntryType").value;
+  openFinancialCategoryDialog();
+  document.querySelector("#financialCategoryType").value = entryType === "income" ? "income" : "expense";
   document.querySelector("#financialCategoryName").focus();
 });
 

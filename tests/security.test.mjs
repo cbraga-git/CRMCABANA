@@ -70,6 +70,7 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /function addMonthsToFinancialDate/);
   assert.match(app, /installment_group_id/);
   assert.match(html, /id="financialEntryInstallmentCount"/);
+  assert.match(app, /financialCategoryTargetEntry/);
 });
 
 test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {
