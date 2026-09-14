@@ -263,6 +263,7 @@ const elements = {
   financialImportPanel: document.querySelector("#financialImportPanel"),
   financialImportRows: document.querySelector("#financialImportRows"),
   financialStatementFile: document.querySelector("#financialStatementFile"),
+  financialMigrationFile: document.querySelector("#financialMigrationFile"),
   financialImportDetail: document.querySelector("#financialImportDetail"),
   financialStatementItemRows: document.querySelector("#financialStatementItemRows"),
   clientsHeader: document.querySelector("#clientsHeader"),
@@ -1944,7 +1945,7 @@ function parseStatementFile(text, extension) {
   return lines.slice(headerLineIndex + 1).map((line) => { const row = parseCsvLine(line, delimiter); return { date: normalizeStatementDate(row[dateIndex]), description: row[descriptionIndex] || "Lançamento importado", amount: parseStatementAmount(row[amountIndex]), externalId: externalIdIndex >= 0 ? row[externalIdIndex] || null : null, balance: balanceIndex >= 0 ? parseStatementAmount(row[balanceIndex]) : null }; }).filter((item) => item.date && item.amount);
 }
 
-async function sha256(value) { const data = new TextEncoder().encode(value); const hash = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
+async function sha256(value) { const data = value instanceof ArrayBuffer ? new Uint8Array(value) : new TextEncoder().encode(value); const hash = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
 
 async function importFinancialStatement(file) {
   const accountId = document.querySelector("#financialImportAccount").value;
@@ -1958,6 +1959,115 @@ async function importFinancialStatement(file) {
   const itemResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(rows) }));
   if (!itemResponse.ok) { await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", `?id=eq.${importRow.id}`), () => ({ method: "DELETE", headers: supabaseHeaders() })); throw new Error("Não foi possível salvar os itens do extrato."); }
   await loadFinancialRegisters(); renderFinancialImports();
+}
+
+async function unzipXlsxFiles(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  let eocd = view.byteLength - 22;
+  while (eocd >= Math.max(0, view.byteLength - 65557) && view.getUint32(eocd, true) !== 0x06054b50) eocd -= 1;
+  if (eocd < 0 || view.getUint32(eocd, true) !== 0x06054b50) throw new Error("Arquivo XLSX inválido.");
+  const entryCount = view.getUint16(eocd + 10, true);
+  let offset = view.getUint32(eocd + 16, true);
+  const decoder = new TextDecoder("utf-8");
+  const files = new Map();
+  for (let index = 0; index < entryCount; index += 1) {
+    if (view.getUint32(offset, true) !== 0x02014b50) throw new Error("Estrutura interna do XLSX inválida.");
+    const method = view.getUint16(offset + 10, true); const compressedSize = view.getUint32(offset + 20, true);
+    const nameLength = view.getUint16(offset + 28, true); const extraLength = view.getUint16(offset + 30, true); const commentLength = view.getUint16(offset + 32, true); const localOffset = view.getUint32(offset + 42, true);
+    const name = decoder.decode(new Uint8Array(arrayBuffer, offset + 46, nameLength));
+    const localNameLength = view.getUint16(localOffset + 26, true); const localExtraLength = view.getUint16(localOffset + 28, true); const dataOffset = localOffset + 30 + localNameLength + localExtraLength;
+    const compressed = new Uint8Array(arrayBuffer.slice(dataOffset, dataOffset + compressedSize));
+    let content;
+    if (method === 0) content = compressed;
+    else if (method === 8 && typeof DecompressionStream === "function") content = new Uint8Array(await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+    else throw new Error("Este navegador não consegue descompactar o XLSX. Use uma versão atual do Chrome ou Edge.");
+    files.set(name, decoder.decode(content));
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+  return files;
+}
+
+function xmlDocument(text, label) {
+  const documentNode = new DOMParser().parseFromString(text || "", "application/xml");
+  if (documentNode.querySelector("parsererror")) throw new Error(`Não foi possível ler ${label} da planilha.`);
+  return documentNode;
+}
+
+function xlsxColumnIndex(reference) {
+  return Array.from(String(reference).match(/^[A-Z]+/)?.[0] || "A").reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+}
+
+async function readMobillsWorkbook(file) {
+  if (file.size > 20 * 1024 * 1024) throw new Error("A planilha excede o limite de 20 MB.");
+  const files = await unzipXlsxFiles(await file.arrayBuffer());
+  const sharedDocument = files.has("xl/sharedStrings.xml") ? xmlDocument(files.get("xl/sharedStrings.xml"), "os textos") : null;
+  const shared = sharedDocument ? Array.from(sharedDocument.querySelectorAll("si")).map((item) => Array.from(item.querySelectorAll("t")).map((text) => text.textContent).join("")) : [];
+  const workbook = xmlDocument(files.get("xl/workbook.xml"), "as abas");
+  const relationships = xmlDocument(files.get("xl/_rels/workbook.xml.rels"), "os relacionamentos");
+  const targets = new Map(Array.from(relationships.querySelectorAll("Relationship")).map((item) => [item.getAttribute("Id"), item.getAttribute("Target")]));
+  const result = new Map();
+  for (const sheet of workbook.querySelectorAll("sheet")) {
+    const relationId = sheet.getAttribute("r:id") || sheet.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+    const target = targets.get(relationId); if (!target) continue;
+    const path = target.startsWith("/") ? target.slice(1) : `xl/${target.replace(/^\.\//, "")}`;
+    const sheetDocument = xmlDocument(files.get(path), `a aba ${sheet.getAttribute("name")}`);
+    const rows = Array.from(sheetDocument.querySelectorAll("row")).map((row) => {
+      const values = [];
+      row.querySelectorAll("c").forEach((cell) => { const type = cell.getAttribute("t"); const raw = cell.querySelector("v")?.textContent ?? ""; const value = type === "s" ? shared[Number(raw)] ?? "" : type === "inlineStr" ? Array.from(cell.querySelectorAll("t")).map((node) => node.textContent).join("") : type === "str" ? raw : raw === "" ? "" : Number(raw); values[xlsxColumnIndex(cell.getAttribute("r"))] = value; });
+      return values;
+    });
+    result.set(sheet.getAttribute("name"), rows);
+  }
+  return result;
+}
+
+function normalizedMigrationText(value) { return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
+function cleanMobillsAccountName(value) { return String(value || "").trim().replace(/^\d+\s*-\s*/, "").trim(); }
+
+async function deterministicMigrationUuid(key) {
+  const hex = await sha256(key); const chars = hex.slice(0, 32).split(""); chars[12] = "4"; chars[16] = "89ab"[parseInt(chars[16], 16) % 4];
+  const value = chars.join(""); return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
+
+async function postFinancialRows(table, rows, prefer = "return=representation") {
+  if (!rows.length) return [];
+  const response = await authorizedFetch(supabaseTableEndpoint(table), () => ({ method: "POST", headers: supabaseHeaders(prefer), body: JSON.stringify(rows) }));
+  if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || `Não foi possível gravar ${table}.`); }
+  return prefer.includes("return=representation") ? response.json() : [];
+}
+
+async function migrateMobillsWorkbook(file) {
+  const workbook = await readMobillsWorkbook(file); const normalize = normalizedMigrationText;
+  const findSheet = (prefix) => Array.from(workbook).find(([name]) => normalize(name).startsWith(prefix))?.[1];
+  const regularSheet = findSheet("receitas e despesas"); const transferSheet = findSheet("transfer");
+  if (!regularSheet?.length) throw new Error("A aba Receitas e Despesas não foi encontrada.");
+  const objects = (rows) => { const headers = rows[0].map(normalize); return rows.slice(1).filter((row) => row.some((value) => value !== "" && value != null)).map((row, rowIndex) => ({ rowIndex: rowIndex + 2, values: Object.fromEntries(headers.map((header, index) => [header, row[index]])) })); };
+  const regular = objects(regularSheet); const transfers = transferSheet?.length ? objects(transferSheet) : [];
+  if (!confirm(`Migrar ${regular.length} receitas/despesas e ${transfers.length} transferências do Mobills?`)) return null;
+  await loadFinancialRegisters();
+  const accountMap = new Map(state.financialAccounts.map((account) => [normalize(cleanMobillsAccountName(account.name)), account]));
+  const allAccountNames = new Set([...regular.map(({ values }) => values.conta), ...transfers.flatMap(({ values }) => [values["conta origem"], values["conta destino"]])].map(cleanMobillsAccountName).filter(Boolean));
+  for (const name of allAccountNames) {
+    const key = normalize(name); if (accountMap.has(key)) continue;
+    const [created] = await postFinancialRows("crm_financial_accounts", [{ name, account_type: "bank", initial_balance: 0, initial_balance_date: normalizeStatementDate(regular[0]?.values.data) || new Date().toISOString().slice(0, 10) }]); accountMap.set(key, created);
+  }
+  const categoryMap = new Map(state.financialCategories.map((category) => [`${category.category_type}|${normalize(category.name)}`, category]));
+  async function ensureCategory(name, type, parentId = null) { if (!String(name || "").trim()) return null; const key = `${type}|${normalize(name)}`; if (categoryMap.has(key)) return categoryMap.get(key); const [created] = await postFinancialRows("crm_financial_categories", [{ name: String(name).trim(), category_type: type, parent_id: parentId, active: true }]); categoryMap.set(key, created); return created; }
+  const fileHash = await sha256(await file.arrayBuffer()); const entries = [];
+  for (const { rowIndex, values } of regular) {
+    const amount = Number(values.valor); if (!Number.isFinite(amount) || amount === 0) continue;
+    const type = amount > 0 ? "income" : "expense"; const parent = await ensureCategory(values.categoria, type); const child = await ensureCategory(values.subcategoria, type, parent?.id || null);
+    const date = normalizeStatementDate(values.data); if (!date) continue; const paid = normalize(values.situacao).startsWith("paga");
+    entries.push({ id: await deterministicMigrationUuid(`${fileHash}|regular|${rowIndex}`), entry_type: type, status: paid ? "paid" : "pending", account_id: accountMap.get(normalize(cleanMobillsAccountName(values.conta)))?.id, category_id: child?.id || parent?.id || null, description: String(values.descricao || "Migração Mobills").trim().slice(0, 240), notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount: Math.abs(amount), issue_date: date, competence_date: date, due_date: date, paid_at: paid ? `${date}T12:00:00.000Z` : null, source_type: "adjustment" });
+  }
+  for (const { rowIndex, values } of transfers) {
+    const amount = Math.abs(Number(values.valor)); const date = normalizeStatementDate(values.data); if (!amount || !date) continue;
+    entries.push({ id: await deterministicMigrationUuid(`${fileHash}|transfer|${rowIndex}`), entry_type: "transfer", status: "paid", account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta origem"])))?.id, transfer_account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta destino"])))?.id, category_id: null, description: "Transferência migrada do Mobills", notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount, issue_date: date, competence_date: date, due_date: date, paid_at: `${date}T12:00:00.000Z`, source_type: "adjustment" });
+  }
+  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?on_conflict=id"), () => ({ method: "POST", headers: supabaseHeaders("resolution=ignore-duplicates,return=representation"), body: JSON.stringify(entries) }));
+  if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível gravar as transações migradas."); }
+  const inserted = await response.json(); await loadFinancialRegisters();
+  return { total: entries.length, inserted: inserted.length, accounts: allAccountNames.size, categories: categoryMap.size };
 }
 
 function setStatusFilter(group, status) {
@@ -5551,6 +5661,22 @@ elements.financialStatementFile?.addEventListener("change", async (event) => {
   const message = document.querySelector("#financialImportMessage");
   message.textContent = "Importando...";
   try { await importFinancialStatement(file); message.textContent = `${file.name} importado com sucesso.`; } catch (error) { message.textContent = error.message; alert(error.message); } finally { event.target.value = ""; }
+});
+elements.financialMigrationFile?.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const message = document.querySelector("#financialImportMessage");
+  message.textContent = "Migrando dados do Mobills...";
+  try {
+    const result = await migrateMobillsWorkbook(file);
+    if (result) {
+      message.textContent = `Migração concluída: ${result.inserted} de ${result.total} transações inseridas.`;
+      renderFinancialImports();
+      alert(`${result.inserted} transações migradas. ${result.total - result.inserted} já existiam e não foram duplicadas.`);
+    } else message.textContent = "Migração cancelada.";
+  } catch (error) {
+    console.warn(error); message.textContent = error.message; alert(error.message);
+  } finally { event.target.value = ""; }
 });
 elements.financialStatementItemRows?.addEventListener("change", (event) => {
   const select = event.target.closest("[data-statement-category]");

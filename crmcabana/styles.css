@@ -816,6 +816,7 @@ button:focus-visible {
 .financial-import-controls select { min-height: 40px; }
 .financial-import-controls span { padding-bottom: 10px; color: var(--muted); }
 .financial-file-button { display: inline-flex; align-items: center; }
+.financial-import-actions { display: flex; align-items: center; gap: 8px; }
 .financial-import-detail { margin: 22px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fffdf7; }
 .financial-import-detail > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .financial-import-detail > header h3, .financial-import-detail > header p { margin: 0; }

@@ -73,6 +73,10 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /installment_group_id/);
   assert.match(html, /id="financialEntryInstallmentCount"/);
   assert.match(app, /financialCategoryTargetEntry/);
+  assert.match(html, /id="financialMigrationFile"/);
+  assert.match(app, /function migrateMobillsWorkbook/);
+  assert.match(app, /resolution=ignore-duplicates/);
+  assert.match(app, /ensureCategory/);
 });
 
 test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho", () => {
