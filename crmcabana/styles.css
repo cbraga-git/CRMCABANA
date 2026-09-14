@@ -783,6 +783,24 @@ button:focus-visible {
 .financial-account-cards dl div { display: flex; justify-content: space-between; gap: 10px; }
 .financial-account-cards dd { margin: 0; font-weight: 800; }
 .financial-dashboard-card .financial-balance-chart { height: 300px; margin-top: 10px; }
+.financial-evolution-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.financial-evolution-controls { display: flex; align-items: center; gap: 8px; }
+.financial-evolution-controls select { min-width: 180px; height: 40px; padding: 0 34px 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-weight: 700; }
+.financial-view-icon { width: 40px; height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 21px; line-height: 1; cursor: pointer; }
+.financial-view-icon:hover, .financial-view-icon.active { border-color: var(--gold); background: var(--gold); color: #fff; }
+.financial-evolution-table { margin: 20px -22px -22px; border-top: 1px solid var(--line); border-radius: 0 0 14px 14px; }
+.financial-evolution-table table { min-width: 920px; }
+.financial-evolution-table th, .financial-evolution-table td { padding: 15px 20px; text-align: right; white-space: nowrap; }
+.financial-evolution-table th:first-child, .financial-evolution-table td:first-child { text-align: left; }
+.financial-evolution-table tbody tr:last-child td { border-bottom: 0; }
+.financial-positive { color: #268f43; }
+.financial-negative { color: #c9362b; }
+
+@media (max-width: 760px) {
+  .financial-evolution-header { flex-direction: column; }
+  .financial-evolution-controls { width: 100%; }
+  .financial-evolution-controls select { min-width: 0; flex: 1; }
+}
 
 .financial-module-empty {
   display: grid;

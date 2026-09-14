@@ -584,7 +584,11 @@
               <article class="financial-dashboard-card"><h2>Receitas por categoria</h2><canvas id="financialIncomeChart" aria-label="Receitas por categoria"></canvas><div class="financial-chart-legend" id="financialIncomeLegend"></div></article>
             </div>
             <article class="financial-dashboard-card"><header><div><h2>Saldos por conta</h2><p>Realizado e previsto até o fim do período selecionado.</p></div></header><div class="financial-account-cards" id="financialDashboardAccounts"></div></article>
-            <article class="financial-dashboard-card"><h2>Evolução do saldo no ano</h2><canvas class="financial-balance-chart" id="financialBalanceChart" aria-label="Evolução mensal do saldo"></canvas></article>
+            <article class="financial-dashboard-card financial-evolution-card">
+              <header class="financial-evolution-header"><div><h2>Evolução do saldo no ano</h2><p id="financialEvolutionPeriod">janeiro a dezembro</p></div><div class="financial-evolution-controls"><select id="financialEvolutionAccount" aria-label="Filtrar evolução por conta"><option value="">Todas as contas</option></select><button class="financial-view-icon active" id="financialEvolutionChartBtn" type="button" title="Ver gráfico" aria-label="Ver gráfico">⌁</button><button class="financial-view-icon" id="financialEvolutionTableBtn" type="button" title="Ver analítico mensal" aria-label="Ver analítico mensal">▦</button></div></header>
+              <div id="financialEvolutionChartPanel"><canvas class="financial-balance-chart" id="financialBalanceChart" aria-label="Evolução mensal do saldo"></canvas></div>
+              <div class="table-wrap financial-evolution-table" id="financialEvolutionTablePanel" hidden><table><thead><tr><th>Mês</th><th>Transferências de entrada</th><th>Transferências de saída</th><th>Receitas</th><th>Despesas</th><th>Saldo previsto</th></tr></thead><tbody id="financialEvolutionRows"></tbody></table></div>
+            </article>
           </section>
 
           <section class="financial-register" id="financialAccountsPanel" hidden>
@@ -1051,6 +1055,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=137"></script>
+    <script src="app.js?v=138"></script>
   </body>
 </html>

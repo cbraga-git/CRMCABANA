@@ -204,6 +204,8 @@ const state = {
   financialCategoryTargetItemId: null,
   financialCategoryTargetEntry: false,
   financialDashboardMonth: new Date().toISOString().slice(0, 7),
+  financialEvolutionView: "chart",
+  financialEvolutionAccountId: "",
 };
 
 const elements = {
@@ -1642,13 +1644,33 @@ function renderFinancialDonut(canvasId, legendId, data) {
   legend.innerHTML = data.length ? data.slice(0, 8).map((item, index) => `<span><i style="background:${FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]}"></i>${escapeHtml(item.name)} <strong>${BRL.format(item.value)}</strong></span>`).join("") : "<span>Sem lançamentos no período.</span>";
 }
 
+function financialEvolutionAccounts() {
+  return state.financialAccounts.filter((account) => account.active && (!state.financialEvolutionAccountId || account.id === state.financialEvolutionAccountId));
+}
+
 function renderFinancialBalanceChart(year) {
-  const canvas = document.querySelector("#financialBalanceChart"); if (!canvas) return; const { context, width, height } = prepareFinancialCanvas(canvas, 300); const accounts = state.financialAccounts.filter((account) => account.active); const values = Array.from({ length: 12 }, (_, index) => accounts.reduce((sum, account) => sum + financialAccountBalance(account, `${year}-${String(index + 1).padStart(2, "0")}-${String(new Date(year, index + 1, 0).getDate()).padStart(2, "0")}`, true), 0));
+  const canvas = document.querySelector("#financialBalanceChart"); if (!canvas) return; const { context, width, height } = prepareFinancialCanvas(canvas, 300); const accounts = financialEvolutionAccounts(); const values = Array.from({ length: 12 }, (_, index) => accounts.reduce((sum, account) => sum + financialAccountBalance(account, `${year}-${String(index + 1).padStart(2, "0")}-${String(new Date(year, index + 1, 0).getDate()).padStart(2, "0")}`, true), 0));
   const padding = { top: 25, right: 25, bottom: 45, left: 78 }; const min = Math.min(0, ...values); const max = Math.max(1, ...values); const range = max - min || 1; const chartWidth = width - padding.left - padding.right; const chartHeight = height - padding.top - padding.bottom;
   context.font = "11px Arial"; context.strokeStyle = "#e0d3aa"; context.fillStyle = "#6e6135"; context.textAlign = "right";
   for (let tick = 0; tick <= 4; tick += 1) { const value = min + range * tick / 4; const y = height - padding.bottom - chartHeight * tick / 4; context.beginPath(); context.moveTo(padding.left, y); context.lineTo(width - padding.right, y); context.stroke(); context.fillText(BRL.format(value), padding.left - 8, y + 4); }
   const points = values.map((value, index) => ({ x: padding.left + chartWidth * index / 11, y: padding.top + (max - value) / range * chartHeight })); context.strokeStyle = "#aa8e34"; context.lineWidth = 3; context.beginPath(); points.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.stroke();
   points.forEach((point, index) => { context.fillStyle = "#aa8e34"; context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.fillStyle = "#6e6135"; context.textAlign = "center"; context.fillText(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][index], point.x, height - 18); });
+}
+
+function renderFinancialEvolutionTable(year) {
+  const rows = document.querySelector("#financialEvolutionRows"); if (!rows) return; const accounts = financialEvolutionAccounts(); const accountIds = new Set(accounts.map((account) => account.id)); const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  rows.innerHTML = Array.from({ length: 12 }, (_, index) => {
+    const month = `${year}-${String(index + 1).padStart(2, "0")}`; const { start, end } = financialMonthBounds(month); const entries = state.financialEntries.filter((entry) => entry.status !== "cancelled" && financialEntryDate(entry) >= start && financialEntryDate(entry) <= end); const incomingTransfers = entries.filter((entry) => entry.entry_type === "transfer" && accountIds.has(entry.transfer_account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const outgoingTransfers = entries.filter((entry) => entry.entry_type === "transfer" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const income = entries.filter((entry) => entry.entry_type === "income" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const expense = entries.filter((entry) => entry.entry_type === "expense" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const projected = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0);
+    return `<tr><td><strong>${monthNames[index]} ${year}</strong></td><td>${BRL.format(incomingTransfers)}</td><td>${BRL.format(outgoingTransfers)}</td><td class="financial-positive">${BRL.format(income)}</td><td class="financial-negative">${BRL.format(expense)}</td><td><strong>${BRL.format(projected)}</strong></td></tr>`;
+  }).join("");
+}
+
+function renderFinancialEvolution() {
+  const year = Number(state.financialDashboardMonth.slice(0, 4)); const accountSelect = document.querySelector("#financialEvolutionAccount"); const validAccount = state.financialAccounts.some((account) => account.active && account.id === state.financialEvolutionAccountId); if (!validAccount) state.financialEvolutionAccountId = "";
+  accountSelect.innerHTML = '<option value="">Todas as contas</option>' + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEvolutionAccountId;
+  document.querySelector("#financialEvolutionPeriod").textContent = `janeiro ${year} — dezembro ${year}`;
+  const chartMode = state.financialEvolutionView === "chart"; document.querySelector("#financialEvolutionChartPanel").hidden = !chartMode; document.querySelector("#financialEvolutionTablePanel").hidden = chartMode; document.querySelector("#financialEvolutionChartBtn").classList.toggle("active", chartMode); document.querySelector("#financialEvolutionTableBtn").classList.toggle("active", !chartMode);
+  if (chartMode) renderFinancialBalanceChart(year); else renderFinancialEvolutionTable(year);
 }
 
 function renderFinancialDashboard() {
@@ -1657,7 +1679,7 @@ function renderFinancialDashboard() {
   document.querySelector("#financialDashboardBalance").textContent = BRL.format(balance); document.querySelector("#financialDashboardIncome").textContent = BRL.format(income); document.querySelector("#financialDashboardExpense").textContent = BRL.format(expense); document.querySelector("#financialDashboardProjected").textContent = BRL.format(projected);
   renderFinancialDonut("financialExpenseChart", "financialExpenseLegend", financialCategorySummary(monthEntries, "expense")); renderFinancialDonut("financialIncomeChart", "financialIncomeLegend", financialCategorySummary(monthEntries, "income"));
   document.querySelector("#financialDashboardAccounts").innerHTML = accounts.length ? accounts.map((account) => `<article><header><span class="stat-icon teal">$</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</small></div></header><dl><div><dt>Saldo realizado</dt><dd>${BRL.format(financialAccountBalance(account, end, false))}</dd></div><div><dt>Saldo previsto</dt><dd>${BRL.format(financialAccountBalance(account, end, true))}</dd></div></dl></article>`).join("") : '<p class="empty-table-cell">Nenhuma conta ativa cadastrada.</p>';
-  renderFinancialBalanceChart(Number(state.financialDashboardMonth.slice(0, 4)));
+  renderFinancialEvolution();
 }
 
 const FINANCIAL_ACCOUNT_TYPES = { bank: "Conta bancária", cash: "Caixa", credit_card: "Cartão de crédito", investment: "Investimento", other: "Outra" };
@@ -5670,6 +5692,9 @@ document.querySelector("#financialAccountType")?.addEventListener("change", sync
 document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
 document.querySelector("#financialEntryInstallment")?.addEventListener("change", syncFinancialInstallmentFields);
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
+document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
+document.querySelector("#financialEvolutionChartBtn")?.addEventListener("click", () => { state.financialEvolutionView = "chart"; renderFinancialEvolution(); });
+document.querySelector("#financialEvolutionTableBtn")?.addEventListener("click", () => { state.financialEvolutionView = "table"; renderFinancialEvolution(); });
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
 elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; });
