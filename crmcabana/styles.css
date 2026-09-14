@@ -843,6 +843,9 @@ button:focus-visible {
   padding: 10px 12px;
 }
 
+.budget-freight-input { display: grid; grid-template-columns: 48px minmax(80px, 1fr); gap: 4px; }
+.budget-freight-input select, .budget-freight-input input { min-width: 0; width: 100%; }
+
 .compact-date-filter {
   display: flex;
   align-items: flex-end;

@@ -80,6 +80,12 @@ test("orcamento e pedido incluem campos Nobilia e ocultam vendedor no cabecalho"
   assert.match(app, /nobiliaId|nobiliaDate/);
 });
 
+test("frete do orcamento aceita valor fixo ou percentual", () => {
+  assert.match(html, /id="budgetFreightMode"/);
+  assert.match(app, /settings\.freightMode === "percent"/);
+  assert.match(app, /totalFactory \* percentToRate\(freightInput\)/);
+});
+
 test("listagem de orcamentos exibe o campo ID Nobilia apos o ID do orçamento", () => {
   assert.match(html, /ID Nobilia|ID NOBILIA/);
   assert.match(app, /budget\.nobiliaId|nobiliaId.*budget\.code|budget\.code.*nobiliaId/);

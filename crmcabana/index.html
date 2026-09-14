@@ -462,7 +462,7 @@
                       <th></th>
                       <th data-budget-column="gross"><label>Desconto (%)<input id="budgetDiscountRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th></th>
-                      <th><label>Frete (R$ ou %)<input id="budgetFreightValue" class="money-input" inputmode="text" title="Em novo orçamento, aceita percentual com %, ex: 12%" /></label></th>
+                      <th><label>Frete <span class="budget-freight-input"><select id="budgetFreightMode" aria-label="Tipo do frete"><option value="value">R$</option><option value="percent">%</option></select><input id="budgetFreightValue" class="money-input" inputmode="decimal" /></span></label></th>
                       <th></th>
                       <th><label>Liberação (%)<input id="budgetReleaseRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label></th>
@@ -1041,6 +1041,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=133"></script>
+    <script src="app.js?v=134"></script>
   </body>
 </html>

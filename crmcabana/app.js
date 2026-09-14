@@ -2991,9 +2991,11 @@ function renderBudgetSeller(client) {
 }
 
 function readBudgetSettings() {
+  const freightInput = budgetInputValue("budgetFreightValue");
   return {
     discountRate: Number(budgetInputValue("budgetDiscountRate")) || 0,
-    freightValue: parseMoney(budgetInputValue("budgetFreightValue")),
+    freightMode: budgetInputValue("budgetFreightMode") === "percent" || freightInput.includes("%") ? "percent" : "value",
+    freightValue: parseMoney(freightInput.replace(/%/g, "")),
     releaseRate: Number(budgetInputValue("budgetReleaseRate")) || 0,
     assemblyRate: Number(budgetInputValue("budgetAssemblyRate")) || 0,
     lelaRate: Number(budgetInputValue("budgetLelaRate")) || 0,
@@ -3089,8 +3091,9 @@ function calculateBudgetRows(rows, settings) {
     tax: percentToRate(settings.taxRate),
   };
 
-  const totalFreight = Math.max(0, parseMoney(settings.freightValue));
   const totalFactory = rows.reduce((sum, row) => sum + Math.max(0, parseMoney(row.factory)), 0);
+  const freightInput = Math.max(0, parseMoney(settings.freightValue));
+  const totalFreight = settings.freightMode === "percent" ? totalFactory * percentToRate(freightInput) : freightInput;
   const distributableRows = rows.filter((row) => row.name || row.gross || row.factory || row.hardware).length || rows.length;
 
   return rows.map((row) => {
@@ -3136,7 +3139,9 @@ function normalizeBudgetSettings(savedSettings = {}, rows = []) {
     const freightRate = percentToRate(savedSettings.freightRate);
     const totalFactory = rows.reduce((sum, row) => sum + parseMoney(row.factory), 0);
     settings.freightValue = totalFactory * freightRate;
+    settings.freightMode = "value";
   }
+  if (settings.freightMode !== "percent") settings.freightMode = "value";
   delete settings.freightRate;
   return settings;
 }
@@ -3917,7 +3922,8 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetEntryTerm").value = String(settings.entryTerm || 30);
   document.querySelector("#budgetInstallments").value = String(settings.installments || 0);
   document.querySelector("#budgetDiscountRate").value = settings.discountRate;
-  document.querySelector("#budgetFreightValue").value = formatMoneyInput(settings.freightValue);
+  document.querySelector("#budgetFreightMode").value = settings.freightMode === "percent" ? "percent" : "value";
+  document.querySelector("#budgetFreightValue").value = settings.freightMode === "percent" ? String(parseMoney(settings.freightValue)).replace(".", ",") : formatMoneyInput(settings.freightValue);
   document.querySelector("#budgetReleaseRate").value = settings.releaseRate;
   document.querySelector("#budgetAssemblyRate").value = settings.assemblyRate;
   document.querySelector("#budgetLelaRate").value = settings.lelaRate;
@@ -5742,6 +5748,7 @@ document.querySelector("#budgetStatus")?.addEventListener("change", handleBudget
   "#budgetInstallments",
   "#budgetDiscountRate",
   "#budgetFreightValue",
+  "#budgetFreightMode",
   "#budgetReleaseRate",
   "#budgetAssemblyRate",
   "#budgetLelaRate",
@@ -5766,17 +5773,22 @@ document.querySelector("#budgetStatus")?.addEventListener("change", handleBudget
   });
 });
 document.querySelector("#budgetFreightValue")?.addEventListener("focus", (event) => {
-  event.currentTarget.value = String(parseMoney(event.currentTarget.value)).replace(".", ",");
+  event.currentTarget.value = String(parseMoney(event.currentTarget.value.replace(/%/g, ""))).replace(".", ",");
   event.currentTarget.select();
 });
 document.querySelector("#budgetFreightValue")?.addEventListener("blur", (event) => {
   const input = event.currentTarget;
-  if (state.budgetIsNew && input.value.includes("%")) {
-    const freightRate = parseMoney(input.value.replace(/%/g, ""));
-    const totalFactory = readBudgetRows().reduce((sum, row) => sum + parseMoney(row.factory), 0);
-    input.value = formatMoneyInput(totalFactory * percentToRate(freightRate));
-  }
-  input.value = formatMoneyInput(input.value);
+  const mode = document.querySelector("#budgetFreightMode");
+  if (input.value.includes("%")) mode.value = "percent";
+  const value = parseMoney(input.value.replace(/%/g, ""));
+  input.value = mode.value === "percent" ? String(value).replace(".", ",") : formatMoneyInput(value);
+  updateBudgetSummary();
+});
+document.querySelector("#budgetFreightMode")?.addEventListener("change", () => {
+  const input = document.querySelector("#budgetFreightValue");
+  const value = parseMoney(input.value.replace(/%/g, ""));
+  input.value = document.querySelector("#budgetFreightMode").value === "percent" ? String(value).replace(".", ",") : formatMoneyInput(value);
+  markBudgetDirty();
   updateBudgetSummary();
 });
 ["#budgetAssemblyStartDate", "#budgetAssemblyEndDate"].forEach((selector) => {
