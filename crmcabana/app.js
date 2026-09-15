@@ -2094,7 +2094,21 @@ function fillFinancialEntryOptions() {
   const accountOptions = state.financialAccounts.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
   document.querySelector("#financialEntryAccount").innerHTML = accountOptions;
   document.querySelector("#financialEntryTransferAccount").innerHTML = accountOptions;
-  document.querySelector("#financialEntryCategory").innerHTML = '<option value="">Sem categoria</option>' + state.financialCategories.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("") + '<option value="__new__">+ Criar nova categoria...</option>';
+  const activeCategories = state.financialCategories.filter((item) => item.active);
+  const activeIds = new Set(activeCategories.map((item) => item.id));
+  const byParent = new Map();
+  activeCategories.forEach((category) => {
+    const parentId = category.parent_id && activeIds.has(category.parent_id) ? category.parent_id : null;
+    if (!byParent.has(parentId)) byParent.set(parentId, []);
+    byParent.get(parentId).push(category);
+  });
+  const sortByName = (first, second) => financialSortCollator.compare(first.name, second.name);
+  const categoryOptions = (byParent.get(null) || []).sort(sortByName).map((parent) => {
+    const children = (byParent.get(parent.id) || []).sort(sortByName);
+    if (!children.length) return `<option value="${parent.id}">${escapeHtml(parent.name)}</option>`;
+    return `<optgroup label="${escapeHtml(parent.name)}"><option value="${parent.id}">${escapeHtml(parent.name)} (principal)</option>${children.map((child) => `<option value="${child.id}">↳ ${escapeHtml(child.name)}</option>`).join("")}</optgroup>`;
+  }).join("");
+  document.querySelector("#financialEntryCategory").innerHTML = '<option value="">Sem categoria</option>' + categoryOptions + '<option value="__new__">+ Criar nova categoria...</option>';
 }
 
 function syncFinancialEntryTypeFields() {
