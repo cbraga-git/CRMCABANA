@@ -936,10 +936,10 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
 .financial-entry-tag-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 180px; padding: 4px 9px; border: 0; border-radius: 999px; background: #eadcff; color: #6630a8; font-size: 11px; font-weight: 800; }
 button.financial-entry-tag-chip { cursor: pointer; }
 .financial-entry-tag-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.financial-entry-table .financial-daily-balance-row { background: transparent; }
-.financial-entry-table .financial-daily-balance-row td { padding: 14px 18px; text-align: center; }
-.financial-entry-table .financial-daily-balance-row span { display: inline-flex; gap: 5px; padding: 10px 22px; border-radius: 999px; background: #eee8d8; color: var(--muted); font-size: 12px; }
-.financial-entry-table .financial-daily-balance-row strong { color: var(--text); }
+.financial-entry-table .financial-daily-balance-row, .financial-entry-table .financial-filter-balance-row { background: transparent; }
+.financial-entry-table .financial-daily-balance-row td, .financial-entry-table .financial-filter-balance-row td { padding: 14px 18px; text-align: center; }
+.financial-entry-table .financial-daily-balance-row span, .financial-entry-table .financial-filter-balance-row span { display: inline-flex; gap: 5px; padding: 10px 22px; border-radius: 999px; background: #eee8d8; color: var(--muted); font-size: 12px; }
+.financial-entry-table .financial-daily-balance-row strong, .financial-entry-table .financial-filter-balance-row strong { color: var(--text); }
 .selected-row { background: rgba(217, 199, 121, .18); }
 .financial-installment-label { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
 .financial-installment-hint { margin: 0; color: var(--muted); font-size: 12px; }

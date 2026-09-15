@@ -1952,7 +1952,7 @@ function applyFinancialTableSort(table) {
   const sort = financialTableSorts.get(table);
   const body = table?.tBodies[0];
   if (!sort || !body) return;
-  body.querySelectorAll(".financial-daily-balance-row").forEach((row) => row.remove());
+  body.querySelectorAll(".financial-daily-balance-row, .financial-filter-balance-row").forEach((row) => row.remove());
   const rows = Array.from(body.rows);
   if (rows.length < 2 || rows.some((row) => row.querySelector(".empty-table-cell"))) return;
   rows.map((row, position) => ({ row, position, value: financialSortCellValue(row.cells[sort.column], sort.type) }))
@@ -1970,12 +1970,30 @@ function applyFinancialTableSort(table) {
 
 function renderFinancialDailyBalanceBreaks(table) {
   const body = table?.tBodies[0];
-  body?.querySelectorAll(".financial-daily-balance-row").forEach((row) => row.remove());
+  body?.querySelectorAll(".financial-daily-balance-row, .financial-filter-balance-row").forEach((row) => row.remove());
   if (!body || state.view !== "financeTransactions") return;
   const filters = state.financialEntryFilters;
   const hasNonDateFilter = Boolean(filters.search || filters.accountId || filters.categoryId || filters.status || state.financialEntryAccountFilter);
-  if (hasNonDateFilter) return;
   const rows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
+  if (hasNonDateFilter) {
+    const accountId = state.financialEntryAccountFilter || filters.accountId;
+    const visibleIds = new Set(rows.map((row) => row.dataset.financialEntryId));
+    const balance = state.financialEntries.filter((entry) => visibleIds.has(entry.id) && entry.status !== "cancelled").reduce((sum, entry) => {
+      const amount = Number(entry.amount) || 0;
+      if (entry.entry_type === "income") return sum + amount;
+      if (entry.entry_type === "expense") return sum - amount;
+      if (accountId && entry.transfer_account_id === accountId) return sum + amount;
+      if (accountId && entry.account_id === accountId) return sum - amount;
+      return sum;
+    }, 0);
+    if (rows.length) {
+      const summary = document.createElement("tr");
+      summary.className = "financial-filter-balance-row";
+      summary.innerHTML = `<td colspan="7"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span></td>`;
+      body.appendChild(summary);
+    }
+    return;
+  }
   const accounts = state.financialAccounts.filter((account) => account.active);
   rows.forEach((row, index) => {
     const date = row.dataset.financialEntryDate;
@@ -2061,7 +2079,7 @@ function renderFinancialEntries(view = state.view) {
     const categoryLabel = entry.entry_type === "transfer" ? "Transferência" : categories.get(entry.category_id) || "Sem categoria";
     const tags = financialEntryTags(entry);
     const tagList = tags.length ? `<div class="financial-entry-list-tags">${tags.map((tag) => `<span class="financial-entry-tag-chip"><span>${escapeHtml(tag)}</span></span>`).join("")}</div>` : "";
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td>${escapeHtml(accountLabel)}</td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td>${escapeHtml(accountLabel)}</td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
   }).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   const entryTable = elements.financialEntryRows.closest("table");
   if (!financialTableSorts.has(entryTable)) {
