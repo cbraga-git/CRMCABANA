@@ -2049,11 +2049,11 @@ function renderFinancialEntries(view = state.view) {
   const entries = state.financialEntries.filter((entry) => {
     if (filterType && entry.entry_type !== filterType) return false;
     const entryDate = financialEntryDate(entry);
-    if (state.financialEntryMonthFilter && (entryDate < start || entryDate > end)) return false;
+    if (state.financialEntryMonthFilter && !filters.search && (entryDate < start || entryDate > end)) return false;
     const contextualAccount = view === "financeTransactions" ? state.financialEntryAccountFilter : "";
     const accountId = contextualAccount || filters.accountId;
     if (accountId && entry.account_id !== accountId && !(entry.entry_type === "transfer" && entry.transfer_account_id === accountId)) return false;
-    if (contextualAccount && (entryDate < start || entryDate > end)) return false;
+    if (contextualAccount && !filters.search && (entryDate < start || entryDate > end)) return false;
     if (filters.startDate && entryDate < filters.startDate) return false;
     if (filters.endDate && entryDate > filters.endDate) return false;
     if (filters.categoryId && entry.category_id !== filters.categoryId) return false;
