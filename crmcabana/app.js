@@ -1973,7 +1973,7 @@ function renderFinancialDailyBalanceBreaks(table) {
   body?.querySelectorAll(".financial-daily-balance-row, .financial-filter-balance-row").forEach((row) => row.remove());
   if (!body || state.view !== "financeTransactions") return;
   const filters = state.financialEntryFilters;
-  const hasNonDateFilter = Boolean(filters.search || filters.accountId || filters.categoryId || filters.status || state.financialEntryAccountFilter);
+  const hasNonDateFilter = Boolean(filters.search || filters.accountId || filters.categoryId || filters.status);
   const rows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
   if (hasNonDateFilter) {
     const accountId = state.financialEntryAccountFilter || filters.accountId;
@@ -1994,7 +1994,7 @@ function renderFinancialDailyBalanceBreaks(table) {
     }
     return;
   }
-  const accounts = state.financialAccounts.filter((account) => account.active);
+  const accounts = state.financialAccounts.filter((account) => account.active && (!state.financialEntryAccountFilter || account.id === state.financialEntryAccountFilter));
   rows.forEach((row, index) => {
     const date = row.dataset.financialEntryDate;
     if (rows[index + 1]?.dataset.financialEntryDate === date) return;
