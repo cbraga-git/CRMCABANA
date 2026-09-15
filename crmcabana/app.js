@@ -2045,15 +2045,16 @@ function renderFinancialEntries(view = state.view) {
   const filterType = financialEntryViewType(view);
   const { start, end } = financialMonthBounds(state.financialEntryMonthFilter || state.financialDashboardMonth);
   const filters = state.financialEntryFilters;
+  const hasGlobalFilter = Boolean(filters.search || filters.accountId || filters.categoryId || filters.status || filters.startDate || filters.endDate);
   if (view === "financeTransactions") renderFinancialTransactionSummary(start, end);
   const entries = state.financialEntries.filter((entry) => {
     if (filterType && entry.entry_type !== filterType) return false;
     const entryDate = financialEntryDate(entry);
-    if (state.financialEntryMonthFilter && !filters.search && (entryDate < start || entryDate > end)) return false;
+    if (state.financialEntryMonthFilter && !hasGlobalFilter && (entryDate < start || entryDate > end)) return false;
     const contextualAccount = view === "financeTransactions" ? state.financialEntryAccountFilter : "";
     const accountId = contextualAccount || filters.accountId;
     if (accountId && entry.account_id !== accountId && !(entry.entry_type === "transfer" && entry.transfer_account_id === accountId)) return false;
-    if (contextualAccount && !filters.search && (entryDate < start || entryDate > end)) return false;
+    if (contextualAccount && !hasGlobalFilter && (entryDate < start || entryDate > end)) return false;
     if (filters.startDate && entryDate < filters.startDate) return false;
     if (filters.endDate && entryDate > filters.endDate) return false;
     if (filters.categoryId && entry.category_id !== filters.categoryId) return false;
@@ -2076,10 +2077,10 @@ function renderFinancialEntries(view = state.view) {
   document.querySelector("#financialEntryMonth").value = state.financialEntryMonthFilter;
   document.querySelector("#financialEntryMonthLabel").textContent = formatFinancialMonth(state.financialEntryMonthFilter);
   document.querySelector("#financialEntryFilterStatus").value = filters.status;
-  document.querySelector("#financialEntryFilterStart").value = state.financialEntryMonthFilter ? start : filters.startDate;
-  document.querySelector("#financialEntryFilterEnd").value = state.financialEntryMonthFilter ? end : filters.endDate;
-  document.querySelector("#financialEntryFilterStart").disabled = Boolean(state.financialEntryMonthFilter);
-  document.querySelector("#financialEntryFilterEnd").disabled = Boolean(state.financialEntryMonthFilter);
+  document.querySelector("#financialEntryFilterStart").value = state.financialEntryMonthFilter && !hasGlobalFilter ? start : filters.startDate;
+  document.querySelector("#financialEntryFilterEnd").value = state.financialEntryMonthFilter && !hasGlobalFilter ? end : filters.endDate;
+  document.querySelector("#financialEntryFilterStart").disabled = Boolean(state.financialEntryMonthFilter && !hasGlobalFilter);
+  document.querySelector("#financialEntryFilterEnd").disabled = Boolean(state.financialEntryMonthFilter && !hasGlobalFilter);
   const title = document.querySelector("#financialEntriesTitle");
   if (title) title.textContent = filterType === "expense" ? "Contas a pagar" : filterType === "income" ? "Contas a receber" : "Transações";
   const context = document.querySelector("#financialEntriesContext");
