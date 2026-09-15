@@ -1998,10 +1998,10 @@ function renderFinancialDailyBalanceBreaks(table) {
   rows.forEach((row, index) => {
     const date = row.dataset.financialEntryDate;
     if (rows[index + 1]?.dataset.financialEntryDate === date) return;
-    const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, date, false), 0);
+    const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, date, true), 0);
     const summary = document.createElement("tr");
     summary.className = "financial-daily-balance-row";
-    summary.innerHTML = `<td colspan="7"><span>Saldo do final do dia <strong>${BRL.format(balance)}</strong></span></td>`;
+    summary.innerHTML = `<td colspan="7"><span>Saldo previsto no final do dia <strong>${BRL.format(balance)}</strong></span></td>`;
     row.after(summary);
   });
 }
