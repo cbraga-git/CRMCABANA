@@ -761,6 +761,7 @@ button:focus-visible {
 .financial-module-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
+.financial-transaction-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; }
 
 .financial-period-filter { display: grid; min-width: 190px; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
 .financial-period-filter input { min-height: 42px; }
@@ -911,6 +912,7 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
   .financial-module-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .financial-transaction-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .financial-dashboard-charts { grid-template-columns: 1fr; }
   .financial-account-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .financial-entry-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -924,6 +926,7 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
 
 @media (max-width: 700px) {
   .financial-entry-filters { grid-template-columns: 1fr; }
+  .financial-transaction-summary { grid-template-columns: 1fr; }
 }
 
 .budget-dashboard-filters {

@@ -263,6 +263,7 @@ const elements = {
   financialCategoryDialog: document.querySelector("#financialCategoryDialog"),
   financialCategoryForm: document.querySelector("#financialCategoryForm"),
   financialEntriesPanel: document.querySelector("#financialEntriesPanel"),
+  financialTransactionSummary: document.querySelector("#financialTransactionSummary"),
   financialEntryRows: document.querySelector("#financialEntryRows"),
   financialEntryDialog: document.querySelector("#financialEntryDialog"),
   financialEntryForm: document.querySelector("#financialEntryForm"),
@@ -1594,6 +1595,7 @@ function renderFinanceModuleView(view) {
   if (elements.financialAccountsPanel) elements.financialAccountsPanel.hidden = !showingAccounts;
   if (elements.financialCategoriesPanel) elements.financialCategoriesPanel.hidden = !showingCategories;
   if (elements.financialEntriesPanel) elements.financialEntriesPanel.hidden = !showingEntries;
+  if (elements.financialTransactionSummary) elements.financialTransactionSummary.hidden = view !== "financeTransactions";
   if (elements.financialImportPanel) elements.financialImportPanel.hidden = !showingImport;
   const dashboardContent = document.querySelector("#financialDashboardContent"); if (dashboardContent) dashboardContent.hidden = !showingDashboard;
   const periodFilter = document.querySelector("#financialPeriodFilter"); if (periodFilter) periodFilter.hidden = !showingDashboard;
@@ -1852,6 +1854,22 @@ function stepFinancialEntryMonth(step) {
   renderFinancialEntries();
 }
 
+function renderFinancialTransactionSummary(start, end) {
+  const entries = state.financialEntries.filter((entry) => {
+    const date = financialEntryDate(entry);
+    return entry.status !== "cancelled" && (!state.financialEntryMonthFilter || (date >= start && date <= end));
+  });
+  const income = entries.filter((entry) => entry.entry_type === "income").reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+  const expense = entries.filter((entry) => entry.entry_type === "expense").reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+  const accounts = state.financialAccounts.filter((account) => account.active);
+  const balanceDate = state.financialEntryMonthFilter ? end : new Date().toISOString().slice(0, 10);
+  const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, balanceDate, false), 0);
+  document.querySelector("#financialTransactionBalance").textContent = BRL.format(balance);
+  document.querySelector("#financialTransactionIncome").textContent = BRL.format(income);
+  document.querySelector("#financialTransactionExpense").textContent = BRL.format(expense);
+  document.querySelector("#financialTransactionNet").textContent = BRL.format(income - expense);
+}
+
 const financialTableSorts = new WeakMap();
 const financialSortCollator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
 
@@ -1908,6 +1926,7 @@ function renderFinancialEntries(view = state.view) {
   const filterType = financialEntryViewType(view);
   const { start, end } = financialMonthBounds(state.financialEntryMonthFilter || state.financialDashboardMonth);
   const filters = state.financialEntryFilters;
+  if (view === "financeTransactions") renderFinancialTransactionSummary(start, end);
   const entries = state.financialEntries.filter((entry) => {
     if (filterType && entry.entry_type !== filterType) return false;
     const entryDate = financialEntryDate(entry);

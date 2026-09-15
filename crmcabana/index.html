@@ -601,6 +601,13 @@
             <div class="table-wrap"><table data-financial-sortable><thead><tr><th data-sort-type="text">Nome</th><th data-sort-type="text">Tipo</th><th data-sort-type="text">Categoria principal</th><th data-sort-type="text">Status</th><th>Ações</th></tr></thead><tbody id="financialCategoryRows"></tbody></table></div>
           </section>
 
+          <section class="stats-grid financial-transaction-summary" id="financialTransactionSummary" aria-label="Resumo das transações" hidden>
+            <article class="stat-card"><span class="stat-icon teal">$</span><div><span>Saldo atual</span><strong id="financialTransactionBalance">R$ 0,00</strong></div></article>
+            <article class="stat-card"><span class="stat-icon green">↑</span><div><span>Receitas</span><strong id="financialTransactionIncome">R$ 0,00</strong></div></article>
+            <article class="stat-card"><span class="stat-icon rose">↓</span><div><span>Despesas</span><strong id="financialTransactionExpense">R$ 0,00</strong></div></article>
+            <article class="stat-card"><span class="stat-icon orange">±</span><div><span>Balanço mensal</span><strong id="financialTransactionNet">R$ 0,00</strong></div></article>
+          </section>
+
           <section class="financial-register" id="financialEntriesPanel" hidden>
             <header><div><h2 id="financialEntriesTitle">Lançamentos</h2><p>Receitas, despesas e transferências financeiras.</p></div><div class="financial-month-navigator" aria-label="Navegar por mês"><button type="button" data-financial-month-step="-1" aria-label="Mês anterior">‹</button><label><span id="financialEntryMonthLabel">Mês</span><input id="financialEntryMonth" type="month" aria-label="Selecionar mês" /></label><button type="button" data-financial-month-step="1" aria-label="Próximo mês">›</button></div><button class="button primary" id="newFinancialEntryBtn" type="button">+ Novo lançamento</button></header>
             <div class="financial-entries-context" id="financialEntriesContext" hidden><span></span><button class="link-button" id="clearFinancialEntryFilter" type="button">Limpar filtro</button></div>
