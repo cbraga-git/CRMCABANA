@@ -848,6 +848,7 @@ button:focus-visible {
 
 .financial-register { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
 .financial-register > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+.financial-entry-month-filter { margin-left: auto; }
 .financial-register h2, .financial-register p { margin: 0; }
 .financial-register p { margin-top: 4px; color: var(--muted); font-size: 13px; }
 .financial-register table { width: 100%; border-collapse: collapse; }
@@ -906,6 +907,11 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
   .financial-dashboard-charts { grid-template-columns: 1fr; }
   .financial-account-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .financial-entry-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  #financialEntriesPanel > header { align-items: stretch; flex-direction: column; }
+  .financial-entry-month-filter { margin-left: 0; }
 }
 
 @media (max-width: 700px) {

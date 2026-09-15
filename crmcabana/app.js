@@ -207,7 +207,7 @@ const state = {
   financialEvolutionView: "chart",
   financialEvolutionAccountId: "",
   financialEntryAccountFilter: "",
-  financialEntryMonthFilter: "",
+  financialEntryMonthFilter: new Date().toISOString().slice(0, 7),
   financialEntryFilters: { search: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" },
 };
 
@@ -1896,6 +1896,7 @@ function renderFinancialEntries(view = state.view) {
   const entries = state.financialEntries.filter((entry) => {
     if (filterType && entry.entry_type !== filterType) return false;
     const entryDate = financialEntryDate(entry);
+    if (state.financialEntryMonthFilter && (entryDate < start || entryDate > end)) return false;
     const contextualAccount = view === "financeTransactions" ? state.financialEntryAccountFilter : "";
     const accountId = contextualAccount || filters.accountId;
     if (accountId && entry.account_id !== accountId && !(entry.entry_type === "transfer" && entry.transfer_account_id === accountId)) return false;
@@ -1913,6 +1914,7 @@ function renderFinancialEntries(view = state.view) {
   if (accountSelect) { accountSelect.innerHTML = '<option value="">Todas as contas</option>' + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEntryAccountFilter || filters.accountId; accountSelect.disabled = Boolean(state.financialEntryAccountFilter); }
   if (categorySelect) { categorySelect.innerHTML = '<option value="">Todas as categorias</option>' + state.financialCategories.filter((category) => category.active && (!filterType || category.category_type === filterType)).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join(""); categorySelect.value = filters.categoryId; }
   document.querySelector("#financialEntryFilterSearch").value = filters.search;
+  document.querySelector("#financialEntryMonth").value = state.financialEntryMonthFilter;
   document.querySelector("#financialEntryFilterStatus").value = filters.status;
   document.querySelector("#financialEntryFilterStart").value = state.financialEntryMonthFilter ? start : filters.startDate;
   document.querySelector("#financialEntryFilterEnd").value = state.financialEntryMonthFilter ? end : filters.endDate;
@@ -5763,7 +5765,6 @@ elements.navItems.forEach((item) => {
   item.addEventListener("click", async () => {
     if (item.dataset.view === "financeTransactions") {
       state.financialEntryAccountFilter = "";
-      state.financialEntryMonthFilter = "";
     }
     if (item.dataset.view === "users" && isAdmin()) {
       try {
@@ -5791,6 +5792,7 @@ document.querySelector("#financialAccountType")?.addEventListener("change", sync
 document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
 document.querySelector("#financialEntryInstallment")?.addEventListener("change", syncFinancialInstallmentFields);
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
+document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; renderFinancialEntries(); });
 document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionChartBtn")?.addEventListener("click", () => { state.financialEvolutionView = "chart"; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionTableBtn")?.addEventListener("click", () => { state.financialEvolutionView = "table"; renderFinancialEvolution(); });
