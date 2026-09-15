@@ -1972,6 +1972,9 @@ function renderFinancialDailyBalanceBreaks(table) {
   const body = table?.tBodies[0];
   body?.querySelectorAll(".financial-daily-balance-row").forEach((row) => row.remove());
   if (!body || state.view !== "financeTransactions") return;
+  const filters = state.financialEntryFilters;
+  const hasNonDateFilter = Boolean(filters.search || filters.accountId || filters.categoryId || filters.status || state.financialEntryAccountFilter);
+  if (hasNonDateFilter) return;
   const rows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
   const accounts = state.financialAccounts.filter((account) => account.active);
   rows.forEach((row, index) => {
