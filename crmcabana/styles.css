@@ -3292,10 +3292,10 @@ dialog::backdrop {
   }
 
   .nav-parent {
-    grid-template-columns: 16px minmax(0, 1fr) 14px;
-    gap: 6px;
-    padding: 0 6px;
-    text-align: center;
+    grid-template-columns: 18px minmax(0, 1fr) 18px;
+    gap: 12px;
+    padding: 0 10px;
+    text-align: left;
   }
 
   .nav-submenu,
