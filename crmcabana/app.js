@@ -2071,7 +2071,7 @@ function renderFinancialEntries(view = state.view) {
   const accountSelect = document.querySelector("#financialEntryFilterAccount");
   const categorySelect = document.querySelector("#financialEntryFilterCategory");
   if (accountSelect) { accountSelect.innerHTML = '<option value="">Todas as contas</option>' + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEntryAccountFilter || filters.accountId; accountSelect.disabled = Boolean(state.financialEntryAccountFilter); }
-  if (categorySelect) { categorySelect.innerHTML = '<option value="">Todas as categorias</option>' + state.financialCategories.filter((category) => category.active && (!filterType || category.category_type === filterType)).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join(""); categorySelect.value = filters.categoryId; }
+  if (categorySelect) { const eligibleCategories = state.financialCategories.filter((category) => category.active && (!filterType || category.category_type === filterType || category.category_type === "both")); categorySelect.innerHTML = '<option value="">Todas as categorias</option>' + financialGroupedCategoryOptions(eligibleCategories) ; categorySelect.value = filters.categoryId; }
   document.querySelector("#financialEntryFilterSearch").value = filters.search;
   document.querySelector("#financialEntryMonth").value = state.financialEntryMonthFilter;
   document.querySelector("#financialEntryMonthLabel").textContent = formatFinancialMonth(state.financialEntryMonthFilter);
@@ -2107,24 +2107,37 @@ function renderFinancialEntries(view = state.view) {
   renderFinancialDailyBalanceBreaks(entryTable);
 }
 
-function fillFinancialEntryOptions() {
-  const accountOptions = state.financialAccounts.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
-  document.querySelector("#financialEntryAccount").innerHTML = accountOptions;
-  document.querySelector("#financialEntryTransferAccount").innerHTML = accountOptions;
-  const activeCategories = state.financialCategories.filter((item) => item.active);
-  const activeIds = new Set(activeCategories.map((item) => item.id));
+function compareFinancialCategoryPriority(first, second) {
+  const normalizeName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
+  const firstOperation = normalizeName(first.name).includes("operacao");
+  const secondOperation = normalizeName(second.name).includes("operacao");
+  return Number(secondOperation) - Number(firstOperation) || financialSortCollator.compare(first.name, second.name);
+}
+
+function financialGroupedCategoryOptions(eligibleCategories, markPrincipal = false) {
+  const activeCategories = state.financialCategories.filter((category) => category.active);
+  const activeIds = new Set(activeCategories.map((category) => category.id));
+  const eligibleIds = new Set(eligibleCategories.map((category) => category.id));
   const byParent = new Map();
   activeCategories.forEach((category) => {
     const parentId = category.parent_id && activeIds.has(category.parent_id) ? category.parent_id : null;
     if (!byParent.has(parentId)) byParent.set(parentId, []);
     byParent.get(parentId).push(category);
   });
-  const sortByName = (first, second) => financialSortCollator.compare(first.name, second.name);
-  const categoryOptions = (byParent.get(null) || []).sort(sortByName).map((parent) => {
-    const children = (byParent.get(parent.id) || []).sort(sortByName);
-    if (!children.length) return `<option value="${parent.id}">${escapeHtml(parent.name)}</option>`;
-    return `<optgroup label="${escapeHtml(parent.name)}"><option value="${parent.id}">${escapeHtml(parent.name)} (principal)</option>${children.map((child) => `<option value="${child.id}">↳ ${escapeHtml(child.name)}</option>`).join("")}</optgroup>`;
+  return (byParent.get(null) || []).sort(compareFinancialCategoryPriority).map((parent) => {
+    const children = (byParent.get(parent.id) || []).filter((child) => eligibleIds.has(child.id)).sort(compareFinancialCategoryPriority);
+    const parentOption = eligibleIds.has(parent.id) ? `<option value="${parent.id}">${escapeHtml(parent.name)}${markPrincipal && children.length ? " (principal)" : ""}</option>` : "";
+    if (!children.length) return parentOption;
+    return `<optgroup label="${escapeHtml(parent.name)}">${parentOption}${children.map((child) => `<option value="${child.id}">↳ ${escapeHtml(child.name)}</option>`).join("")}</optgroup>`;
   }).join("");
+}
+
+function fillFinancialEntryOptions() {
+  const accountOptions = state.financialAccounts.filter((item) => item.active).map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
+  document.querySelector("#financialEntryAccount").innerHTML = accountOptions;
+  document.querySelector("#financialEntryTransferAccount").innerHTML = accountOptions;
+  const activeCategories = state.financialCategories.filter((item) => item.active);
+  const categoryOptions = financialGroupedCategoryOptions(activeCategories, true);
   document.querySelector("#financialEntryCategory").innerHTML = '<option value="">Sem categoria</option>' + categoryOptions + '<option value="__new__">+ Criar nova categoria...</option>';
 }
 
