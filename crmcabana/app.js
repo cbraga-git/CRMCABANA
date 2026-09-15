@@ -1664,8 +1664,9 @@ function renderFinancialEvolutionTable(year) {
   const rows = document.querySelector("#financialEvolutionRows"); if (!rows) return; const accounts = financialEvolutionAccounts(); const accountIds = new Set(accounts.map((account) => account.id)); const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   rows.innerHTML = Array.from({ length: 12 }, (_, index) => {
     const month = `${year}-${String(index + 1).padStart(2, "0")}`; const { start, end } = financialMonthBounds(month); const entries = state.financialEntries.filter((entry) => entry.status !== "cancelled" && financialEntryDate(entry) >= start && financialEntryDate(entry) <= end); const incomingTransfers = entries.filter((entry) => entry.entry_type === "transfer" && accountIds.has(entry.transfer_account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const outgoingTransfers = entries.filter((entry) => entry.entry_type === "transfer" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const income = entries.filter((entry) => entry.entry_type === "income" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const expense = entries.filter((entry) => entry.entry_type === "expense" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const projected = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0);
-    return `<tr><td><strong>${monthNames[index]} ${year}</strong></td><td>${BRL.format(incomingTransfers)}</td><td>${BRL.format(outgoingTransfers)}</td><td class="financial-positive">${BRL.format(income)}</td><td class="financial-negative">${BRL.format(expense)}</td><td><strong>${BRL.format(projected)}</strong></td></tr>`;
+    return `<tr><td data-sort-value="${month}"><strong>${monthNames[index]} ${year}</strong></td><td>${BRL.format(incomingTransfers)}</td><td>${BRL.format(outgoingTransfers)}</td><td class="financial-positive">${BRL.format(income)}</td><td class="financial-negative">${BRL.format(expense)}</td><td><strong>${BRL.format(projected)}</strong></td></tr>`;
   }).join("");
+  applyFinancialTableSort(rows.closest("table"));
 }
 
 function renderFinancialEvolution() {
@@ -1706,6 +1707,7 @@ async function loadFinancialRegisters() {
 function renderFinancialAccounts() {
   if (!elements.financialAccountRows) return;
   elements.financialAccountRows.innerHTML = state.financialAccounts.length ? state.financialAccounts.map((account) => `<tr><td><strong>${escapeHtml(account.name)}</strong></td><td>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</td><td>${escapeHtml(account.institution || "—")}</td><td>${BRL.format(Number(account.initial_balance) || 0)}</td><td><span class="financial-status ${account.active ? "active" : "inactive"}">${account.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-account="${account.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-account="${account.id}">${account.active ? "Inativar" : "Ativar"}</button> <button class="link-button danger" type="button" data-delete-financial-account="${account.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhuma conta cadastrada.</td></tr>';
+  applyFinancialTableSort(elements.financialAccountRows.closest("table"));
 }
 
 function renderFinancialCategories() {
@@ -1713,6 +1715,7 @@ function renderFinancialCategories() {
   const byId = new Map(state.financialCategories.map((category) => [category.id, category.name]));
   const safeColor = (value) => /^#[0-9a-f]{6}$/i.test(value || "") ? value : "#aa8e34";
   elements.financialCategoryRows.innerHTML = state.financialCategories.length ? state.financialCategories.map((category) => `<tr><td><span class="financial-color" style="background:${safeColor(category.color)}"></span><strong>${escapeHtml(category.name)}</strong></td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[category.category_type] || category.category_type)}</td><td>${escapeHtml(byId.get(category.parent_id) || "—")}</td><td><span class="financial-status ${category.active ? "active" : "inactive"}">${category.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-category="${category.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-category="${category.id}">${category.active ? "Inativar" : "Ativar"}</button> <button class="link-button danger" type="button" data-delete-financial-category="${category.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="5" class="empty-table-cell">Nenhuma categoria cadastrada.</td></tr>';
+  applyFinancialTableSort(elements.financialCategoryRows.closest("table"));
 }
 
 function syncFinancialCreditCardFields() {
@@ -1834,6 +1837,58 @@ function formatFinancialDate(value) {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("pt-BR");
 }
 
+const financialTableSorts = new WeakMap();
+const financialSortCollator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+
+function financialSortCellValue(cell, type) {
+  const raw = cell?.dataset.sortValue ?? cell?.querySelector("select")?.selectedOptions[0]?.textContent ?? cell?.textContent ?? "";
+  const value = raw.trim();
+  if (type === "number") {
+    if (!value || value === "—") return Number.NEGATIVE_INFINITY;
+    const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+    const number = Number(normalized);
+    return Number.isNaN(number) ? Number.NEGATIVE_INFINITY : number;
+  }
+  if (type === "date") {
+    const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return match ? Number(`${match[3]}${match[2]}${match[1]}`) : Number.NEGATIVE_INFINITY;
+  }
+  return value;
+}
+
+function applyFinancialTableSort(table) {
+  const sort = financialTableSorts.get(table);
+  const body = table?.tBodies[0];
+  if (!sort || !body) return;
+  const rows = Array.from(body.rows);
+  if (rows.length < 2 || rows.some((row) => row.querySelector(".empty-table-cell"))) return;
+  rows.map((row, position) => ({ row, position, value: financialSortCellValue(row.cells[sort.column], sort.type) }))
+    .sort((first, second) => {
+      const result = sort.type === "text" ? financialSortCollator.compare(first.value, second.value) : first.value - second.value;
+      return result ? result * (sort.direction === "asc" ? 1 : -1) : first.position - second.position;
+    })
+    .forEach(({ row }) => body.appendChild(row));
+}
+
+function initializeFinancialTableSorting() {
+  document.querySelectorAll("table[data-financial-sortable]").forEach((table) => {
+    table.querySelectorAll("thead th[data-sort-type]").forEach((header) => {
+      header.tabIndex = 0;
+      header.setAttribute("aria-sort", "none");
+      const sort = () => {
+        const column = header.cellIndex;
+        const current = financialTableSorts.get(table);
+        const direction = current?.column === column && current.direction === "asc" ? "desc" : "asc";
+        financialTableSorts.set(table, { column, direction, type: header.dataset.sortType });
+        table.querySelectorAll("thead th[data-sort-type]").forEach((item) => item.setAttribute("aria-sort", item === header ? (direction === "asc" ? "ascending" : "descending") : "none"));
+        applyFinancialTableSort(table);
+      };
+      header.addEventListener("click", sort);
+      header.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); sort(); } });
+    });
+  });
+}
+
 function renderFinancialEntries(view = state.view) {
   const filterType = financialEntryViewType(view);
   const { start, end } = financialMonthBounds(state.financialEntryMonthFilter || state.financialDashboardMonth);
@@ -1875,6 +1930,7 @@ function renderFinancialEntries(view = state.view) {
     const accountLabel = entry.entry_type === "transfer" ? `${accounts.get(entry.account_id) || "—"} → ${accounts.get(entry.transfer_account_id) || "—"}` : accounts.get(entry.account_id) || "—";
     return `<tr><td><strong>${escapeHtml(entry.description)}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[entry.entry_type] || (entry.entry_type === "transfer" ? "Transferência" : entry.entry_type))}</td><td>${escapeHtml(accountLabel)}</td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${BRL.format(Number(entry.amount) || 0)}</td><td>${escapeHtml({ pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status)}</td><td><button class="link-button" type="button" data-edit-financial-entry="${entry.id}">Editar</button> <button class="link-button danger" type="button" data-delete-financial-entry="${entry.id}">Excluir</button></td></tr>`;
   }).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
+  applyFinancialTableSort(elements.financialEntryRows.closest("table"));
 }
 
 function fillFinancialEntryOptions() {
@@ -1959,6 +2015,7 @@ function renderFinancialImports() {
   select.innerHTML = '<option value="">Selecione uma conta</option>' + state.financialAccounts.filter((item) => item.active && item.account_type !== "credit_card").map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("");
   if (selected) select.value = selected;
   elements.financialImportRows.innerHTML = state.financialImports.length ? state.financialImports.map((item) => `<tr class="${state.financialSelectedImportId === item.id ? "selected-row" : ""}"><td>${escapeHtml(item.file_name)}</td><td>${escapeHtml(accounts.get(item.account_id) || "—")}</td><td>${escapeHtml(item.file_type.toUpperCase())}</td><td>${item.item_count}</td><td>${escapeHtml(formatFinancialDate(item.created_at))}</td><td><button class="link-button" type="button" data-view-financial-import="${item.id}">Visualizar</button> <button class="link-button danger" type="button" data-delete-financial-import="${item.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhum extrato importado.</td></tr>';
+  applyFinancialTableSort(elements.financialImportRows.closest("table"));
   if (!state.financialSelectedImportId && elements.financialImportDetail) elements.financialImportDetail.hidden = true;
 }
 
@@ -1985,6 +2042,7 @@ function statementTransferAccountOptions(item) {
 function renderFinancialStatementItems() {
   const statusLabels = { pending: "Pendente", reconciled: "Confirmado", ignored: "Ignorado" };
   elements.financialStatementItemRows.innerHTML = state.financialStatementItems.length ? state.financialStatementItems.map((item) => { const pending = item.reconciliation_status === "pending"; return `<tr><td><input type="checkbox" data-statement-select="${item.id}" ${pending ? "" : "disabled"} aria-label="Selecionar lançamento" /></td><td>${formatFinancialDate(item.transaction_date)}</td><td><strong>${escapeHtml(item.description)}</strong></td><td class="${Number(item.amount) >= 0 ? "financial-positive" : "financial-negative"}">${BRL.format(Number(item.amount))}</td><td>${item.balance == null ? "—" : BRL.format(Number(item.balance))}</td><td>${pending ? `<select data-statement-category="${item.id}">${statementCategoryOptions(item)}</select><select class="statement-transfer-account" data-statement-transfer-account="${item.id}" hidden>${statementTransferAccountOptions(item)}</select>` : "—"}</td><td><span class="financial-status ${item.reconciliation_status}">${statusLabels[item.reconciliation_status] || item.reconciliation_status}</span></td></tr>`; }).join("") : '<tr><td colspan="7" class="empty-table-cell">O arquivo não possui lançamentos.</td></tr>';
+  applyFinancialTableSort(elements.financialStatementItemRows.closest("table"));
   const selectAll = document.querySelector("#selectAllStatementItems"); if (selectAll) selectAll.checked = false;
 }
 
@@ -5867,6 +5925,8 @@ function syncStatementTransferField(select) {
     transferSelect.required = select.value === "__transfer__";
   }
 }
+
+initializeFinancialTableSorting();
 
 document.querySelectorAll("#clientsView th[data-sort], #budgetListCard th[data-sort]").forEach((header) => {
   const type = header.closest("#budgetListCard") ? "budget" : "clients";

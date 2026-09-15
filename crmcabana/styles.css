@@ -853,6 +853,24 @@ button:focus-visible {
 .financial-register table { width: 100%; border-collapse: collapse; }
 .financial-register th, .financial-register td { padding: 14px 16px; border-bottom: 1px solid rgba(217, 199, 121, .45); text-align: left; }
 .financial-register th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+
+table[data-financial-sortable] th[data-sort-type] {
+  cursor: pointer;
+  padding-right: 30px;
+  position: relative;
+  user-select: none;
+}
+
+table[data-financial-sortable] th[data-sort-type]::after {
+  content: "⇅";
+  opacity: .45;
+  position: absolute;
+  right: 11px;
+}
+
+table[data-financial-sortable] th[data-sort-type][aria-sort="ascending"]::after { content: "↑"; opacity: 1; }
+table[data-financial-sortable] th[data-sort-type][aria-sort="descending"]::after { content: "↓"; opacity: 1; }
+table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .financial-status { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .financial-status.active { color: #126a36; background: #d8f4e2; }
 .financial-status.inactive { color: #7a263b; background: #fde1e8; }

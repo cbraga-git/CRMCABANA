@@ -587,18 +587,18 @@
             <article class="financial-dashboard-card financial-evolution-card">
               <header class="financial-evolution-header"><div><h2>Evolução do saldo no ano</h2><p id="financialEvolutionPeriod">janeiro a dezembro</p></div><div class="financial-evolution-controls"><select id="financialEvolutionAccount" aria-label="Filtrar evolução por conta"><option value="">Todas as contas</option></select><button class="financial-view-icon active" id="financialEvolutionChartBtn" type="button" title="Ver gráfico" aria-label="Ver gráfico">⌁</button><button class="financial-view-icon" id="financialEvolutionTableBtn" type="button" title="Ver analítico mensal" aria-label="Ver analítico mensal">▦</button></div></header>
               <div id="financialEvolutionChartPanel"><canvas class="financial-balance-chart" id="financialBalanceChart" aria-label="Evolução mensal do saldo"></canvas></div>
-              <div class="table-wrap financial-evolution-table" id="financialEvolutionTablePanel" hidden><table><thead><tr><th>Mês</th><th>Transferências de entrada</th><th>Transferências de saída</th><th>Receitas</th><th>Despesas</th><th>Saldo previsto</th></tr></thead><tbody id="financialEvolutionRows"></tbody></table></div>
+              <div class="table-wrap financial-evolution-table" id="financialEvolutionTablePanel" hidden><table data-financial-sortable><thead><tr><th data-sort-type="text">Mês</th><th data-sort-type="number">Transferências de entrada</th><th data-sort-type="number">Transferências de saída</th><th data-sort-type="number">Receitas</th><th data-sort-type="number">Despesas</th><th data-sort-type="number">Saldo previsto</th></tr></thead><tbody id="financialEvolutionRows"></tbody></table></div>
             </article>
           </section>
 
           <section class="financial-register" id="financialAccountsPanel" hidden>
             <header><div><h2>Contas cadastradas</h2><p>Contas bancárias, caixa, cartões e investimentos.</p></div><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></header>
-            <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Instituição</th><th>Saldo inicial</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialAccountRows"></tbody></table></div>
+            <div class="table-wrap"><table data-financial-sortable><thead><tr><th data-sort-type="text">Nome</th><th data-sort-type="text">Tipo</th><th data-sort-type="text">Instituição</th><th data-sort-type="number">Saldo inicial</th><th data-sort-type="text">Status</th><th>Ações</th></tr></thead><tbody id="financialAccountRows"></tbody></table></div>
           </section>
 
           <section class="financial-register" id="financialCategoriesPanel" hidden>
             <header><div><h2>Categorias cadastradas</h2><p>Classificações para receitas e despesas.</p></div><button class="button primary" id="newFinancialCategoryBtn" type="button">+ Nova categoria</button></header>
-            <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Categoria principal</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialCategoryRows"></tbody></table></div>
+            <div class="table-wrap"><table data-financial-sortable><thead><tr><th data-sort-type="text">Nome</th><th data-sort-type="text">Tipo</th><th data-sort-type="text">Categoria principal</th><th data-sort-type="text">Status</th><th>Ações</th></tr></thead><tbody id="financialCategoryRows"></tbody></table></div>
           </section>
 
           <section class="financial-register" id="financialEntriesPanel" hidden>
@@ -613,16 +613,16 @@
               <label>Até<input id="financialEntryFilterEnd" type="date" /></label>
               <button class="button secondary" id="clearFinancialEntryFilters" type="button">Limpar</button>
             </div>
-            <div class="table-wrap"><table><thead><tr><th>Descrição</th><th>Tipo</th><th>Conta</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
+            <div class="table-wrap"><table data-financial-sortable><thead><tr><th data-sort-type="text">Descrição</th><th data-sort-type="text">Tipo</th><th data-sort-type="text">Conta</th><th data-sort-type="date">Vencimento</th><th data-sort-type="number">Valor</th><th data-sort-type="text">Status</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
           </section>
 
           <section class="financial-register" id="financialImportPanel" hidden>
             <header><div><h2>Importar extrato</h2><p>Importe extratos para conciliação ou migre o histórico do Mobills.</p></div><div class="financial-import-actions"><label class="button secondary financial-file-button">Migração Mobills<input id="financialMigrationFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden /></label><label class="button primary financial-file-button">Selecionar extrato<input id="financialStatementFile" type="file" accept=".ofx,.csv,application/x-ofx,text/csv" hidden /></label></div></header>
             <div class="financial-import-controls"><label>Conta do extrato *<select id="financialImportAccount"><option value="">Selecione uma conta</option></select></label><span id="financialImportMessage">Para Migração Mobills, não é necessário selecionar uma conta.</span></div>
-            <div class="table-wrap"><table><thead><tr><th>Arquivo</th><th>Conta</th><th>Formato</th><th>Itens</th><th>Data</th><th>Ações</th></tr></thead><tbody id="financialImportRows"></tbody></table></div>
+            <div class="table-wrap"><table data-financial-sortable><thead><tr><th data-sort-type="text">Arquivo</th><th data-sort-type="text">Conta</th><th data-sort-type="text">Formato</th><th data-sort-type="number">Itens</th><th data-sort-type="date">Data</th><th>Ações</th></tr></thead><tbody id="financialImportRows"></tbody></table></div>
             <section class="financial-import-detail" id="financialImportDetail" hidden>
               <header><div><h3 id="financialImportDetailTitle">Lançamentos importados</h3><p>Selecione uma categoria antes de confirmar.</p></div><div><button class="button secondary" id="ignoreStatementItemsBtn" type="button">Ignorar selecionados</button><button class="button primary" id="confirmStatementItemsBtn" type="button">Confirmar selecionados</button></div></header>
-              <div class="table-wrap"><table><thead><tr><th><input id="selectAllStatementItems" type="checkbox" aria-label="Selecionar todos" /></th><th>Data</th><th>Descrição</th><th>Valor</th><th>Saldo</th><th>Categoria</th><th>Situação</th></tr></thead><tbody id="financialStatementItemRows"></tbody></table></div>
+              <div class="table-wrap"><table data-financial-sortable><thead><tr><th><input id="selectAllStatementItems" type="checkbox" aria-label="Selecionar todos" /></th><th data-sort-type="date">Data</th><th data-sort-type="text">Descrição</th><th data-sort-type="number">Valor</th><th data-sort-type="number">Saldo</th><th data-sort-type="text">Categoria</th><th data-sort-type="text">Situação</th></tr></thead><tbody id="financialStatementItemRows"></tbody></table></div>
             </section>
           </section>
 
