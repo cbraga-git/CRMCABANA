@@ -907,6 +907,25 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
 .financial-status.paid { color: #126a36; background: #ccefd9; }
 .financial-register tbody tr.financial-entry-paid { background: rgba(34, 166, 87, .09); }
 .financial-register tbody tr.financial-entry-paid:hover { background: rgba(34, 166, 87, .15); }
+.financial-entry-table th:first-child, .financial-entry-table td:first-child { width: 74px; text-align: center; }
+.financial-entry-table th:last-child, .financial-entry-table td:last-child { width: 72px; text-align: center; }
+.financial-entry-table td:nth-child(6) { font-weight: 800; white-space: nowrap; }
+.financial-entry-value.income { color: #168044; }
+.financial-entry-value.expense { color: #c9362b; }
+.financial-entry-status-icon { display: inline-grid; width: 27px; height: 27px; place-items: center; border-radius: 50%; color: #fff; font-size: 16px; font-weight: 900; }
+.financial-entry-status-icon.paid { background: #40ad62; }
+.financial-entry-status-icon.pending { background: #eea524; }
+.financial-entry-status-icon.overdue { background: #ef5350; }
+.financial-entry-status-icon.cancelled { background: #777; }
+.financial-entry-actions { display: inline-block; }
+.financial-entry-menu-button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text); font-size: 24px; line-height: 1; cursor: pointer; }
+.financial-entry-menu-button:hover, .financial-entry-menu-button[aria-expanded="true"] { background: rgba(170, 142, 52, .14); }
+.financial-entry-actions-menu { position: fixed; z-index: 1000; display: grid; min-width: 170px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .1); border-radius: 14px; background: #302f31; box-shadow: 0 12px 30px rgba(0, 0, 0, .28); text-align: left; }
+.financial-entry-actions-menu[hidden] { display: none; }
+.financial-entry-actions-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 9px 14px; border: 0; background: transparent; color: #fff; font: inherit; cursor: pointer; }
+.financial-entry-actions-menu button:hover, .financial-entry-actions-menu button:focus-visible { background: rgba(255, 255, 255, .1); outline: none; }
+.financial-entry-actions-menu button.danger { color: #ffb4b4; }
+.financial-entry-action-icon { width: 20px; color: #d6d6d6; text-align: center; }
 .selected-row { background: rgba(217, 199, 121, .18); }
 .financial-installment-label { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
 .financial-installment-hint { margin: 0; color: var(--muted); font-size: 12px; }

@@ -1948,6 +1948,7 @@ function renderFinancialEntries(view = state.view) {
     return true;
   });
   const accounts = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
+  const categories = new Map(state.financialCategories.map((category) => [category.id, category.name]));
   const accountSelect = document.querySelector("#financialEntryFilterAccount");
   const categorySelect = document.querySelector("#financialEntryFilterCategory");
   if (accountSelect) { accountSelect.innerHTML = '<option value="">Todas as contas</option>' + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEntryAccountFilter || filters.accountId; accountSelect.disabled = Boolean(state.financialEntryAccountFilter); }
@@ -1971,7 +1972,9 @@ function renderFinancialEntries(view = state.view) {
   elements.financialEntryRows.innerHTML = entries.length ? entries.map((entry) => {
     const accountLabel = entry.entry_type === "transfer" ? `${accounts.get(entry.account_id) || "—"} → ${accounts.get(entry.transfer_account_id) || "—"}` : accounts.get(entry.account_id) || "—";
     const statusLabel = { pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status;
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}"><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(FINANCIAL_CATEGORY_TYPES[entry.entry_type] || (entry.entry_type === "transfer" ? "Transferência" : entry.entry_type))}</td><td>${escapeHtml(accountLabel)}</td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${BRL.format(Number(entry.amount) || 0)}</td><td><span class="financial-status ${entry.status}">${escapeHtml(statusLabel)}</span></td><td><button class="link-button" type="button" data-edit-financial-entry="${entry.id}">Editar</button> <button class="link-button danger" type="button" data-delete-financial-entry="${entry.id}">Excluir</button></td></tr>`;
+    const statusIcon = { paid: "✓", pending: "!", overdue: "!", cancelled: "×" }[entry.status] || "•";
+    const categoryLabel = entry.entry_type === "transfer" ? "Transferência" : categories.get(entry.category_id) || "Sem categoria";
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(categoryLabel)}</td><td>${escapeHtml(accountLabel)}</td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
   }).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   applyFinancialTableSort(elements.financialEntryRows.closest("table"));
 }
@@ -5901,12 +5904,41 @@ elements.financialCategoryRows?.addEventListener("click", (event) => {
   }
   if (remove) deleteFinancialRecord("crm_financial_categories", remove.dataset.deleteFinancialCategory, "esta categoria").then((deleted) => { if (deleted) renderFinancialCategories(); }).catch((error) => alert(error.message));
 });
+function closeFinancialEntryMenus(except = null) {
+  elements.financialEntryRows?.querySelectorAll(".financial-entry-actions-menu:not([hidden])").forEach((menu) => {
+    if (menu === except) return;
+    menu.hidden = true;
+    menu.closest(".financial-entry-actions")?.querySelector("[data-financial-entry-menu]")?.setAttribute("aria-expanded", "false");
+  });
+}
+
 elements.financialEntryRows?.addEventListener("click", (event) => {
+  const menuButton = event.target.closest("[data-financial-entry-menu]");
+  if (menuButton) {
+    const menu = menuButton.nextElementSibling;
+    const opening = menu.hidden;
+    closeFinancialEntryMenus(menu);
+    menu.hidden = !opening;
+    menuButton.setAttribute("aria-expanded", String(opening));
+    if (opening) {
+      const buttonRect = menuButton.getBoundingClientRect();
+      const menuWidth = menu.offsetWidth;
+      const menuHeight = menu.offsetHeight;
+      menu.style.left = `${Math.max(8, Math.min(window.innerWidth - menuWidth - 8, buttonRect.right - menuWidth))}px`;
+      menu.style.top = `${buttonRect.bottom + menuHeight + 8 > window.innerHeight ? Math.max(8, buttonRect.top - menuHeight - 6) : buttonRect.bottom + 6}px`;
+      menu.querySelector("[role='menuitem']")?.focus();
+    }
+    return;
+  }
   const edit = event.target.closest("[data-edit-financial-entry]");
   const remove = event.target.closest("[data-delete-financial-entry]");
-  if (edit) openFinancialEntryDialog(edit.dataset.editFinancialEntry);
-  if (remove) deleteFinancialRecord("crm_financial_entries", remove.dataset.deleteFinancialEntry, "este lançamento").then((deleted) => { if (deleted) renderFinancialEntries(); }).catch((error) => alert(error.message));
+  if (edit) { closeFinancialEntryMenus(); openFinancialEntryDialog(edit.dataset.editFinancialEntry); }
+  if (remove) { closeFinancialEntryMenus(); deleteFinancialRecord("crm_financial_entries", remove.dataset.deleteFinancialEntry, "este lançamento").then((deleted) => { if (deleted) renderFinancialEntries(); }).catch((error) => alert(error.message)); }
 });
+document.addEventListener("click", (event) => { if (!event.target.closest(".financial-entry-actions")) closeFinancialEntryMenus(); });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeFinancialEntryMenus(); });
+document.addEventListener("scroll", () => closeFinancialEntryMenus(), true);
+window.addEventListener("resize", () => closeFinancialEntryMenus());
 elements.financialImportRows?.addEventListener("click", (event) => {
   const view = event.target.closest("[data-view-financial-import]");
   const remove = event.target.closest("[data-delete-financial-import]");
