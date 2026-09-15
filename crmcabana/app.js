@@ -199,6 +199,7 @@ const state = {
   financialEntries: [],
   financialImports: [],
   financialEditingEntryId: null,
+  financialEntryDraftTags: [],
   financialStatementItems: [],
   financialSelectedImportId: null,
   financialCategoryTargetItemId: null,
@@ -1844,6 +1845,59 @@ function formatFinancialDescription(value) {
   return description.replace(/\p{L}/u, (letter) => letter.toLocaleUpperCase("pt-BR"));
 }
 
+const FINANCIAL_TAGS_MARKER = /(?:\r?\n)?\[\[crm-tags:([^\]]*)\]\]\s*$/;
+
+function normalizeFinancialTag(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR").slice(0, 60);
+}
+
+function financialEntryTags(entry) {
+  const match = String(entry?.notes || "").match(FINANCIAL_TAGS_MARKER);
+  if (!match?.[1]) return [];
+  return match[1].split(",").map((tag) => { try { return decodeURIComponent(tag); } catch { return tag; } }).map(normalizeFinancialTag).filter(Boolean);
+}
+
+function financialEntryNotes(entry) {
+  return String(entry?.notes || "").replace(FINANCIAL_TAGS_MARKER, "").trim();
+}
+
+function notesWithFinancialTags(notes, tags) {
+  const cleanNotes = String(notes || "").replace(FINANCIAL_TAGS_MARKER, "").trim();
+  const cleanTags = Array.from(new Set(tags.map(normalizeFinancialTag).filter(Boolean)));
+  const marker = cleanTags.length ? `[[crm-tags:${cleanTags.map(encodeURIComponent).join(",")}]]` : "";
+  return [cleanNotes, marker].filter(Boolean).join("\n") || null;
+}
+
+function availableFinancialTags() {
+  return Array.from(new Set(state.financialEntries.flatMap(financialEntryTags))).sort((first, second) => financialSortCollator.compare(first, second));
+}
+
+function renderFinancialEntryTagEditor() {
+  const suggestions = document.querySelector("#financialEntryTagSuggestions");
+  const chips = document.querySelector("#financialEntryTagChips");
+  if (suggestions) suggestions.innerHTML = availableFinancialTags().filter((tag) => !state.financialEntryDraftTags.includes(tag)).map((tag) => `<option value="${escapeHtml(tag)}"></option>`).join("");
+  if (chips) chips.innerHTML = state.financialEntryDraftTags.map((tag) => `<button class="financial-entry-tag-chip" type="button" data-remove-financial-entry-tag="${escapeHtml(tag)}" title="Remover tag"><span>${escapeHtml(tag)}</span> ×</button>`).join("");
+}
+
+function addFinancialEntryTag() {
+  const input = document.querySelector("#financialEntryTagInput");
+  const tag = normalizeFinancialTag(input?.value);
+  if (!tag) return;
+  if (!state.financialEntryDraftTags.includes(tag)) state.financialEntryDraftTags.push(tag);
+  input.value = "";
+  renderFinancialEntryTagEditor();
+  syncFinancialEntryTagAction();
+  input.focus();
+}
+
+function syncFinancialEntryTagAction() {
+  const input = document.querySelector("#financialEntryTagInput");
+  const button = document.querySelector("#addFinancialEntryTagBtn");
+  if (!button) return;
+  const tag = normalizeFinancialTag(input?.value);
+  button.textContent = tag && !availableFinancialTags().includes(tag) ? "Cadastrar" : "Adicionar";
+}
+
 function formatFinancialMonth(value) {
   const match = String(value || "").match(/^(\d{4})-(\d{2})$/);
   if (!match) return "Todos os meses";
@@ -1974,7 +2028,9 @@ function renderFinancialEntries(view = state.view) {
     const statusLabel = { pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status;
     const statusIcon = { paid: "✓", pending: "!", overdue: "!", cancelled: "×" }[entry.status] || "•";
     const categoryLabel = entry.entry_type === "transfer" ? "Transferência" : categories.get(entry.category_id) || "Sem categoria";
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(categoryLabel)}</td><td>${escapeHtml(accountLabel)}</td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
+    const tags = financialEntryTags(entry);
+    const tagList = tags.length ? `<div class="financial-entry-list-tags">${tags.map((tag) => `<span class="financial-entry-tag-chip"><span>${escapeHtml(tag)}</span></span>`).join("")}</div>` : "—";
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td>${escapeHtml(categoryLabel)}</td><td data-sort-value="${escapeHtml(tags.join(" "))}">${tagList}</td><td>${escapeHtml(accountLabel)}</td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
   }).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   applyFinancialTableSort(elements.financialEntryRows.closest("table"));
 }
@@ -2033,9 +2089,13 @@ function openFinancialEntryDialog(entryId = null) {
   document.querySelector("#financialEntryIssueDate").value = entry?.issue_date || today;
   document.querySelector("#financialEntryCompetenceDate").value = entry?.competence_date || today;
   document.querySelector("#financialEntryDueDate").value = entry?.due_date || "";
-  document.querySelector("#financialEntryNotes").value = entry?.notes || "";
+  state.financialEntryDraftTags = financialEntryTags(entry);
+  document.querySelector("#financialEntryTagInput").value = "";
+  document.querySelector("#financialEntryNotes").value = financialEntryNotes(entry);
   document.querySelector("#financialEntryInstallment").value = "false";
   document.querySelector("#financialEntryInstallmentCount").value = "2";
+  renderFinancialEntryTagEditor();
+  syncFinancialEntryTagAction();
   syncFinancialEntryTypeFields();
   elements.financialEntryDialog.showModal();
 }
@@ -2044,7 +2104,9 @@ async function submitFinancialEntry(event) {
   event.preventDefault();
   const type = document.querySelector("#financialEntryType").value;
   const status = document.querySelector("#financialEntryStatus").value;
-  const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount: Number(document.querySelector("#financialEntryAmount").value), issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: document.querySelector("#financialEntryNotes").value.trim() || null };
+  const pendingTag = normalizeFinancialTag(document.querySelector("#financialEntryTagInput").value);
+  const tags = pendingTag ? [...state.financialEntryDraftTags, pendingTag] : state.financialEntryDraftTags;
+  const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount: Number(document.querySelector("#financialEntryAmount").value), issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
   if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
   const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
   if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
@@ -5835,6 +5897,11 @@ document.querySelector("#newFinancialCategoryBtn")?.addEventListener("click", ()
 document.querySelector("#financialAccountType")?.addEventListener("change", syncFinancialCreditCardFields);
 document.querySelector("#financialEntryType")?.addEventListener("change", syncFinancialEntryTypeFields);
 document.querySelector("#financialEntryInstallment")?.addEventListener("change", syncFinancialInstallmentFields);
+document.querySelector("#addFinancialEntryTagBtn")?.addEventListener("click", addFinancialEntryTag);
+document.querySelector("#financialEntryTagInput")?.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addFinancialEntryTag(); } });
+document.querySelector("#financialEntryTagInput")?.addEventListener("input", syncFinancialEntryTagAction);
+document.querySelector("#financialEntryTagInput")?.addEventListener("change", (event) => { if (availableFinancialTags().includes(normalizeFinancialTag(event.target.value))) addFinancialEntryTag(); });
+document.querySelector("#financialEntryTagChips")?.addEventListener("click", (event) => { const chip = event.target.closest("[data-remove-financial-entry-tag]"); if (!chip) return; state.financialEntryDraftTags = state.financialEntryDraftTags.filter((tag) => tag !== chip.dataset.removeFinancialEntryTag); renderFinancialEntryTagEditor(); });
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; renderFinancialEntries(); });
 document.querySelectorAll("[data-financial-month-step]").forEach((button) => button.addEventListener("click", () => stepFinancialEntryMonth(Number(button.dataset.financialMonthStep))));

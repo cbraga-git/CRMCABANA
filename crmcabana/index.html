@@ -620,7 +620,7 @@
               <label>Até<input id="financialEntryFilterEnd" type="date" /></label>
               <button class="button secondary" id="clearFinancialEntryFilters" type="button">Limpar</button>
             </div>
-            <div class="table-wrap"><table class="financial-entry-table" data-financial-sortable><thead><tr><th data-sort-type="text" aria-label="Status">Status</th><th data-sort-type="date">Vencimento</th><th data-sort-type="text">Descrição</th><th data-sort-type="text">Categoria</th><th data-sort-type="text">Conta</th><th data-sort-type="number">Valor</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
+            <div class="table-wrap"><table class="financial-entry-table" data-financial-sortable><thead><tr><th data-sort-type="text" aria-label="Status">Status</th><th data-sort-type="date">Vencimento</th><th data-sort-type="text">Descrição</th><th data-sort-type="text">Categoria</th><th data-sort-type="text">Tag</th><th data-sort-type="text">Conta</th><th data-sort-type="number">Valor</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
           </section>
 
           <section class="financial-register" id="financialImportPanel" hidden>
@@ -896,6 +896,7 @@
           <label>Conta *<select id="financialEntryAccount" required></select></label>
           <label id="financialEntryTransferField" hidden>Conta de destino *<select id="financialEntryTransferAccount"></select></label>
           <label id="financialEntryCategoryField">Categoria<select id="financialEntryCategory"><option value="">Sem categoria</option></select></label>
+          <div class="span-2 financial-entry-tags-field"><label for="financialEntryTagInput">Tags</label><div class="financial-entry-tag-control"><input id="financialEntryTagInput" list="financialEntryTagSuggestions" maxlength="60" placeholder="Digite ou selecione uma tag" /><datalist id="financialEntryTagSuggestions"></datalist><button class="button secondary" id="addFinancialEntryTagBtn" type="button">Adicionar</button></div><div class="financial-entry-tag-chips" id="financialEntryTagChips"></div></div>
           <label>Emissão<input id="financialEntryIssueDate" type="date" required /></label>
           <label>Competência<input id="financialEntryCompetenceDate" type="date" required /></label>
           <label>Vencimento<input id="financialEntryDueDate" type="date" /></label>
