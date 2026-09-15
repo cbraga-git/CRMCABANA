@@ -779,6 +779,16 @@ button:focus-visible {
 .financial-account-cards > article { padding: 16px; border: 1px solid rgba(217, 199, 121, .65); border-radius: 12px; background: #fffdf7; cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .financial-account-cards > article:hover, .financial-account-cards > article:focus-visible { border-color: var(--gold); box-shadow: 0 8px 20px rgba(91, 72, 10, .12); outline: none; transform: translateY(-2px); }
 .financial-account-cards article > header { display: flex; align-items: center; gap: 10px; }
+.financial-bank-logo { display: inline-grid; width: 26px; height: 26px; flex: 0 0 26px; place-items: center; border-radius: 50%; background: #736b56; color: #fff; font-size: 9px; font-weight: 900; letter-spacing: -.3px; }
+.financial-bank-logo.large { width: 42px; height: 42px; flex-basis: 42px; font-size: 12px; }
+.financial-bank-logo.mercado-pago { background: #009ee3; }
+.financial-bank-logo.itau { border-radius: 8px; background: #ec7000; color: #082a69; }
+.financial-bank-logo.santander { background: #ec0000; }
+.financial-bank-logo.ton { background: #00a868; }
+.financial-account-reference { display: inline-flex; min-width: 0; align-items: center; gap: 7px; }
+.financial-account-reference > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.financial-entry-account-display { display: flex; min-width: 0; align-items: center; gap: 6px; }
+.financial-account-arrow { color: var(--muted); }
 .financial-account-cards header div { display: grid; gap: 3px; }
 .financial-account-cards small, .financial-account-cards dt { color: var(--muted); font-size: 11px; }
 .financial-account-cards dl { display: grid; gap: 10px; margin: 16px 0 0; }
