@@ -602,7 +602,7 @@
           </section>
 
           <section class="financial-register" id="financialEntriesPanel" hidden>
-            <header><div><h2 id="financialEntriesTitle">Lançamentos</h2><p>Receitas, despesas e transferências financeiras.</p></div><label class="financial-period-filter financial-entry-month-filter">Mês<input id="financialEntryMonth" type="month" /></label><button class="button primary" id="newFinancialEntryBtn" type="button">+ Novo lançamento</button></header>
+            <header><div><h2 id="financialEntriesTitle">Lançamentos</h2><p>Receitas, despesas e transferências financeiras.</p></div><div class="financial-month-navigator" aria-label="Navegar por mês"><button type="button" data-financial-month-step="-1" aria-label="Mês anterior">‹</button><label><span id="financialEntryMonthLabel">Mês</span><input id="financialEntryMonth" type="month" aria-label="Selecionar mês" /></label><button type="button" data-financial-month-step="1" aria-label="Próximo mês">›</button></div><button class="button primary" id="newFinancialEntryBtn" type="button">+ Novo lançamento</button></header>
             <div class="financial-entries-context" id="financialEntriesContext" hidden><span></span><button class="link-button" id="clearFinancialEntryFilter" type="button">Limpar filtro</button></div>
             <div class="financial-entry-filters" id="financialEntryFilters">
               <label>Buscar<input id="financialEntryFilterSearch" type="search" placeholder="Descrição" /></label>

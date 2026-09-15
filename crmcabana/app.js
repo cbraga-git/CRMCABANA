@@ -1837,6 +1837,21 @@ function formatFinancialDate(value) {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("pt-BR");
 }
 
+function formatFinancialMonth(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "Todos os meses";
+  const month = new Date(Number(match[1]), Number(match[2]) - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  return month.charAt(0).toUpperCase() + month.slice(1);
+}
+
+function stepFinancialEntryMonth(step) {
+  const base = state.financialEntryMonthFilter || new Date().toISOString().slice(0, 7);
+  const [year, month] = base.split("-").map(Number);
+  const target = new Date(year, month - 1 + step, 1);
+  state.financialEntryMonthFilter = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}`;
+  renderFinancialEntries();
+}
+
 const financialTableSorts = new WeakMap();
 const financialSortCollator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
 
@@ -1915,6 +1930,7 @@ function renderFinancialEntries(view = state.view) {
   if (categorySelect) { categorySelect.innerHTML = '<option value="">Todas as categorias</option>' + state.financialCategories.filter((category) => category.active && (!filterType || category.category_type === filterType)).map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join(""); categorySelect.value = filters.categoryId; }
   document.querySelector("#financialEntryFilterSearch").value = filters.search;
   document.querySelector("#financialEntryMonth").value = state.financialEntryMonthFilter;
+  document.querySelector("#financialEntryMonthLabel").textContent = formatFinancialMonth(state.financialEntryMonthFilter);
   document.querySelector("#financialEntryFilterStatus").value = filters.status;
   document.querySelector("#financialEntryFilterStart").value = state.financialEntryMonthFilter ? start : filters.startDate;
   document.querySelector("#financialEntryFilterEnd").value = state.financialEntryMonthFilter ? end : filters.endDate;
@@ -5793,6 +5809,7 @@ document.querySelector("#financialEntryType")?.addEventListener("change", syncFi
 document.querySelector("#financialEntryInstallment")?.addEventListener("change", syncFinancialInstallmentFields);
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; renderFinancialEntries(); });
+document.querySelectorAll("[data-financial-month-step]").forEach((button) => button.addEventListener("click", () => stepFinancialEntryMonth(Number(button.dataset.financialMonthStep))));
 document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionChartBtn")?.addEventListener("click", () => { state.financialEvolutionView = "chart"; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionTableBtn")?.addEventListener("click", () => { state.financialEvolutionView = "table"; renderFinancialEvolution(); });
