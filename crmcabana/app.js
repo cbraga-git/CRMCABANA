@@ -166,6 +166,7 @@ const state = {
   dashboardStatus: IN_PROGRESS_STATUS,
   clientStatus: IN_PROGRESS_STATUS,
   budgetStatus: "Todos",
+  financialStatuses: ["Todos"],
   budgetStartDate: "",
   budgetEndDate: "",
   search: "",
@@ -2485,13 +2486,21 @@ async function migrateMobillsWorkbook(file) {
   return { total: entries.length, inserted: inserted.length, accounts: allAccountNames.size, categories: categoryMap.size };
 }
 
-function setStatusFilter(group, status) {
+function nextFinancialStatuses(selected, status, additive) {
+  if (!additive || status === "Todos") return [status];
+  const current = selected.filter((item) => item !== "Todos");
+  const next = current.includes(status) ? current.filter((item) => item !== status) : [...current, status];
+  return next.length ? next : ["Todos"];
+}
+
+function setStatusFilter(group, status, additive = false) {
   if (group === "dashboard") {
     state.dashboardStatus = status;
     state.clientStatus = status;
   }
   if (group === "clients") state.clientStatus = status;
-  if (group === "budget" || group === "financial") state.budgetStatus = status;
+  if (group === "budget") state.budgetStatus = status;
+  if (group === "financial") state.financialStatuses = nextFinancialStatuses(state.financialStatuses, status, additive);
   render();
 }
 
@@ -2748,8 +2757,13 @@ function renderStatusFilters(container, activeStatus, group) {
 
   statuses.forEach((status) => {
     const button = document.createElement("button");
-    button.className = `pill ${status === activeStatus ? "active" : ""}`;
+    const active = group === "financial" ? state.financialStatuses.includes(status) : status === activeStatus;
+    button.className = `pill ${active ? "active" : ""}`;
     button.type = "button";
+    if (group === "financial") {
+      button.setAttribute("aria-pressed", String(active));
+      button.title = "Use Shift+clique para combinar status";
+    }
 
     const label = document.createElement("span");
     label.textContent = status;
@@ -2762,7 +2776,7 @@ function renderStatusFilters(container, activeStatus, group) {
       button.appendChild(count);
     }
 
-    button.addEventListener("click", () => setStatusFilter(group, status));
+    button.addEventListener("click", (event) => setStatusFilter(group, status, group === "financial" && event.shiftKey));
     container.appendChild(button);
   });
 }
@@ -2812,9 +2826,7 @@ function renderFinancialManagement() {
 }
 
 function dashboardBudgets() {
-  const budgets = filteredBudgets();
-  if (state.budgetStatus === "Recusado" || state.budgetStatus === "Finalizado") return budgets;
-  return budgets.filter(({ budget }) => budget.status !== "Recusado" && budget.status !== "Finalizado");
+  return filteredBudgets();
 }
 
 function renderChart(budgets) {
@@ -4553,7 +4565,11 @@ function filteredBudgets() {
     .filter(({ client, budget }) => {
       const searchableValues = orderMode ? [client.name] : [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id];
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
-      const matchesStatus = orderMode
+      const matchesStatus = state.view === "financial"
+        ? state.financialStatuses.includes("Todos")
+          ? budget.status !== "Recusado" && budget.status !== "Finalizado"
+          : state.financialStatuses.includes(budget.status)
+        : orderMode
         ? state.budgetStatus === "Todos"
           ? ORDER_STATUS.includes(budget.status)
           : budget.status === state.budgetStatus
@@ -6220,7 +6236,7 @@ function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
   renderStatusFilters(elements.budgetFilters, state.budgetStatus, "budget");
-  renderStatusFilters(elements.financialFilters, state.budgetStatus, "financial");
+  renderStatusFilters(elements.financialFilters, state.financialStatuses[0], "financial");
   syncBudgetFilterInputs();
   renderDashboard();
   renderClients();
