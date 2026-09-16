@@ -16,6 +16,9 @@ function backupContext(overrides = {}) {
     state: { session: { user: { id: "admin-id", email: "admin@test.com" } }, userRole: "admin", clients: [], environments: [] },
     elements: { backupStatus: null },
     URLSearchParams,
+    TextEncoder,
+    Blob,
+    atob,
     remoteDatabaseEnabled: () => true,
     currentUserId: () => "admin-id",
     authorizedFetch: async () => { throw new Error("Unexpected request"); },
@@ -24,7 +27,7 @@ function backupContext(overrides = {}) {
     sha256: async () => "sha256-test",
     ...overrides,
   };
-  vm.runInNewContext(`${backupCode}\nglobalThis.backupApi = { BACKUP_TABLES, collectSiteBackupFiles, fetchSupabaseTableBackup, collectDatabaseBackup, saveBackupFile, createFullBackup };`, context);
+  vm.runInNewContext(`${backupCode}\nglobalThis.backupApi = { BACKUP_TABLES, backupFileName, backupTableText, backupZipCrc32, createBackupArchive, collectSiteBackupFiles, fetchSupabaseTableBackup, collectDatabaseBackup, saveBackupFile, createFullBackup };`, context);
   return context.backupApi;
 }
 
@@ -91,13 +94,57 @@ test("seletor de arquivo abre no clique antes da primeira leitura assincrona", a
   assert.equal(button.disabled, false);
 });
 
-test("arquivo escolhido recebe o JSON depois da coleta", async () => {
+test("arquivo escolhido recebe o ZIP depois da coleta", async () => {
   let saved = "";
   const handle = { createWritable: async () => ({
-    write: async (blob) => { saved = await blob.text(); },
+    write: async (blob) => { saved = blob.type; },
     close: async () => {},
   }) };
   const { saveBackupFile } = backupContext({ Blob });
-  await saveBackupFile("backup.json", '{"ok":true}', handle);
-  assert.equal(saved, '{"ok":true}');
+  await saveBackupFile("backup.zip", new Blob(["zip"], { type: "application/zip" }), handle);
+  assert.equal(saved, "application/zip");
+});
+
+test("ZIP contem site, JSON completo e TXT legivel por tabela", async () => {
+  const { backupFileName, backupZipCrc32, createBackupArchive } = backupContext();
+  assert.match(backupFileName(), /\.zip$/);
+  assert.equal(backupZipCrc32(new TextEncoder().encode("123456789")), 0xcbf43926);
+  const backup = {
+    site: { files: [
+      { path: "../index.html", type: "text", content: "<html>teste</html>" },
+      { path: "assets/logo.png", type: "dataUrl", content: "data:image/png;base64,AQID" },
+    ] },
+    database: { tables: [
+      { table: "crm_clients", count: 1, rows: [{ id: "1", data: { nome: "Ana\nMaria" } }] },
+      { table: "crm_financial_budgets", count: 0, rows: [] },
+    ] },
+  };
+  const archive = createBackupArchive(backup);
+  assert.equal(archive.type, "application/zip");
+  const bytes = new Uint8Array(await archive.arrayBuffer());
+  const view = new DataView(bytes.buffer);
+  const files = new Map();
+  let offset = 0;
+  while (view.getUint32(offset, true) === 0x04034b50) {
+    const size = view.getUint32(offset + 18, true);
+    const nameLength = view.getUint16(offset + 26, true);
+    const name = new TextDecoder().decode(bytes.subarray(offset + 30, offset + 30 + nameLength));
+    const start = offset + 30 + nameLength;
+    files.set(name, bytes.subarray(start, start + size));
+    offset = start + size;
+  }
+  assert.equal(view.getUint32(offset, true), 0x02014b50);
+  const endOffset = bytes.length - 22;
+  assert.equal(view.getUint32(endOffset, true), 0x06054b50);
+  assert.equal(view.getUint16(endOffset + 10, true), files.size);
+  assert.equal(view.getUint32(endOffset + 16, true), offset);
+  assert.ok(files.has("backup-completo.json"));
+  assert.ok(files.has("site/index.html"));
+  assert.deepEqual(Array.from(files.get("site/crmcabana/assets/logo.png")), [1, 2, 3]);
+  const tableText = new TextDecoder().decode(files.get("tabelas/crm_clients.txt"));
+  assert.match(tableText, /# Registros: 1/);
+  assert.match(tableText, /id\tdata/);
+  assert.ok(tableText.includes("Ana\\\\nMaria"));
+  assert.match(new TextDecoder().decode(files.get("tabelas/crm_financial_budgets.txt")), /# Registros: 0/);
+  assert.ok(files.has("LEIA-ME.txt"));
 });

@@ -5332,7 +5332,7 @@ function exportCsv() {
 
 function backupFileName() {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `crm-cabana-backup-${timestamp}.json`;
+  return `crm-cabana-backup-${timestamp}.zip`;
 }
 
 function setBackupStatus(message = "") {
@@ -5466,8 +5466,108 @@ async function collectDatabaseBackup() {
   return results;
 }
 
-async function saveBackupFile(fileName, content, handle = null) {
-  const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+function backupTableText({ table, count, rows }) {
+  const columns = [];
+  const seen = new Set();
+  for (const row of rows) for (const column of Object.keys(row)) {
+    if (!seen.has(column)) { seen.add(column); columns.push(column); }
+  }
+  const escapeCell = (value) => {
+    const text = value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+    return text.replace(/\\/g, "\\\\").replace(/\t/g, "\\t").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+  };
+  const lines = [`# Tabela: ${table}`, `# Registros: ${count}`, columns.join("\t")];
+  for (const row of rows) lines.push(columns.map((column) => escapeCell(row[column])).join("\t"));
+  return lines.join("\r\n") + "\r\n";
+}
+
+function backupZipBytes(file) {
+  if (file.type !== "dataUrl") return new TextEncoder().encode(file.content);
+  const base64 = file.content.split(",", 2)[1];
+  if (!base64) throw new Error(`Imagem invalida no backup: ${file.path}`);
+  return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+}
+
+const BACKUP_ZIP_CRC_TABLE = Uint32Array.from({ length: 256 }, (_, index) => {
+  let value = index;
+  for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+  return value >>> 0;
+});
+
+function backupZipCrc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = BACKUP_ZIP_CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function backupZipBlob(files) {
+  if (files.length > 65535) throw new Error("O backup possui arquivos demais para um ZIP comum.");
+  const encoder = new TextEncoder();
+  const parts = [];
+  const directory = [];
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((Math.max(1980, now.getFullYear()) - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  let offset = 0;
+  for (const file of files) {
+    const name = encoder.encode(file.name);
+    const bytes = file.bytes instanceof Uint8Array ? file.bytes : encoder.encode(file.content);
+    if (name.length > 65535 || bytes.length > 0xffffffff || offset > 0xffffffff) throw new Error("O backup excede o limite do formato ZIP comum.");
+    const crc = backupZipCrc32(bytes);
+    const local = new Uint8Array(30 + name.length);
+    const localView = new DataView(local.buffer);
+    localView.setUint32(0, 0x04034b50, true);
+    localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0x0800, true);
+    localView.setUint16(10, dosTime, true);
+    localView.setUint16(12, dosDate, true);
+    localView.setUint32(14, crc, true);
+    localView.setUint32(18, bytes.length, true);
+    localView.setUint32(22, bytes.length, true);
+    localView.setUint16(26, name.length, true);
+    local.set(name, 30);
+    parts.push(local, bytes);
+
+    const central = new Uint8Array(46 + name.length);
+    const centralView = new DataView(central.buffer);
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0x0800, true);
+    centralView.setUint16(12, dosTime, true);
+    centralView.setUint16(14, dosDate, true);
+    centralView.setUint32(16, crc, true);
+    centralView.setUint32(20, bytes.length, true);
+    centralView.setUint32(24, bytes.length, true);
+    centralView.setUint16(28, name.length, true);
+    centralView.setUint32(42, offset, true);
+    central.set(name, 46);
+    directory.push(central);
+    offset += local.length + bytes.length;
+  }
+  const directorySize = directory.reduce((size, entry) => size + entry.length, 0);
+  if (offset + directorySize > 0xffffffff) throw new Error("O backup excede o limite do formato ZIP comum.");
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, files.length, true);
+  endView.setUint16(10, files.length, true);
+  endView.setUint32(12, directorySize, true);
+  endView.setUint32(16, offset, true);
+  return new Blob([...parts, ...directory, end], { type: "application/zip" });
+}
+
+function createBackupArchive(backup) {
+  const files = [{ name: "backup-completo.json", content: JSON.stringify(backup, null, 2) }];
+  for (const file of backup.site.files) {
+    files.push({ name: `site/${file.path.startsWith("../") ? file.path.slice(3) : `crmcabana/${file.path}`}`, bytes: backupZipBytes(file) });
+  }
+  for (const table of backup.database.tables) files.push({ name: `tabelas/${table.table}.txt`, content: backupTableText(table) });
+  files.push({ name: "LEIA-ME.txt", content: "Backup do CRM Cabana em UTF-8.\r\nA pasta tabelas contem uma exportacao por tabela, com campos separados por tabulacao e quebras de linha escapadas.\r\nO arquivo backup-completo.json preserva os dados estruturados.\r\nNao inclui usuarios do Supabase Auth, configuracoes internas nem objetos do Storage.\r\nGuarde este arquivo em local seguro.\r\n" });
+  return backupZipBlob(files);
+}
+
+async function saveBackupFile(fileName, blob, handle = null) {
 
   if (handle) {
     const writable = await handle.createWritable();
@@ -5501,7 +5601,7 @@ async function createFullBackup() {
     // O seletor precisa abrir durante o clique, antes de qualquer leitura assincrona.
     const saveHandle = window.showSaveFilePicker ? await window.showSaveFilePicker({
       suggestedName: fileName,
-      types: [{ description: "Backup JSON", accept: { "application/json": [".json"] } }],
+      types: [{ description: "Backup ZIP", accept: { "application/zip": [".zip"] } }],
     }) : null;
     const backup = {
       version: 2,
@@ -5529,7 +5629,8 @@ async function createFullBackup() {
       },
     };
 
-    await saveBackupFile(fileName, JSON.stringify(backup, null, 2), saveHandle);
+    setBackupStatus("Montando arquivo ZIP...");
+    await saveBackupFile(fileName, createBackupArchive(backup), saveHandle);
     setBackupStatus(`Backup salvo: ${fileName}`);
   } catch (error) {
     console.warn(error);
