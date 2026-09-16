@@ -5372,6 +5372,12 @@ async function fetchSiteBackupFile(path, type = "text") {
 
 async function collectSiteBackupFiles() {
   const files = [
+    ["../index.html", "text"],
+    ["../institucional.css", "text"],
+    ["../CNAME", "text"],
+    ["../assets/cabana-logo.png", "dataUrl"],
+    ["../assets/assinatura-final-cabana.png", "dataUrl"],
+    ["../assets/cozinha-planejada.svg", "text"],
     ["index.html", "text"],
     ["styles.css", "text"],
     ["app.js", "text"],
@@ -5380,56 +5386,83 @@ async function collectSiteBackupFiles() {
     ["assets/assinatura-final-cabana.png", "dataUrl"],
     ["assets/cozinha-planejada.svg", "text"],
     ["../supabase-schema.sql", "text"],
+    ["../supabase-financeiro.sql", "text"],
   ];
 
   const results = [];
   for (const [path, type] of files) {
-    try {
-      results.push(await fetchSiteBackupFile(path, type));
-    } catch (error) {
-      results.push({ path, type, error: error.message || "Nao foi possivel ler o arquivo." });
-    }
+    setBackupStatus(`Copiando arquivo ${results.length + 1} de ${files.length}: ${path}`);
+    try { results.push(await fetchSiteBackupFile(path, type)); }
+    catch (error) { throw new Error(`Nao foi possivel copiar ${path}: ${error.message || "erro desconhecido"}`); }
   }
   return results;
 }
 
-async function fetchSupabaseTableBackup(table) {
-  if (!remoteDatabaseEnabled() || !currentUserId()) return { table, rows: [], skipped: "Banco remoto nao configurado." };
+const BACKUP_TABLES = [
+  { name: CONFIG.clientsTable || "crm_clients", key: "id" },
+  { name: CONFIG.profilesTable || "crm_profiles", key: "id" },
+  { name: "crm_audit_logs", key: "id" },
+  { name: "crm_budget_statuses", key: "name" },
+  { name: "crm_financial_accounts", key: "id" },
+  { name: "crm_financial_categories", key: "id" },
+  { name: "crm_financial_cost_centers", key: "id" },
+  { name: "crm_financial_entries", key: "id" },
+  { name: "crm_financial_statement_imports", key: "id" },
+  { name: "crm_financial_statement_items", key: "id" },
+  { name: "crm_financial_reconciliations", key: "id" },
+  { name: "crm_financial_budgets", key: "id" },
+];
+
+function backupResponseCount(response, table) {
+  const count = response.headers.get("content-range")?.match(/\/(\d+)$/);
+  if (!count) throw new Error(`Nao foi possivel confirmar a quantidade de registros de ${table}.`);
+  return Number(count[1]);
+}
+
+async function fetchSupabaseTableBackup({ name: table, key }) {
+  if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("Banco remoto nao configurado.");
 
   const rows = [];
   const pageSize = 1000;
-  let offset = 0;
+  let cursor = null;
+  let expectedCount = null;
 
   while (true) {
-    const response = await authorizedFetch(supabaseTableEndpoint(table, `?select=*&limit=${pageSize}&offset=${offset}`), () => ({
-      headers: supabaseHeaders(),
+    const query = new URLSearchParams({ select: "*", order: `${key}.asc`, limit: String(pageSize) });
+    if (cursor !== null) query.set(key, `gt.${cursor}`);
+    const response = await authorizedFetch(supabaseTableEndpoint(table, `?${query}`), () => ({
+      headers: supabaseHeaders(expectedCount === null ? "count=exact" : "return=minimal"),
     }));
     if (!response.ok) {
       const details = await response.json().catch(() => null);
-      throw new Error(details?.message || `Nao foi possivel ler a tabela ${table}.`);
+      throw new Error(`Nao foi possivel ler ${table}: ${details?.message || `HTTP ${response.status}`}`);
     }
-
+    if (expectedCount === null) expectedCount = backupResponseCount(response, table);
     const page = await response.json();
+    if (!Array.isArray(page)) throw new Error(`Resposta invalida da tabela ${table}.`);
+    if (page.some((row) => row[key] == null)) throw new Error(`Chave ${key} ausente em ${table}.`);
     rows.push(...page);
     if (page.length < pageSize) break;
-    offset += pageSize;
+    const nextCursor = String(page.at(-1)[key]);
+    if (nextCursor === cursor) throw new Error(`Paginacao interrompida em ${table}.`);
+    cursor = nextCursor;
+    setBackupStatus(`Copiando ${table}: ${rows.length} de ${expectedCount} registros`);
   }
 
-  return { table, rows };
+  const countQuery = new URLSearchParams({ select: key, limit: "1" });
+  const countResponse = await authorizedFetch(supabaseTableEndpoint(table, `?${countQuery}`), () => ({ headers: supabaseHeaders("count=exact") }));
+  if (!countResponse.ok) throw new Error(`Nao foi possivel validar a tabela ${table}.`);
+  const finalCount = backupResponseCount(countResponse, table);
+  if (rows.length !== expectedCount || rows.length !== finalCount) throw new Error(`A tabela ${table} mudou durante o backup (${rows.length}/${expectedCount}/${finalCount}). Tente novamente.`);
+  return { table, count: rows.length, sha256: await sha256(JSON.stringify(rows)), rows };
 }
 
 async function collectDatabaseBackup() {
-  const tables = [CONFIG.clientsTable || "crm_clients", CONFIG.profilesTable || "crm_profiles", "crm_audit_logs"];
   const results = [];
-
-  for (const table of tables) {
-    try {
-      results.push(await fetchSupabaseTableBackup(table));
-    } catch (error) {
-      results.push({ table, rows: [], error: error.message || "Nao foi possivel ler a tabela." });
-    }
+  for (const table of BACKUP_TABLES) {
+    setBackupStatus(`Copiando tabela ${results.length + 1} de ${BACKUP_TABLES.length}: ${table.name}`);
+    results.push(await fetchSupabaseTableBackup(table));
   }
-
   return results;
 }
 
@@ -5472,7 +5505,7 @@ async function createFullBackup() {
 
   try {
     const backup = {
-      version: 1,
+      version: 2,
       app: "CRM Cabana",
       generatedAt: new Date().toISOString(),
       generatedBy: {
@@ -5487,6 +5520,7 @@ async function createFullBackup() {
       database: {
         supabaseUrl: CONFIG.supabaseUrl || "",
         tables: await collectDatabaseBackup(),
+        limitations: "Exportacao das tabelas publicas acessiveis ao administrador. Nao inclui auth.users, configuracoes internas do Supabase nem objetos do Storage.",
       },
       localStorage: {
         clientsKey: userStorageKey(),
