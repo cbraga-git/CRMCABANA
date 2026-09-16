@@ -775,10 +775,38 @@ button:focus-visible {
 .financial-chart-legend span { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .financial-chart-legend i { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; }
 .financial-chart-legend strong { margin-left: auto; color: var(--text); }
-.financial-account-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-.financial-account-cards > article { padding: 16px; border: 1px solid rgba(217, 199, 121, .65); border-radius: 12px; background: #fffdf7; cursor: pointer; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
-.financial-account-cards > article:hover, .financial-account-cards > article:focus-visible { border-color: var(--gold); box-shadow: 0 8px 20px rgba(91, 72, 10, .12); outline: none; transform: translateY(-2px); }
-.financial-account-cards article > header { display: flex; align-items: center; gap: 10px; }
+.financial-accounts-view { margin-top: 18px; }
+.financial-accounts-header, .financial-accounts-header-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.financial-accounts-header h2, .financial-accounts-header p { margin: 0; }
+.financial-accounts-header p { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.financial-accounts-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); align-items: start; gap: 18px; margin-top: 18px; }
+.financial-account-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.financial-account-card, .financial-new-account-card { min-width: 0; min-height: 240px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: var(--shadow); }
+.financial-account-card { display: flex; flex-direction: column; padding: 18px 18px 0; }
+.financial-account-card.inactive { opacity: .68; }
+.financial-account-card > header { display: flex; align-items: center; gap: 11px; }
+.financial-account-card > header > div:nth-child(2) { min-width: 0; }
+.financial-account-card h3 { margin: 0; overflow: hidden; color: var(--text); font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.financial-account-card small { color: var(--muted); font-size: 11px; }
+.financial-account-card dl { display: grid; gap: 15px; margin: 24px 0; }
+.financial-account-card dl div { display: flex; justify-content: space-between; gap: 12px; }
+.financial-account-card dt { color: var(--muted); font-size: 12px; font-weight: 800; }
+.financial-account-card dd { margin: 0; color: var(--text); font-size: 14px; font-weight: 900; white-space: nowrap; }
+.financial-account-card > footer { display: flex; justify-content: space-between; gap: 8px; margin: auto -18px 0; padding: 12px 18px; border-top: 1px solid var(--line); }
+.financial-account-card > footer button { padding: 4px 0; border: 0; background: none; color: var(--accent-dark); font-size: 11px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+.financial-new-account-card { display: grid; place-content: center; gap: 14px; color: var(--accent-dark); cursor: pointer; font: inherit; }
+.financial-new-account-card > span { display: grid; width: 58px; height: 58px; margin: auto; place-items: center; border: 2px solid currentColor; border-radius: 50%; font-size: 30px; }
+.financial-new-account-card:hover, .financial-new-account-card:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
+.financial-accounts-summary { display: grid; gap: 12px; }
+.financial-accounts-summary .stat-card { min-width: 0; }
+.financial-account-actions { position: relative; margin-left: auto; }
+.financial-account-menu-button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--text); font-size: 24px; cursor: pointer; }
+.financial-account-menu-button:hover, .financial-account-menu-button[aria-expanded="true"] { background: rgba(170, 142, 52, .14); }
+.financial-account-actions-menu { position: absolute; top: 34px; right: 0; z-index: 20; display: grid; min-width: 160px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: 0 12px 30px rgba(0, 0, 0, .2); }
+.financial-account-actions-menu[hidden] { display: none; }
+.financial-account-actions-menu button { min-height: 38px; padding: 8px 13px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.financial-account-actions-menu button:hover, .financial-account-actions-menu button:focus-visible { background: rgba(170, 142, 52, .14); }
+.financial-account-actions-menu button.danger { color: #a51d3e; }
 .financial-bank-logo { display: inline-grid; width: 26px; height: 26px; flex: 0 0 26px; place-items: center; border-radius: 50%; background: #736b56; color: #fff; font-size: 9px; font-weight: 900; letter-spacing: -.3px; }
 .financial-bank-logo.large { width: 42px; height: 42px; flex-basis: 42px; font-size: 12px; }
 .financial-bank-logo.mercado-pago { background: #009ee3; }
@@ -789,11 +817,6 @@ button:focus-visible {
 .financial-account-reference > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .financial-entry-account-display { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .financial-account-arrow { color: var(--muted); }
-.financial-account-cards header div { display: grid; gap: 3px; }
-.financial-account-cards small, .financial-account-cards dt { color: var(--muted); font-size: 11px; }
-.financial-account-cards dl { display: grid; gap: 10px; margin: 16px 0 0; }
-.financial-account-cards dl div { display: flex; justify-content: space-between; gap: 10px; }
-.financial-account-cards dd { margin: 0; font-weight: 800; }
 .financial-dashboard-card .financial-balance-chart { height: 300px; margin-top: 10px; }
 .financial-evolution-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .financial-evolution-controls { display: flex; align-items: center; gap: 8px; }
@@ -961,11 +984,14 @@ button.financial-entry-tag-chip { cursor: pointer; }
   }
   .financial-transaction-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .financial-dashboard-charts { grid-template-columns: 1fr; }
-  .financial-account-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .financial-accounts-layout { grid-template-columns: 1fr; }
+  .financial-accounts-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .financial-entry-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
+  .financial-accounts-header, .financial-accounts-header-actions { align-items: stretch; flex-direction: column; }
+  .financial-account-cards, .financial-accounts-summary { grid-template-columns: 1fr; }
   #financialEntriesPanel > header { display: flex; align-items: stretch; flex-direction: column; }
   #financialEntriesPanel > header > .button { align-self: stretch; }
   .financial-month-navigator { gap: 12px; }

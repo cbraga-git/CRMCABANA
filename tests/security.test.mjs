@@ -79,6 +79,10 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /ensureCategory/);
   assert.match(app, /account_id: accountMap[\s\S]*?transfer_account_id: null[\s\S]*?category_id:/);
   assert.match(html, /id="financialDashboardMonth"/);
+  assert.doesNotMatch(html, /id="financialDashboardAccounts"/);
+  assert.match(html, /id="financialAccountsPanel"[\s\S]*?id="financialAccountsMonth"[\s\S]*?id="financialAccountRows"/);
+  assert.match(app, /data-financial-account-transactions/);
+  assert.match(app, /data-financial-account-expense/);
   assert.match(html, /id="financialEvolutionChartBtn"/);
   assert.match(html, /id="financialEvolutionTableBtn"/);
   assert.match(html, /id="financialEvolutionRows"/);

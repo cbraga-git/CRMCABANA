@@ -1685,7 +1685,6 @@ function renderFinancialDashboard() {
   const income = monthEntries.filter((entry) => entry.entry_type === "income" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const expense = monthEntries.filter((entry) => entry.entry_type === "expense" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, false), 0); const projected = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0);
   document.querySelector("#financialDashboardBalance").textContent = BRL.format(balance); document.querySelector("#financialDashboardIncome").textContent = BRL.format(income); document.querySelector("#financialDashboardExpense").textContent = BRL.format(expense); document.querySelector("#financialDashboardProjected").textContent = BRL.format(projected);
   renderFinancialDonut("financialExpenseChart", "financialExpenseLegend", financialCategorySummary(monthEntries, "expense")); renderFinancialDonut("financialIncomeChart", "financialIncomeLegend", financialCategorySummary(monthEntries, "income"));
-  document.querySelector("#financialDashboardAccounts").innerHTML = accounts.length ? accounts.map((account) => `<article role="button" tabindex="0" data-dashboard-account="${account.id}" aria-label="Ver transações de ${escapeHtml(account.name)} no período selecionado"><header>${financialAccountBrand(account, true)}<div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</small></div></header><dl><div><dt>Saldo realizado</dt><dd>${BRL.format(financialAccountBalance(account, end, false))}</dd></div><div><dt>Saldo previsto</dt><dd>${BRL.format(financialAccountBalance(account, end, true))}</dd></div></dl></article>`).join("") : '<p class="empty-table-cell">Nenhuma conta ativa cadastrada.</p>';
   renderFinancialEvolution();
 }
 
@@ -1725,8 +1724,22 @@ async function loadFinancialRegisters() {
 
 function renderFinancialAccounts() {
   if (!elements.financialAccountRows) return;
-  elements.financialAccountRows.innerHTML = state.financialAccounts.length ? state.financialAccounts.map((account) => `<tr><td><span class="financial-account-reference">${financialAccountBrand(account)}<strong>${escapeHtml(account.name)}</strong></span></td><td>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}</td><td>${escapeHtml(account.institution || "—")}</td><td>${BRL.format(Number(account.initial_balance) || 0)}</td><td><span class="financial-status ${account.active ? "active" : "inactive"}">${account.active ? "Ativa" : "Inativa"}</span></td><td><button class="link-button" type="button" data-edit-financial-account="${account.id}">Editar</button> <button class="link-button" type="button" data-toggle-financial-account="${account.id}">${account.active ? "Inativar" : "Ativar"}</button> <button class="link-button danger" type="button" data-delete-financial-account="${account.id}">Excluir</button></td></tr>`).join("") : '<tr><td colspan="6" class="empty-table-cell">Nenhuma conta cadastrada.</td></tr>';
-  applyFinancialTableSort(elements.financialAccountRows.closest("table"));
+  const period = state.financialDashboardMonth;
+  document.querySelector("#financialAccountsMonth").value = period;
+  const { end } = financialMonthBounds(period);
+  const priority = ["mercado pago", "itau", "santander"];
+  const normalizedName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
+  const accounts = [...state.financialAccounts].sort((first, second) => {
+    const rank = (account) => { const index = priority.findIndex((name) => normalizedName(`${account.name} ${account.institution}`).includes(name)); return index < 0 ? priority.length : index; };
+    return Number(second.active) - Number(first.active) || rank(first) - rank(second) || financialSortCollator.compare(first.name, second.name);
+  });
+  const activeAccounts = accounts.filter((account) => account.active);
+  document.querySelector("#financialAccountsBalance").textContent = BRL.format(activeAccounts.reduce((sum, account) => sum + financialAccountBalance(account, end, false), 0));
+  document.querySelector("#financialAccountsProjected").textContent = BRL.format(activeAccounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0));
+  elements.financialAccountRows.innerHTML = `<button class="financial-new-account-card" type="button" data-new-financial-account><span aria-hidden="true">+</span><strong>Nova conta</strong></button>` + accounts.map((account) => {
+    const id = escapeHtml(account.id);
+    return `<article class="financial-account-card ${account.active ? "" : "inactive"}"><header>${financialAccountBrand(account, true)}<div><h3>${escapeHtml(account.name)}</h3><small>${escapeHtml(FINANCIAL_ACCOUNT_TYPES[account.account_type] || account.account_type)}${account.active ? "" : " · Inativa"}</small></div><div class="financial-account-actions"><button class="financial-account-menu-button" type="button" data-financial-account-menu aria-label="Ações de ${escapeHtml(account.name)}" aria-expanded="false" aria-haspopup="menu">⋮</button><div class="financial-account-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-account="${id}">Editar</button><button type="button" role="menuitem" data-toggle-financial-account="${id}">${account.active ? "Inativar" : "Ativar"}</button><button type="button" role="menuitem" data-financial-account-transactions="${id}">Transações</button><button class="danger" type="button" role="menuitem" data-delete-financial-account="${id}">Excluir</button></div></div></header><dl><div><dt>Saldo atual</dt><dd>${BRL.format(financialAccountBalance(account, end, false))}</dd></div><div><dt>Saldo previsto</dt><dd>${BRL.format(financialAccountBalance(account, end, true))}</dd></div></dl><footer><button type="button" data-financial-account-transactions="${id}">Ver transações</button>${account.active ? `<button type="button" data-financial-account-expense="${id}">+ Despesa</button>` : ""}</footer></article>`;
+  }).join("");
 }
 
 function renderFinancialCategories() {
@@ -6011,25 +6024,12 @@ document.querySelector("#financialEntryTagInput")?.addEventListener("input", syn
 document.querySelector("#financialEntryTagInput")?.addEventListener("change", (event) => { if (availableFinancialTags().includes(normalizeFinancialTag(event.target.value))) addFinancialEntryTag(); });
 document.querySelector("#financialEntryTagChips")?.addEventListener("click", (event) => { const chip = event.target.closest("[data-remove-financial-entry-tag]"); if (!chip) return; state.financialEntryDraftTags = state.financialEntryDraftTags.filter((tag) => tag !== chip.dataset.removeFinancialEntryTag); renderFinancialEntryTagEditor(); });
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
+document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; renderFinancialEntries(); });
 document.querySelectorAll("[data-financial-month-step]").forEach((button) => button.addEventListener("click", () => stepFinancialEntryMonth(Number(button.dataset.financialMonthStep))));
 document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionChartBtn")?.addEventListener("click", () => { state.financialEvolutionView = "chart"; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionTableBtn")?.addEventListener("click", () => { state.financialEvolutionView = "table"; renderFinancialEvolution(); });
-document.querySelector("#financialDashboardAccounts")?.addEventListener("click", (event) => {
-  const card = event.target.closest("[data-dashboard-account]");
-  if (!card) return;
-  state.financialEntryAccountFilter = card.dataset.dashboardAccount;
-  state.financialEntryMonthFilter = state.financialDashboardMonth;
-  showView("financeTransactions");
-});
-document.querySelector("#financialDashboardAccounts")?.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  const card = event.target.closest("[data-dashboard-account]");
-  if (!card) return;
-  event.preventDefault();
-  card.click();
-});
 document.querySelector("#clearFinancialEntryFilter")?.addEventListener("click", () => {
   state.financialEntryAccountFilter = "";
   state.financialEntryMonthFilter = "";
@@ -6057,17 +6057,52 @@ document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => b
   if (button.dataset.closeFinancialDialog === "category") { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; }
   ({ account: elements.financialAccountDialog, category: elements.financialCategoryDialog, entry: elements.financialEntryDialog }[button.dataset.closeFinancialDialog]?.close());
 }));
+function closeFinancialAccountMenus() {
+  elements.financialAccountRows?.querySelectorAll(".financial-account-actions-menu:not([hidden])").forEach((menu) => {
+    menu.hidden = true;
+    menu.previousElementSibling?.setAttribute("aria-expanded", "false");
+  });
+}
+
 elements.financialAccountRows?.addEventListener("click", (event) => {
+  const menuButton = event.target.closest("[data-financial-account-menu]");
+  if (menuButton) {
+    const menu = menuButton.nextElementSibling;
+    const opening = menu.hidden;
+    closeFinancialAccountMenus();
+    menu.hidden = !opening;
+    menuButton.setAttribute("aria-expanded", String(opening));
+    if (opening) menu.querySelector("[role='menuitem']")?.focus();
+    return;
+  }
+  if (event.target.closest("[data-new-financial-account]")) { openFinancialAccountDialog(); return; }
   const edit = event.target.closest("[data-edit-financial-account]");
   const toggle = event.target.closest("[data-toggle-financial-account]");
   const remove = event.target.closest("[data-delete-financial-account]");
+  const transactions = event.target.closest("[data-financial-account-transactions]");
+  const expense = event.target.closest("[data-financial-account-expense]");
+  closeFinancialAccountMenus();
   if (edit) openFinancialAccountDialog(edit.dataset.editFinancialAccount);
   if (toggle) {
     const account = state.financialAccounts.find((item) => item.id === toggle.dataset.toggleFinancialAccount);
     if (account) toggleFinancialRecord("crm_financial_accounts", account.id, !account.active, renderFinancialAccounts);
   }
   if (remove) deleteFinancialRecord("crm_financial_accounts", remove.dataset.deleteFinancialAccount, "esta conta").then((deleted) => { if (deleted) renderFinancialAccounts(); }).catch((error) => alert(error.message));
+  if (transactions) {
+    state.financialEntryFilters = { search: "", type: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" };
+    state.financialEntryAccountFilter = transactions.dataset.financialAccountTransactions;
+    state.financialEntryMonthFilter = state.financialDashboardMonth;
+    showView("financeTransactions");
+  }
+  if (expense) {
+    openFinancialEntryDialog();
+    document.querySelector("#financialEntryType").value = "expense";
+    document.querySelector("#financialEntryAccount").value = expense.dataset.financialAccountExpense;
+    syncFinancialEntryTypeFields();
+  }
 });
+document.addEventListener("click", (event) => { if (!event.target.closest(".financial-account-actions")) closeFinancialAccountMenus(); });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeFinancialAccountMenus(); });
 elements.financialCategoryRows?.addEventListener("click", (event) => {
   const edit = event.target.closest("[data-edit-financial-category]");
   const toggle = event.target.closest("[data-toggle-financial-category]");

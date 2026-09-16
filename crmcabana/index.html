@@ -583,7 +583,6 @@
               <article class="financial-dashboard-card"><h2>Despesas por categoria</h2><canvas id="financialExpenseChart" aria-label="Despesas por categoria"></canvas><div class="financial-chart-legend" id="financialExpenseLegend"></div></article>
               <article class="financial-dashboard-card"><h2>Receitas por categoria</h2><canvas id="financialIncomeChart" aria-label="Receitas por categoria"></canvas><div class="financial-chart-legend" id="financialIncomeLegend"></div></article>
             </div>
-            <article class="financial-dashboard-card"><header><div><h2>Saldos por conta</h2><p>Realizado e previsto até o fim do período selecionado.</p></div></header><div class="financial-account-cards" id="financialDashboardAccounts"></div></article>
             <article class="financial-dashboard-card financial-evolution-card">
               <header class="financial-evolution-header"><div><h2>Evolução do saldo no ano</h2><p id="financialEvolutionPeriod">janeiro a dezembro</p></div><div class="financial-evolution-controls"><select id="financialEvolutionAccount" aria-label="Filtrar evolução por conta"><option value="">Todas as contas</option></select><button class="financial-view-icon active" id="financialEvolutionChartBtn" type="button" title="Ver gráfico" aria-label="Ver gráfico">⌁</button><button class="financial-view-icon" id="financialEvolutionTableBtn" type="button" title="Ver analítico mensal" aria-label="Ver analítico mensal">▦</button></div></header>
               <div id="financialEvolutionChartPanel"><canvas class="financial-balance-chart" id="financialBalanceChart" aria-label="Evolução mensal do saldo"></canvas></div>
@@ -591,9 +590,12 @@
             </article>
           </section>
 
-          <section class="financial-register" id="financialAccountsPanel" hidden>
-            <header><div><h2>Contas cadastradas</h2><p>Contas bancárias, caixa, cartões e investimentos.</p></div><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></header>
-            <div class="table-wrap"><table data-financial-sortable><thead><tr><th data-sort-type="text">Nome</th><th data-sort-type="text">Tipo</th><th data-sort-type="text">Instituição</th><th data-sort-type="number">Saldo inicial</th><th data-sort-type="text">Status</th><th>Ações</th></tr></thead><tbody id="financialAccountRows"></tbody></table></div>
+          <section class="financial-accounts-view" id="financialAccountsPanel" hidden>
+            <header class="financial-accounts-header"><div><h2>Gestão de contas</h2><p>Saldos e lançamentos de cada conta.</p></div><div class="financial-accounts-header-actions"><label class="financial-period-filter">Período<input id="financialAccountsMonth" type="month" /></label><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></div></header>
+            <div class="financial-accounts-layout">
+              <div class="financial-account-cards" id="financialAccountRows"></div>
+              <aside class="financial-accounts-summary" aria-label="Resumo das contas"><article class="stat-card"><span class="stat-icon teal">$</span><div><span>Saldo atual</span><strong id="financialAccountsBalance">R$ 0,00</strong></div></article><article class="stat-card"><span class="stat-icon orange">↗</span><div><span>Saldo previsto</span><strong id="financialAccountsProjected">R$ 0,00</strong></div></article></aside>
+            </div>
           </section>
 
           <section class="financial-register" id="financialCategoriesPanel" hidden>
