@@ -1653,8 +1653,14 @@ function renderFinancialDonut(canvasId, legendId, data) {
   legend.innerHTML = data.length ? data.slice(0, 8).map((item, index) => `<span><i style="background:${FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]}"></i>${escapeHtml(item.name)} <strong>${BRL.format(item.value)}</strong></span>`).join("") : "<span>Sem lançamentos no período.</span>";
 }
 
+const FINANCIAL_EVOLUTION_BANK_ACCOUNTS = "__bank_accounts__";
+
 function financialEvolutionAccounts() {
-  return state.financialAccounts.filter((account) => account.active && (!state.financialEvolutionAccountId || account.id === state.financialEvolutionAccountId));
+  return state.financialAccounts.filter((account) => account.active && (
+    !state.financialEvolutionAccountId ||
+    (state.financialEvolutionAccountId === FINANCIAL_EVOLUTION_BANK_ACCOUNTS && account.account_type === "bank") ||
+    account.id === state.financialEvolutionAccountId
+  ));
 }
 
 function renderFinancialBalanceChart(year) {
@@ -1676,8 +1682,8 @@ function renderFinancialEvolutionTable(year) {
 }
 
 function renderFinancialEvolution() {
-  const year = Number(state.financialDashboardMonth.slice(0, 4)); const accountSelect = document.querySelector("#financialEvolutionAccount"); const validAccount = state.financialAccounts.some((account) => account.active && account.id === state.financialEvolutionAccountId); if (!validAccount) state.financialEvolutionAccountId = "";
-  accountSelect.innerHTML = '<option value="">Todas as contas</option>' + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEvolutionAccountId;
+  const year = Number(state.financialDashboardMonth.slice(0, 4)); const accountSelect = document.querySelector("#financialEvolutionAccount"); const validAccount = state.financialEvolutionAccountId === FINANCIAL_EVOLUTION_BANK_ACCOUNTS || state.financialAccounts.some((account) => account.active && account.id === state.financialEvolutionAccountId); if (!validAccount) state.financialEvolutionAccountId = "";
+  accountSelect.innerHTML = `<option value="">Todas as contas</option><option value="${FINANCIAL_EVOLUTION_BANK_ACCOUNTS}">Contas bancárias</option>` + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEvolutionAccountId;
   document.querySelector("#financialEvolutionPeriod").textContent = `janeiro ${year} — dezembro ${year}`;
   const chartMode = state.financialEvolutionView === "chart"; document.querySelector("#financialEvolutionChartPanel").hidden = !chartMode; document.querySelector("#financialEvolutionTablePanel").hidden = chartMode; document.querySelector("#financialEvolutionChartBtn").classList.toggle("active", chartMode); document.querySelector("#financialEvolutionTableBtn").classList.toggle("active", !chartMode);
   if (chartMode) renderFinancialBalanceChart(year); else renderFinancialEvolutionTable(year);
