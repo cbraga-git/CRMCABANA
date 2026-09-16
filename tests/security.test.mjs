@@ -47,6 +47,9 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   for (const view of ["financeOverview", "financeAccounts", "financeTransactions", "financePayable", "financeReceivable", "financeImport", "financeCategories", "financePlanning"]) {
     assert.match(html, new RegExp(`data-view="${view}"`));
   }
+  for (const view of ["financePayable", "financeReceivable", "financePlanning"]) {
+    assert.match(html, new RegExp(`data-view="${view}"[^>]*hidden`));
+  }
   assert.match(html, /id="reportsNavItem"[^>]*data-view="reports"/);
   assert.match(html, /id="reportsView"[\s\S]*?id="reportsForm"[\s\S]*?id="reportsExportBtn"/);
   assert.match(app, /view === "reports"\) renderReportsView\(\)/);
