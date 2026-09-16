@@ -44,9 +44,12 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(html, /<span class="nav-label">Financeiro<\/span>/);
   assert.match(html, /id="financialNavToggle"[^>]*aria-expanded="false"/);
   assert.match(html, /id="financialSubmenu" hidden/);
-  for (const view of ["financeOverview", "financeAccounts", "financeTransactions", "financePayable", "financeReceivable", "financeImport", "financeCategories", "financePlanning", "financeReports"]) {
+  for (const view of ["financeOverview", "financeAccounts", "financeTransactions", "financePayable", "financeReceivable", "financeImport", "financeCategories", "financePlanning"]) {
     assert.match(html, new RegExp(`data-view="${view}"`));
   }
+  assert.match(html, /id="reportsNavItem"[^>]*data-view="reports"/);
+  assert.match(html, /id="reportsView"[\s\S]*?id="reportsForm"[\s\S]*?id="reportsExportBtn"/);
+  assert.match(app, /view === "reports"\) renderReportsView\(\)/);
   assert.match(html, /data-view="financial" title="Resultados de orçamentos"/);
   assert.match(app, /isFinanceModuleView\(view\)/);
   assert.match(app, /supabaseTableEndpoint\("crm_financial_accounts"/);

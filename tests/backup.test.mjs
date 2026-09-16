@@ -167,3 +167,11 @@ test("planilha trata caracteres XML e celulas longas sem formulas", async () => 
   assert.doesNotMatch(sheet, /<f>/);
   assert.match(sheet, /TRUNCADO; VER BACKUP-COMPLETO.JSON/);
 });
+
+test("relatorio XLSX preserva valores monetarios como numeros", async () => {
+  const { backupTableWorkbook } = backupContext();
+  const workbook = backupTableWorkbook({ table: "transactions", columns: ["Descrição", "Valor (R$)"], numericColumns: ["Valor (R$)"], rows: [{ "Descrição": "Receita", "Valor (R$)": 123.45 }] });
+  const files = readStoredZip(new Uint8Array(await workbook.arrayBuffer()));
+  const sheet = new TextDecoder().decode(files.get("xl/worksheets/sheet1.xml"));
+  assert.match(sheet, /<c r="B2" s="2"><v>123\.45<\/v><\/c>/);
+});

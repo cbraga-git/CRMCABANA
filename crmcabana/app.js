@@ -150,7 +150,6 @@ const FINANCE_MODULE_VIEWS = {
   financeImport: ["Importar extrato", "Importe arquivos OFX ou CSV para conferência.", "Importação de extratos", "O fluxo terá pré-visualização, detecção de duplicidades, categorização e confirmação antes de gravar."],
   financeCategories: ["Categorias", "Classifique receitas e despesas.", "Nenhuma categoria financeira", "Categorias e centros de custo terão cadastros próprios."],
   financePlanning: ["Planejamento", "Projete receitas, despesas e saldo futuro.", "Planejamento financeiro", "Orçamentos mensais e lançamentos recorrentes serão exibidos aqui."],
-  financeReports: ["Relatórios", "Analise resultados por período, conta e categoria.", "Relatórios financeiros", "Os relatórios serão liberados quando houver lançamentos financeiros."],
 };
 
 function isFinanceModuleView(view) {
@@ -230,6 +229,7 @@ const elements = {
   usersNavItem: document.querySelector("#usersNavItem"),
   budgetStatusesNavItem: document.querySelector("#budgetStatusesNavItem"),
   maintenanceNavItem: document.querySelector("#maintenanceNavItem"),
+  reportsNavItem: document.querySelector("#reportsNavItem"),
   budgetNavItem: document.querySelector("#budgetNavItem"),
   orderNavItem: document.querySelector("#orderNavItem"),
   financialNavGroup: document.querySelector("#financialNavGroup"),
@@ -505,6 +505,7 @@ function showAuthenticatedApp() {
     elements.usersNavItem.hidden = !isAdmin();
   }
   if (elements.budgetStatusesNavItem) elements.budgetStatusesNavItem.hidden = !isAdmin();
+  if (elements.reportsNavItem) elements.reportsNavItem.hidden = !isAdmin();
   if (elements.maintenanceNavItem) {
     elements.maintenanceNavItem.hidden = !isAdmin();
   }
@@ -1113,6 +1114,7 @@ async function signOut() {
   if (elements.orderNavItem) elements.orderNavItem.hidden = true;
   if (elements.financialNavGroup) elements.financialNavGroup.hidden = true;
   if (elements.maintenanceNavItem) elements.maintenanceNavItem.hidden = true;
+  if (elements.reportsNavItem) elements.reportsNavItem.hidden = true;
   if (elements.budgetStatusesNavItem) elements.budgetStatusesNavItem.hidden = true;
   showAuthScreen();
 }
@@ -1530,7 +1532,7 @@ function markProjectDirty() {
 }
 
 async function showView(view, selectedId) {
-  if ((view === "users" || view === "maintenance" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial" || isFinanceModuleView(view)) && !isAdmin()) {
+  if ((view === "users" || view === "maintenance" || view === "reports" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial" || isFinanceModuleView(view)) && !isAdmin()) {
     alert("Acesso restrito a administradores.");
     view = "clients";
   }
@@ -1572,6 +1574,7 @@ async function showView(view, selectedId) {
   });
   elements.financialNavGroup?.classList.toggle("active", view === "financial" || isFinanceModuleView(view));
   if (isFinanceModuleView(view)) renderFinanceModuleView(view);
+  if (view === "reports") renderReportsView();
   if (view === "budget" || view === "order") refreshBudgetStatusSelect();
 
   render();
@@ -5565,13 +5568,18 @@ function backupZipBlob(files, mimeType = "application/zip") {
   return new Blob([...parts, ...directory, end], { type: mimeType });
 }
 
-function backupTableWorkbook({ table, rows }) {
-  const columns = backupTableColumns(rows);
+function backupTableWorkbook({ table, rows, columns: columnOrder = null, numericColumns = [] }) {
+  const columns = columnOrder || backupTableColumns(rows);
+  const numbers = new Set(numericColumns);
   if (rows.length >= 1048576) throw new Error(`A tabela ${table} excede o limite de linhas do Excel. O backup nao foi salvo.`);
   if (columns.length > 16384) throw new Error(`A tabela ${table} excede o limite de colunas do Excel. O backup nao foi salvo.`);
   const xmlHeader = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
   const mainNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-  const cell = (column, row, value, header = false) => `<c r="${backupExcelColumn(column)}${row}" t="inlineStr"${header ? ' s="1"' : ""}><is><t xml:space="preserve">${backupXmlText(value)}</t></is></c>`;
+  const cell = (column, row, value, header = false) => {
+    const reference = `${backupExcelColumn(column)}${row}`;
+    if (!header && numbers.has(columns[column]) && typeof value === "number" && Number.isFinite(value)) return `<c r="${reference}" s="2"><v>${value}</v></c>`;
+    return `<c r="${reference}" t="inlineStr"${header ? ' s="1"' : ""}><is><t xml:space="preserve">${backupXmlText(value)}</t></is></c>`;
+  };
   const sheetRows = [];
   if (columns.length) sheetRows.push(`<row r="1">${columns.map((column, index) => cell(index, 1, column, true)).join("")}</row>`);
   rows.forEach((record, index) => sheetRows.push(`<row r="${index + 2}">${columns.map((column, columnIndex) => cell(columnIndex, index + 2, record[column])).join("")}</row>`));
@@ -5579,7 +5587,7 @@ function backupTableWorkbook({ table, rows }) {
   const workbook = `${xmlHeader}<workbook xmlns="${mainNs}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Dados" sheetId="1" r:id="rId1"/></sheets></workbook>`;
   const relationships = `${xmlHeader}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
   const rootRelationships = `${xmlHeader}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
-  const styles = `${xmlHeader}<styleSheet xmlns="${mainNs}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>`;
+  const styles = `${xmlHeader}<styleSheet xmlns="${mainNs}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>`;
   const contentTypes = `${xmlHeader}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
   return backupZipBlob([
     { name: "[Content_Types].xml", content: contentTypes },
@@ -5589,6 +5597,179 @@ function backupTableWorkbook({ table, rows }) {
     { name: "xl/styles.xml", content: styles },
     { name: "xl/worksheets/sheet1.xml", content: sheet },
   ], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
+const REPORT_COLUMNS = {
+  clients: ["ID", "Cliente", "Pessoa", "CPF/CNPJ", "E-mail", "Telefone", "Celular", "Contato", "Status", "Ativo", "Responsável", "Origem", "Cidade", "UF", "CEP", "Rua", "Número", "Complemento", "Bairro", "Uso final", "Cadastro"],
+  budgets: ["Código", "ID Nobilia", "Cliente", "ID cliente", "Status", "Responsável", "Criação", "Atualização", "Venda", "Previsão de entrega", "Valor bruto (R$)", "Fábrica + frete (R$)", "Custo (R$)", "Líquido (R$)", "Lucro (R$)", "Margem (%)", "Ambientes", "Observações"],
+  transactions: ["Data", "Emissão", "Competência", "Vencimento", "Pagamento", "Situação", "Tipo", "Descrição", "Categoria", "Conta", "Conta destino", "Cliente", "Tags", "Valor (R$)", "Entrada (R$)", "Saída (R$)", "Movimento (R$)", "Acumulado filtrado (R$)", "Observações", "ID"],
+};
+
+const REPORT_NUMERIC_COLUMNS = {
+  clients: [],
+  budgets: ["Valor bruto (R$)", "Fábrica + frete (R$)", "Custo (R$)", "Líquido (R$)", "Lucro (R$)", "Margem (%)"],
+  transactions: ["Valor (R$)", "Entrada (R$)", "Saída (R$)", "Movimento (R$)", "Acumulado filtrado (R$)"],
+};
+
+const REPORT_DATE_FIELDS = {
+  clients: [["created", "Data do cadastro"]],
+  budgets: [["created", "Data de criação"], ["updated", "Última atualização"], ["sale", "Data da venda"]],
+  transactions: [["effective", "Data da transação"], ["issue", "Data de emissão"], ["competence", "Competência"], ["due", "Vencimento"], ["paid", "Data do pagamento"]],
+};
+
+function reportSelectOptions(select, options, fallbackLabel) {
+  const selected = select.value;
+  select.replaceChildren(new Option(fallbackLabel, ""), ...options.map(([value, label]) => new Option(label, value)));
+  select.value = options.some(([value]) => value === selected) ? selected : "";
+}
+
+function renderReportsView() {
+  const kind = document.querySelector("#reportsKind")?.value || "clients";
+  const dateField = document.querySelector("#reportsDateField");
+  if (!dateField) return;
+  const previousDate = dateField.value;
+  dateField.replaceChildren(...REPORT_DATE_FIELDS[kind].map(([value, label]) => new Option(label, value)));
+  dateField.value = REPORT_DATE_FIELDS[kind].some(([value]) => value === previousDate) ? previousDate : REPORT_DATE_FIELDS[kind][0][0];
+  reportSelectOptions(document.querySelector("#reportsClient"), [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")).map((client) => [client.id, client.name || client.id]), "Todos os clientes");
+  const statuses = kind === "clients" ? STATUS.filter((status) => status !== "Todos") : kind === "budgets" ? BUDGET_STATUS : ["pending", "paid", "overdue", "cancelled"];
+  reportSelectOptions(document.querySelector("#reportsStatus"), [...new Set(statuses.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")).map((value) => [value, kind === "transactions" ? ({ pending: "Pendente", paid: "Pago", overdue: "Vencido", cancelled: "Cancelado" }[value] || value) : value]), "Todos os status");
+  reportSelectOptions(document.querySelector("#reportsAccount"), state.financialAccounts.map((account) => [account.id, account.name]), "Todas as contas");
+  document.querySelector("#reportsAccountField").hidden = kind !== "transactions";
+  document.querySelector("#reportsTypeField").hidden = kind !== "transactions";
+  document.querySelector("#reportsHint").textContent = kind === "transactions" ? "Entradas, saídas e acumulado consideram somente os registros filtrados; transferências entre contas têm efeito líquido zero sem filtro de conta." : "Sem datas, o relatório inclui todo o histórico disponível.";
+}
+
+function reportDateKey(value) {
+  if (!value) return "";
+  const text = String(value).trim();
+  const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const timestamp = parseSortableDate(text);
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function reportDateMatches(value, filters) {
+  const date = reportDateKey(value);
+  return (!filters.startDate || Boolean(date && date >= filters.startDate)) && (!filters.endDate || Boolean(date && date <= filters.endDate));
+}
+
+function reportTextMatches(values, search) {
+  return !search || values.some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(search));
+}
+
+function reportFilters() {
+  return {
+    kind: document.querySelector("#reportsKind").value,
+    dateField: document.querySelector("#reportsDateField").value,
+    startDate: document.querySelector("#reportsStartDate").value,
+    endDate: document.querySelector("#reportsEndDate").value,
+    clientId: document.querySelector("#reportsClient").value,
+    status: document.querySelector("#reportsStatus").value,
+    accountId: document.querySelector("#reportsAccount").value,
+    type: document.querySelector("#reportsType").value,
+    search: document.querySelector("#reportsSearch").value.trim().toLocaleLowerCase("pt-BR"),
+  };
+}
+
+async function reportClientsFromDatabase() {
+  if (!remoteDatabaseEnabled() || !currentUserId()) return state.clients;
+  const records = await fetchSupabaseTableBackup({ name: CONFIG.clientsTable || "crm_clients", key: "id" });
+  const clients = normalizeClients(records.rows.filter((row) => row.data && row.data.project && row.data.address).map((row) => ({ ...row.data, _recordUserId: row.user_id, _remoteUpdatedAt: row.updated_at })));
+  const byId = new Map(clients.map((client) => [client.id, client]));
+  const pending = new Set(loadPendingSyncIds());
+  for (const client of state.clients) if (pending.has(client.id)) byId.set(client.id, client);
+  return [...byId.values()];
+}
+
+function reportClientRows(clients, filters) {
+  return clients.filter((client) => {
+    const created = client.createdAt || client.project?.created || client.updatedAt;
+    return (!filters.clientId || client.id === filters.clientId) && (!filters.status || normalizeLeadStatus(client.status) === filters.status) && reportDateMatches(created, filters) && reportTextMatches([client.id, client.name, client.email, client.phone, client.mobile, client.cpf, client.city], filters.search);
+  }).sort((a, b) => reportDateKey(a.createdAt || a.project?.created || a.updatedAt).localeCompare(reportDateKey(b.createdAt || b.project?.created || b.updatedAt))).map((client) => ({
+    "ID": client.id, "Cliente": client.name, "Pessoa": client.personType, "CPF/CNPJ": client.cpf, "E-mail": client.email, "Telefone": client.phone, "Celular": client.mobile, "Contato": client.contact,
+    "Status": normalizeLeadStatus(client.status), "Ativo": normalizeClientActive(client.active, client.status), "Responsável": responsibleSeller(client), "Origem": client.leadHunter,
+    "Cidade": client.city, "UF": client.state, "CEP": client.address?.cep, "Rua": client.address?.street, "Número": client.address?.number, "Complemento": client.address?.complement, "Bairro": client.address?.district,
+    "Uso final": client.finalUse, "Cadastro": reportDateKey(client.createdAt || client.project?.created || client.updatedAt),
+  }));
+}
+
+function reportBudgetRows(clients, filters) {
+  return clients.flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget }))).filter(({ client, budget }) => {
+    const date = filters.dateField === "sale" ? budget.saleAt : filters.dateField === "updated" ? budget.updatedAt : budget.createdAt;
+    return (!filters.clientId || client.id === filters.clientId) && (!filters.status || budget.status === filters.status) && reportDateMatches(date, filters) && reportTextMatches([client.name, client.id, budget.code, budget.nobiliaId, budget.status, responsibleSeller(client)], filters.search);
+  }).sort((a, b) => reportDateKey(a.budget.createdAt).localeCompare(reportDateKey(b.budget.createdAt))).map(({ client, budget }) => {
+    const totals = budgetSummary(budget);
+    return { "Código": formatBudgetCodeForList(budget.code), "ID Nobilia": budget.nobiliaId, "Cliente": client.name, "ID cliente": client.id, "Status": budget.status, "Responsável": responsibleSeller(client),
+      "Criação": reportDateKey(budget.createdAt), "Atualização": reportDateKey(budget.updatedAt), "Venda": reportDateKey(budget.saleAt), "Previsão de entrega": reportDateKey(budget.deliveryForecastAt),
+      "Valor bruto (R$)": Number(totals.gross) || 0, "Fábrica + frete (R$)": Number(totals.factoryFreight) || 0, "Custo (R$)": Number(totals.cost) || 0, "Líquido (R$)": Number(totals.net) || 0, "Lucro (R$)": Number(totals.profit) || 0,
+      "Margem (%)": (Number(totals.margin) || 0) * 100, "Ambientes": (budget.rows || []).map((row) => row.name).filter(Boolean).join(", "), "Observações": budget.notes || "" };
+  });
+}
+
+function reportTransactionRows(entries, accounts, categories, clients, filters) {
+  const accountNames = new Map(accounts.map((account) => [account.id, account.name]));
+  const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
+  const clientNames = new Map(clients.map((client) => [client.id, client.name]));
+  const dateOf = (entry) => filters.dateField === "effective" ? financialEntryDate(entry) : ({ issue: entry.issue_date, competence: entry.competence_date, due: entry.due_date, paid: entry.paid_at }[filters.dateField] || "");
+  let accumulated = 0;
+  return entries.filter((entry) => {
+    const tags = financialEntryTags(entry);
+    return (!filters.clientId || entry.client_id === filters.clientId) && (!filters.status || entry.status === filters.status) && (!filters.type || entry.entry_type === filters.type) &&
+      (!filters.accountId || entry.account_id === filters.accountId || (entry.entry_type === "transfer" && entry.transfer_account_id === filters.accountId)) &&
+      reportDateMatches(dateOf(entry), filters) && reportTextMatches([entry.description, accountNames.get(entry.account_id), accountNames.get(entry.transfer_account_id), categoryNames.get(entry.category_id), clientNames.get(entry.client_id), ...tags], filters.search);
+  }).sort((a, b) => reportDateKey(dateOf(a)).localeCompare(reportDateKey(dateOf(b)) ) || String(a.id).localeCompare(String(b.id))).map((entry) => {
+    const amount = Number(entry.amount) || 0;
+    const transfer = entry.entry_type === "transfer";
+    const inboundTransfer = transfer && filters.accountId && entry.transfer_account_id === filters.accountId;
+    const outboundTransfer = transfer && filters.accountId && entry.account_id === filters.accountId;
+    const incoming = entry.status === "cancelled" ? 0 : entry.entry_type === "income" || inboundTransfer ? amount : transfer && !filters.accountId ? amount : 0;
+    const outgoing = entry.status === "cancelled" ? 0 : entry.entry_type === "expense" || outboundTransfer ? amount : transfer && !filters.accountId ? amount : 0;
+    const movement = incoming - outgoing;
+    accumulated += movement;
+    return { "Data": reportDateKey(dateOf(entry)), "Emissão": reportDateKey(entry.issue_date), "Competência": reportDateKey(entry.competence_date), "Vencimento": reportDateKey(entry.due_date), "Pagamento": reportDateKey(entry.paid_at),
+      "Situação": ({ pending: "Pendente", paid: "Pago", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status), "Tipo": ({ income: "Receita", expense: "Despesa", transfer: "Transferência" }[entry.entry_type] || entry.entry_type),
+      "Descrição": entry.description, "Categoria": categoryNames.get(entry.category_id) || "", "Conta": accountNames.get(entry.account_id) || "", "Conta destino": accountNames.get(entry.transfer_account_id) || "", "Cliente": clientNames.get(entry.client_id) || "",
+      "Tags": financialEntryTags(entry).join(", "), "Valor (R$)": amount, "Entrada (R$)": incoming, "Saída (R$)": outgoing, "Movimento (R$)": movement, "Acumulado filtrado (R$)": accumulated,
+      "Observações": financialEntryNotes(entry), "ID": entry.id };
+  });
+}
+
+async function exportReport(event) {
+  event.preventDefault();
+  if (!isAdmin()) return alert("Acesso restrito a administradores.");
+  const filters = reportFilters();
+  if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) return alert("A data inicial deve ser anterior ou igual à data final.");
+  const fileName = `crm-${filters.kind}-${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`;
+  const button = document.querySelector("#reportsExportBtn");
+  const message = document.querySelector("#reportsStatusMessage");
+  button.disabled = true;
+  message.textContent = "Preparando relatório...";
+  try {
+    const handle = window.showSaveFilePicker ? await window.showSaveFilePicker({ suggestedName: fileName, types: [{ description: "Planilha Excel", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }] }) : null;
+    let rows;
+    if (filters.kind === "transactions") {
+      message.textContent = "Consultando transações...";
+      const [entries, accounts, categories, clients] = await Promise.all([
+        fetchSupabaseTableBackup({ name: "crm_financial_entries", key: "id" }), fetchSupabaseTableBackup({ name: "crm_financial_accounts", key: "id" }),
+        fetchSupabaseTableBackup({ name: "crm_financial_categories", key: "id" }), reportClientsFromDatabase(),
+      ]);
+      rows = reportTransactionRows(entries.rows, accounts.rows, categories.rows, clients, filters);
+    } else {
+      message.textContent = "Consultando clientes e orçamentos...";
+      const clients = await reportClientsFromDatabase();
+      rows = filters.kind === "budgets" ? reportBudgetRows(clients, filters) : reportClientRows(clients, filters);
+    }
+    message.textContent = "Montando planilha...";
+    await saveBackupFile(fileName, backupTableWorkbook({ table: filters.kind, rows, columns: REPORT_COLUMNS[filters.kind], numericColumns: REPORT_NUMERIC_COLUMNS[filters.kind] }), handle);
+    message.textContent = `${rows.length} registro(s) exportado(s) em ${fileName}.`;
+  } catch (error) {
+    if (error.name === "AbortError") message.textContent = "Exportação cancelada.";
+    else { console.warn(error); message.textContent = "Não foi possível gerar o relatório."; alert(error.message || "Não foi possível gerar o relatório."); }
+  } finally { button.disabled = false; }
 }
 
 async function createBackupArchive(backup) {
@@ -6180,6 +6361,15 @@ elements.navItems.forEach((item) => {
         alert(error.message);
       }
     }
+    if (item.dataset.view === "reports" && isAdmin()) {
+      try {
+        state.clients = await loadClients();
+        await loadFinancialRegisters();
+      } catch (error) {
+        console.warn(error);
+        alert(error.message || "Não foi possível atualizar os filtros dos relatórios.");
+      }
+    }
     await showView(item.dataset.view);
   });
 });
@@ -6679,6 +6869,18 @@ document.querySelector("#deleteProjectBtn").addEventListener("click", async () =
 });
 document.querySelectorAll("[data-export]").forEach((button) => button.addEventListener("click", exportCsv));
 elements.backupSiteDataBtn?.addEventListener("click", createFullBackup);
+document.querySelector("#reportsKind")?.addEventListener("change", () => {
+  document.querySelector("#reportsStatus").value = "";
+  document.querySelector("#reportsDateField").value = "";
+  document.querySelector("#reportsStatusMessage").textContent = "";
+  renderReportsView();
+});
+document.querySelector("#reportsClearBtn")?.addEventListener("click", () => {
+  document.querySelector("#reportsForm").reset();
+  document.querySelector("#reportsStatusMessage").textContent = "";
+  renderReportsView();
+});
+document.querySelector("#reportsForm")?.addEventListener("submit", exportReport);
 document.querySelectorAll("[data-import-leads]").forEach((button) => button.addEventListener("click", openLeadImportFilePicker));
 elements.leadImportFile.addEventListener("change", async (event) => {
   const file = event.target.files[0];
