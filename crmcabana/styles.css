@@ -809,8 +809,9 @@ button:focus-visible {
 .financial-negative { color: #c9362b; }
 .financial-entries-context { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 22px; border-bottom: 1px solid var(--line); background: #fff9df; color: var(--muted); font-size: 13px; }
 .financial-entries-context[hidden] { display: none; }
-.financial-entry-filters { display: grid; grid-template-columns: minmax(160px, 1.4fr) repeat(3, minmax(130px, 1fr)) repeat(2, minmax(135px, .8fr)) auto; align-items: end; gap: 10px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: #fffdf7; }
+.financial-entry-filters { display: grid; grid-template-columns: minmax(160px, 1.4fr) repeat(4, minmax(115px, 1fr)) repeat(2, minmax(135px, .8fr)) auto; align-items: end; gap: 10px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: #fffdf7; }
 .financial-entry-filters label { display: grid; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
+.financial-entry-filters label[hidden] { display: none; }
 .financial-entry-filters input, .financial-entry-filters select { width: 100%; min-width: 0; min-height: 38px; }
 .financial-entry-dialog-grid { grid-template-columns: minmax(0, 1fr); }
 .financial-entry-dialog-grid .span-2 { grid-column: auto; }
