@@ -24,7 +24,7 @@ function backupContext(overrides = {}) {
     sha256: async () => "sha256-test",
     ...overrides,
   };
-  vm.runInNewContext(`${backupCode}\nglobalThis.backupApi = { BACKUP_TABLES, collectSiteBackupFiles, fetchSupabaseTableBackup, collectDatabaseBackup };`, context);
+  vm.runInNewContext(`${backupCode}\nglobalThis.backupApi = { BACKUP_TABLES, collectSiteBackupFiles, fetchSupabaseTableBackup, collectDatabaseBackup, saveBackupFile, createFullBackup };`, context);
   return context.backupApi;
 }
 
@@ -71,4 +71,33 @@ test("backup rejeita tabela alterada ou arquivo publicado ausente", async () => 
 
   const { collectSiteBackupFiles } = backupContext({ fetch: async () => ({ ok: false, status: 404 }) });
   await assert.rejects(collectSiteBackupFiles(), /Nao foi possivel copiar/);
+});
+
+test("seletor de arquivo abre no clique antes da primeira leitura assincrona", async () => {
+  let pickerOpened = false;
+  let fetchAfterPicker = false;
+  const button = { disabled: false };
+  const { createFullBackup } = backupContext({
+    elements: { backupStatus: null, backupSiteDataBtn: button },
+    isAdmin: () => true,
+    window: { location: { href: "https://test.example/crmcabana/" }, showSaveFilePicker: () => { pickerOpened = true; return Promise.resolve({}); } },
+    fetch: async () => { fetchAfterPicker = pickerOpened; return { ok: false, status: 404 }; },
+    alert: () => {},
+    console: { warn: () => {} },
+  });
+  await createFullBackup();
+  assert.equal(pickerOpened, true);
+  assert.equal(fetchAfterPicker, true);
+  assert.equal(button.disabled, false);
+});
+
+test("arquivo escolhido recebe o JSON depois da coleta", async () => {
+  let saved = "";
+  const handle = { createWritable: async () => ({
+    write: async (blob) => { saved = await blob.text(); },
+    close: async () => {},
+  }) };
+  const { saveBackupFile } = backupContext({ Blob });
+  await saveBackupFile("backup.json", '{"ok":true}', handle);
+  assert.equal(saved, '{"ok":true}');
 });

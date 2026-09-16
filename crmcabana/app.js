@@ -5466,19 +5466,10 @@ async function collectDatabaseBackup() {
   return results;
 }
 
-async function saveBackupFile(fileName, content) {
+async function saveBackupFile(fileName, content, handle = null) {
   const blob = new Blob([content], { type: "application/json;charset=utf-8" });
 
-  if (window.showSaveFilePicker) {
-    const handle = await window.showSaveFilePicker({
-      suggestedName: fileName,
-      types: [
-        {
-          description: "Backup JSON",
-          accept: { "application/json": [".json"] },
-        },
-      ],
-    });
+  if (handle) {
     const writable = await handle.createWritable();
     await writable.write(blob);
     await writable.close();
@@ -5489,8 +5480,10 @@ async function saveBackupFile(fileName, content) {
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 async function createFullBackup() {
@@ -5504,6 +5497,12 @@ async function createFullBackup() {
   setBackupStatus("Preparando backup...");
 
   try {
+    const fileName = backupFileName();
+    // O seletor precisa abrir durante o clique, antes de qualquer leitura assincrona.
+    const saveHandle = window.showSaveFilePicker ? await window.showSaveFilePicker({
+      suggestedName: fileName,
+      types: [{ description: "Backup JSON", accept: { "application/json": [".json"] } }],
+    }) : null;
     const backup = {
       version: 2,
       app: "CRM Cabana",
@@ -5530,8 +5529,7 @@ async function createFullBackup() {
       },
     };
 
-    const fileName = backupFileName();
-    await saveBackupFile(fileName, JSON.stringify(backup, null, 2));
+    await saveBackupFile(fileName, JSON.stringify(backup, null, 2), saveHandle);
     setBackupStatus(`Backup salvo: ${fileName}`);
   } catch (error) {
     console.warn(error);
