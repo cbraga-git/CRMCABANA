@@ -1858,7 +1858,7 @@ function formatFinancialDate(value) {
 
 function formatFinancialDescription(value) {
   const description = String(value || "").trim().toLocaleLowerCase("pt-BR");
-  return description.replace(/\p{L}/u, (letter) => letter.toLocaleUpperCase("pt-BR"));
+  return description.replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_, separator, letter) => separator + letter.toLocaleUpperCase("pt-BR"));
 }
 
 const FINANCIAL_TAGS_MARKER = /(?:\r?\n)?\[\[crm-tags:([^\]]*)\]\]\s*$/;
@@ -2184,7 +2184,7 @@ function openFinancialEntryDialog(entryId = null) {
   document.querySelector("#financialEntryDialogTitle").textContent = entry ? "Editar lançamento" : "Novo lançamento";
   document.querySelector("#financialEntryType").value = entry?.entry_type || financialEntryViewType() || "expense";
   document.querySelector("#financialEntryStatus").value = entry?.status === "overdue" ? "pending" : entry?.status || "pending";
-  document.querySelector("#financialEntryDescription").value = entry?.description || "";
+  document.querySelector("#financialEntryDescription").value = formatFinancialDescription(entry?.description);
   document.querySelector("#financialEntryAmount").value = entry?.amount || "";
   document.querySelector("#financialEntryAccount").value = entry?.account_id || state.financialAccounts.find((item) => item.active)?.id || "";
   document.querySelector("#financialEntryTransferAccount").value = entry?.transfer_account_id || "";
