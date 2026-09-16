@@ -1921,6 +1921,11 @@ function formatFinancialMonth(value) {
   return month.charAt(0).toUpperCase() + month.slice(1);
 }
 
+function currentFinancialMonth() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function stepFinancialEntryMonth(step) {
   const base = state.financialEntryMonthFilter || new Date().toISOString().slice(0, 7);
   const [year, month] = base.split("-").map(Number);
@@ -6040,7 +6045,7 @@ document.querySelector("#financialEntryFilters")?.addEventListener("input", (eve
 document.querySelector("#clearFinancialEntryFilters")?.addEventListener("click", () => {
   state.financialEntryFilters = { search: "", type: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" };
   state.financialEntryAccountFilter = "";
-  state.financialEntryMonthFilter = "";
+  state.financialEntryMonthFilter = currentFinancialMonth();
   renderFinancialEntries();
 });
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);

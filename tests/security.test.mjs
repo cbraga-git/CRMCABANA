@@ -86,6 +86,7 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(html, /id="financialEntryFilters"/);
   assert.match(html, /id="financialEntryFilterType"[\s\S]*?value="income"[\s\S]*?value="expense"[\s\S]*?value="transfer"/);
   assert.match(app, /view === "financeTransactions" && filters\.type && entry\.entry_type !== filters\.type/);
+  assert.match(app, /#clearFinancialEntryFilters"\)\?\.addEventListener\("click", \(\) => \{[\s\S]*?state\.financialEntryMonthFilter = currentFinancialMonth\(\)/);
   assert.match(html, /financial-entry-dialog-grid/);
   assert.match(app, /function renderFinancialDashboard/);
   assert.match(app, /function financialAccountBalance/);
