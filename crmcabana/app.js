@@ -5466,19 +5466,27 @@ async function collectDatabaseBackup() {
   return results;
 }
 
-function backupTableText({ table, count, rows }) {
+function backupTableColumns(rows) {
   const columns = [];
   const seen = new Set();
   for (const row of rows) for (const column of Object.keys(row)) {
     if (!seen.has(column)) { seen.add(column); columns.push(column); }
   }
-  const escapeCell = (value) => {
-    const text = value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
-    return text.replace(/\\/g, "\\\\").replace(/\t/g, "\\t").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
-  };
-  const lines = [`# Tabela: ${table}`, `# Registros: ${count}`, columns.join("\t")];
-  for (const row of rows) lines.push(columns.map((column) => escapeCell(row[column])).join("\t"));
-  return lines.join("\r\n") + "\r\n";
+  return columns;
+}
+
+function backupXmlText(value) {
+  const text = value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+  // Excel limita cada celula a 32.767 caracteres; o JSON no ZIP permanece integral.
+  const visible = text.length > 32767 ? `${text.slice(0, 32720)}... [TRUNCADO; VER BACKUP-COMPLETO.JSON]` : text;
+  return visible.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function backupExcelColumn(index) {
+  let number = index + 1;
+  let name = "";
+  while (number > 0) { number -= 1; name = String.fromCharCode(65 + number % 26) + name; number = Math.floor(number / 26); }
+  return name;
 }
 
 function backupZipBytes(file) {
@@ -5500,7 +5508,7 @@ function backupZipCrc32(bytes) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function backupZipBlob(files) {
+function backupZipBlob(files, mimeType = "application/zip") {
   if (files.length > 65535) throw new Error("O backup possui arquivos demais para um ZIP comum.");
   const encoder = new TextEncoder();
   const parts = [];
@@ -5554,16 +5562,46 @@ function backupZipBlob(files) {
   endView.setUint16(10, files.length, true);
   endView.setUint32(12, directorySize, true);
   endView.setUint32(16, offset, true);
-  return new Blob([...parts, ...directory, end], { type: "application/zip" });
+  return new Blob([...parts, ...directory, end], { type: mimeType });
 }
 
-function createBackupArchive(backup) {
+function backupTableWorkbook({ table, rows }) {
+  const columns = backupTableColumns(rows);
+  if (rows.length >= 1048576) throw new Error(`A tabela ${table} excede o limite de linhas do Excel. O backup nao foi salvo.`);
+  if (columns.length > 16384) throw new Error(`A tabela ${table} excede o limite de colunas do Excel. O backup nao foi salvo.`);
+  const xmlHeader = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const mainNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const cell = (column, row, value, header = false) => `<c r="${backupExcelColumn(column)}${row}" t="inlineStr"${header ? ' s="1"' : ""}><is><t xml:space="preserve">${backupXmlText(value)}</t></is></c>`;
+  const sheetRows = [];
+  if (columns.length) sheetRows.push(`<row r="1">${columns.map((column, index) => cell(index, 1, column, true)).join("")}</row>`);
+  rows.forEach((record, index) => sheetRows.push(`<row r="${index + 2}">${columns.map((column, columnIndex) => cell(columnIndex, index + 2, record[column])).join("")}</row>`));
+  const sheet = `${xmlHeader}<worksheet xmlns="${mainNs}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetData>${sheetRows.join("")}</sheetData>${columns.length ? `<autoFilter ref="A1:${backupExcelColumn(columns.length - 1)}${rows.length + 1}"/>` : ""}</worksheet>`;
+  const workbook = `${xmlHeader}<workbook xmlns="${mainNs}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Dados" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const relationships = `${xmlHeader}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const rootRelationships = `${xmlHeader}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const styles = `${xmlHeader}<styleSheet xmlns="${mainNs}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>`;
+  const contentTypes = `${xmlHeader}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
+  return backupZipBlob([
+    { name: "[Content_Types].xml", content: contentTypes },
+    { name: "_rels/.rels", content: rootRelationships },
+    { name: "xl/workbook.xml", content: workbook },
+    { name: "xl/_rels/workbook.xml.rels", content: relationships },
+    { name: "xl/styles.xml", content: styles },
+    { name: "xl/worksheets/sheet1.xml", content: sheet },
+  ], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
+async function createBackupArchive(backup) {
   const files = [{ name: "backup-completo.json", content: JSON.stringify(backup, null, 2) }];
   for (const file of backup.site.files) {
     files.push({ name: `site/${file.path.startsWith("../") ? file.path.slice(3) : `crmcabana/${file.path}`}`, bytes: backupZipBytes(file) });
   }
-  for (const table of backup.database.tables) files.push({ name: `tabelas/${table.table}.txt`, content: backupTableText(table) });
-  files.push({ name: "LEIA-ME.txt", content: "Backup do CRM Cabana em UTF-8.\r\nA pasta tabelas contem uma exportacao por tabela, com campos separados por tabulacao e quebras de linha escapadas.\r\nO arquivo backup-completo.json preserva os dados estruturados.\r\nNao inclui usuarios do Supabase Auth, configuracoes internas nem objetos do Storage.\r\nGuarde este arquivo em local seguro.\r\n" });
+  for (const table of backup.database.tables) {
+    setBackupStatus(`Montando planilha ${files.length - backup.site.files.length} de ${backup.database.tables.length}: ${table.table}`);
+    const workbook = backupTableWorkbook(table);
+    files.push({ name: `tabelas/${table.table}.xlsx`, bytes: new Uint8Array(await workbook.arrayBuffer()) });
+  }
+  files.push({ name: "LEIA-ME.txt", content: "Backup do CRM Cabana.\r\nA pasta tabelas contem um arquivo XLSX por tabela. Todas as celulas sao texto para preservar identificadores e evitar formulas.\r\nCelulas com mais de 32.767 caracteres sao truncadas na planilha; backup-completo.json preserva os dados integrais.\r\nNao inclui usuarios do Supabase Auth, configuracoes internas nem objetos do Storage.\r\nGuarde este arquivo em local seguro.\r\n" });
   return backupZipBlob(files);
 }
 
@@ -5604,7 +5642,7 @@ async function createFullBackup() {
       types: [{ description: "Backup ZIP", accept: { "application/zip": [".zip"] } }],
     }) : null;
     const backup = {
-      version: 2,
+      version: 3,
       app: "CRM Cabana",
       generatedAt: new Date().toISOString(),
       generatedBy: {
@@ -5630,7 +5668,7 @@ async function createFullBackup() {
     };
 
     setBackupStatus("Montando arquivo ZIP...");
-    await saveBackupFile(fileName, createBackupArchive(backup), saveHandle);
+    await saveBackupFile(fileName, await createBackupArchive(backup), saveHandle);
     setBackupStatus(`Backup salvo: ${fileName}`);
   } catch (error) {
     console.warn(error);

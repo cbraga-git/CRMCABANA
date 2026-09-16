@@ -27,7 +27,7 @@ function backupContext(overrides = {}) {
     sha256: async () => "sha256-test",
     ...overrides,
   };
-  vm.runInNewContext(`${backupCode}\nglobalThis.backupApi = { BACKUP_TABLES, backupFileName, backupTableText, backupZipCrc32, createBackupArchive, collectSiteBackupFiles, fetchSupabaseTableBackup, collectDatabaseBackup, saveBackupFile, createFullBackup };`, context);
+  vm.runInNewContext(`${backupCode}\nglobalThis.backupApi = { BACKUP_TABLES, backupFileName, backupTableWorkbook, backupZipCrc32, createBackupArchive, collectSiteBackupFiles, fetchSupabaseTableBackup, collectDatabaseBackup, saveBackupFile, createFullBackup };`, context);
   return context.backupApi;
 }
 
@@ -38,6 +38,26 @@ function response(rows, count, ok = true) {
     headers: { get: (name) => name === "content-range" ? `0-${Math.max(0, rows.length - 1)}/${count}` : null },
     json: async () => rows,
   };
+}
+
+function readStoredZip(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const files = new Map();
+  let offset = 0;
+  while (view.getUint32(offset, true) === 0x04034b50) {
+    const size = view.getUint32(offset + 18, true);
+    const nameLength = view.getUint16(offset + 26, true);
+    const name = new TextDecoder().decode(bytes.subarray(offset + 30, offset + 30 + nameLength));
+    const start = offset + 30 + nameLength;
+    files.set(name, bytes.subarray(start, start + size));
+    offset = start + size;
+  }
+  assert.equal(view.getUint32(offset, true), 0x02014b50);
+  const endOffset = bytes.length - 22;
+  assert.equal(view.getUint32(endOffset, true), 0x06054b50);
+  assert.equal(view.getUint16(endOffset + 10, true), files.size);
+  assert.equal(view.getUint32(endOffset + 16, true), offset);
+  return files;
 }
 
 test("backup inclui todas as tabelas publicas do CRM", () => {
@@ -105,7 +125,7 @@ test("arquivo escolhido recebe o ZIP depois da coleta", async () => {
   assert.equal(saved, "application/zip");
 });
 
-test("ZIP contem site, JSON completo e TXT legivel por tabela", async () => {
+test("ZIP contem site, JSON completo e um XLSX por tabela", async () => {
   const { backupFileName, backupZipCrc32, createBackupArchive } = backupContext();
   assert.match(backupFileName(), /\.zip$/);
   assert.equal(backupZipCrc32(new TextEncoder().encode("123456789")), 0xcbf43926);
@@ -119,32 +139,31 @@ test("ZIP contem site, JSON completo e TXT legivel por tabela", async () => {
       { table: "crm_financial_budgets", count: 0, rows: [] },
     ] },
   };
-  const archive = createBackupArchive(backup);
+  const archive = await createBackupArchive(backup);
   assert.equal(archive.type, "application/zip");
-  const bytes = new Uint8Array(await archive.arrayBuffer());
-  const view = new DataView(bytes.buffer);
-  const files = new Map();
-  let offset = 0;
-  while (view.getUint32(offset, true) === 0x04034b50) {
-    const size = view.getUint32(offset + 18, true);
-    const nameLength = view.getUint16(offset + 26, true);
-    const name = new TextDecoder().decode(bytes.subarray(offset + 30, offset + 30 + nameLength));
-    const start = offset + 30 + nameLength;
-    files.set(name, bytes.subarray(start, start + size));
-    offset = start + size;
-  }
-  assert.equal(view.getUint32(offset, true), 0x02014b50);
-  const endOffset = bytes.length - 22;
-  assert.equal(view.getUint32(endOffset, true), 0x06054b50);
-  assert.equal(view.getUint16(endOffset + 10, true), files.size);
-  assert.equal(view.getUint32(endOffset + 16, true), offset);
+  const files = readStoredZip(new Uint8Array(await archive.arrayBuffer()));
   assert.ok(files.has("backup-completo.json"));
   assert.ok(files.has("site/index.html"));
   assert.deepEqual(Array.from(files.get("site/crmcabana/assets/logo.png")), [1, 2, 3]);
-  const tableText = new TextDecoder().decode(files.get("tabelas/crm_clients.txt"));
-  assert.match(tableText, /# Registros: 1/);
-  assert.match(tableText, /id\tdata/);
-  assert.ok(tableText.includes("Ana\\\\nMaria"));
-  assert.match(new TextDecoder().decode(files.get("tabelas/crm_financial_budgets.txt")), /# Registros: 0/);
+  assert.equal([...files.keys()].filter((name) => name.endsWith(".xlsx")).length, 2);
+  const workbook = readStoredZip(files.get("tabelas/crm_clients.xlsx"));
+  assert.ok(workbook.has("[Content_Types].xml"));
+  assert.ok(workbook.has("xl/workbook.xml"));
+  const sheet = new TextDecoder().decode(workbook.get("xl/worksheets/sheet1.xml"));
+  assert.match(sheet, /<c r="A1"[^>]*><is><t[^>]*>id<\/t>/);
+  assert.match(sheet, /<c r="B1"[^>]*><is><t[^>]*>data<\/t>/);
+  assert.match(sheet, /Ana\\nMaria/);
+  assert.ok(readStoredZip(files.get("tabelas/crm_financial_budgets.xlsx")).has("xl/worksheets/sheet1.xml"));
   assert.ok(files.has("LEIA-ME.txt"));
+});
+
+test("planilha trata caracteres XML e celulas longas sem formulas", async () => {
+  const { backupTableWorkbook } = backupContext();
+  const workbook = backupTableWorkbook({ table: "crm_clients", rows: [{ id: "=SUM(A1:A2)", data: "A&B <C> \"D\"", notes: "x".repeat(33000) }] });
+  const files = readStoredZip(new Uint8Array(await workbook.arrayBuffer()));
+  const sheet = new TextDecoder().decode(files.get("xl/worksheets/sheet1.xml"));
+  assert.match(sheet, /A&amp;B &lt;C&gt; &quot;D&quot;/);
+  assert.match(sheet, /=SUM\(A1:A2\)/);
+  assert.doesNotMatch(sheet, /<f>/);
+  assert.match(sheet, /TRUNCADO; VER BACKUP-COMPLETO.JSON/);
 });
