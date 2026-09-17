@@ -200,6 +200,9 @@ const state = {
   financialImports: [],
   financialEditingEntryId: null,
   financialEntryDraftTags: [],
+  financialTagEntries: null,
+  financialTagEditingName: null,
+  financialTagUpdating: false,
   financialStatementItems: [],
   financialSelectedImportId: null,
   financialCategoryTargetItemId: null,
@@ -1909,7 +1912,100 @@ function notesWithFinancialTags(notes, tags) {
 }
 
 function availableFinancialTags() {
-  return Array.from(new Set(state.financialEntries.flatMap(financialEntryTags))).sort((first, second) => financialSortCollator.compare(first, second));
+  const entries = [...state.financialEntries, ...(state.financialTagEntries || [])];
+  return Array.from(new Set(entries.flatMap(financialEntryTags))).sort((first, second) => financialSortCollator.compare(first, second));
+}
+
+async function fetchFinancialTagEntries() {
+  const entries = [];
+  let cursor = null;
+  while (true) {
+    const query = new URLSearchParams({ select: "id,notes", order: "id.asc", limit: "1000" });
+    if (cursor !== null) query.set("id", `gt.${cursor}`);
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?${query}`), () => ({ headers: supabaseHeaders() }));
+    if (!response.ok) throw new Error("Não foi possível carregar as tags das transações.");
+    const page = await response.json();
+    if (!Array.isArray(page) || page.some((entry) => !entry.id)) throw new Error("Resposta inválida ao carregar as tags.");
+    entries.push(...page);
+    if (page.length < 1000) break;
+    const nextCursor = page.at(-1).id;
+    if (nextCursor === cursor) throw new Error("A leitura das tags foi interrompida.");
+    cursor = nextCursor;
+  }
+  return entries;
+}
+
+function renderFinancialTagManager() {
+  const list = document.querySelector("#financialTagManagerList");
+  if (!list) return;
+  const counts = new Map();
+  (state.financialTagEntries || []).forEach((entry) => {
+    new Set(financialEntryTags(entry)).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1));
+  });
+  const tags = Array.from(counts.keys()).sort((first, second) => financialSortCollator.compare(first, second));
+  list.innerHTML = tags.length ? tags.map((tag) => {
+    const safeTag = escapeHtml(tag);
+    const editing = state.financialTagEditingName === tag;
+    return `<div class="financial-tag-manager-row">${editing ? `<input id="financialTagRenameInput" value="${safeTag}" maxlength="60" aria-label="Novo nome da tag" /><button class="button primary" type="button" data-save-financial-tag>Salvar</button><button class="button secondary" type="button" data-cancel-financial-tag>Cancelar</button>` : `<span class="financial-entry-tag-chip">${safeTag}</span><small>${counts.get(tag)} ${counts.get(tag) === 1 ? "lançamento" : "lançamentos"}</small><button class="link-button" type="button" data-edit-financial-tag="${safeTag}">Alterar</button><button class="link-button danger" type="button" data-delete-financial-tag="${safeTag}">Excluir</button>`}</div>`;
+  }).join("") : '<p class="financial-tag-manager-empty">Nenhuma tag cadastrada.</p>';
+  if (state.financialTagEditingName) document.querySelector("#financialTagRenameInput")?.focus();
+}
+
+async function openFinancialTagManager() {
+  const button = document.querySelector("#manageFinancialTagsBtn");
+  button.disabled = true;
+  try {
+    state.financialTagEntries = await fetchFinancialTagEntries();
+    state.financialTagEditingName = null;
+    document.querySelector("#financialTagManagerMessage").textContent = "";
+    renderFinancialTagManager();
+    document.querySelector("#financialTagManagerDialog").showModal();
+  } catch (error) { alert(error.message); }
+  finally { button.disabled = false; }
+}
+
+function changedFinancialTagNotes(entry, previousTag, replacementTag) {
+  const tags = financialEntryTags(entry);
+  if (!tags.includes(previousTag)) return null;
+  return notesWithFinancialTags(financialEntryNotes(entry), tags.flatMap((tag) => tag === previousTag ? (replacementTag ? [replacementTag] : []) : [tag]));
+}
+
+async function updateFinancialTag(previousTag, replacementTag) {
+  const affected = (state.financialTagEntries || []).filter((entry) => financialEntryTags(entry).includes(previousTag));
+  const action = replacementTag ? `Alterar a tag "${previousTag}" para "${replacementTag}"` : `Excluir a tag "${previousTag}"`;
+  if (!confirm(`${action} em ${affected.length} ${affected.length === 1 ? "lançamento" : "lançamentos"}? Os lançamentos serão preservados.`)) return;
+  const dialog = document.querySelector("#financialTagManagerDialog");
+  const message = document.querySelector("#financialTagManagerMessage");
+  state.financialTagUpdating = true;
+  dialog.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+  let completed = 0;
+  let failure = null;
+  try {
+    for (const entry of affected) {
+      await saveFinancialRecord("crm_financial_entries", entry.id, { notes: changedFinancialTagNotes(entry, previousTag, replacementTag) });
+      completed += 1;
+      message.textContent = `Atualizando tags: ${completed} de ${affected.length}`;
+    }
+    state.financialEntryDraftTags = Array.from(new Set(state.financialEntryDraftTags.flatMap((tag) => tag === previousTag ? (replacementTag ? [replacementTag] : []) : [tag])));
+    const tagInput = document.querySelector("#financialEntryTagInput");
+    if (normalizeFinancialTag(tagInput?.value) === previousTag) tagInput.value = replacementTag || "";
+    state.financialTagEditingName = null;
+  } catch (error) { failure = error; }
+  try {
+    await loadFinancialRegisters();
+    state.financialTagEntries = await fetchFinancialTagEntries();
+    if (failure && completed && state.financialEditingEntryId) {
+      const editingEntry = state.financialEntries.find((entry) => entry.id === state.financialEditingEntryId);
+      if (editingEntry) state.financialEntryDraftTags = financialEntryTags(editingEntry);
+    }
+    renderFinancialEntries();
+    renderFinancialEntryTagEditor();
+    syncFinancialEntryTagAction();
+    renderFinancialTagManager();
+  } catch (error) { failure ||= error; }
+  dialog.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+  state.financialTagUpdating = false;
+  message.textContent = failure ? `Atualização incompleta (${completed} de ${affected.length}): ${failure.message}` : replacementTag ? "Tag alterada em todos os lançamentos." : "Tag excluída dos lançamentos.";
 }
 
 function renderFinancialEntryTagEditor() {
@@ -6412,6 +6508,30 @@ document.querySelector("#financialEntryTagInput")?.addEventListener("keydown", (
 document.querySelector("#financialEntryTagInput")?.addEventListener("input", syncFinancialEntryTagAction);
 document.querySelector("#financialEntryTagInput")?.addEventListener("change", (event) => { if (availableFinancialTags().includes(normalizeFinancialTag(event.target.value))) addFinancialEntryTag(); });
 document.querySelector("#financialEntryTagChips")?.addEventListener("click", (event) => { const chip = event.target.closest("[data-remove-financial-entry-tag]"); if (!chip) return; state.financialEntryDraftTags = state.financialEntryDraftTags.filter((tag) => tag !== chip.dataset.removeFinancialEntryTag); renderFinancialEntryTagEditor(); });
+document.querySelector("#manageFinancialTagsBtn")?.addEventListener("click", openFinancialTagManager);
+document.querySelectorAll("#closeFinancialTagManager, #doneFinancialTagManager").forEach((button) => button.addEventListener("click", () => document.querySelector("#financialTagManagerDialog").close()));
+document.querySelector("#financialTagManagerDialog")?.addEventListener("cancel", (event) => { if (state.financialTagUpdating) event.preventDefault(); });
+document.querySelector("#financialTagManagerList")?.addEventListener("click", (event) => {
+  const edit = event.target.closest("[data-edit-financial-tag]");
+  const remove = event.target.closest("[data-delete-financial-tag]");
+  if (edit) { state.financialTagEditingName = edit.dataset.editFinancialTag; renderFinancialTagManager(); return; }
+  if (event.target.closest("[data-cancel-financial-tag]")) { state.financialTagEditingName = null; renderFinancialTagManager(); return; }
+  if (event.target.closest("[data-save-financial-tag]")) {
+    const previousTag = state.financialTagEditingName;
+    const replacementTag = normalizeFinancialTag(document.querySelector("#financialTagRenameInput")?.value);
+    if (!replacementTag) { document.querySelector("#financialTagManagerMessage").textContent = "Informe o novo nome da tag."; return; }
+    if (replacementTag === previousTag) { state.financialTagEditingName = null; renderFinancialTagManager(); return; }
+    updateFinancialTag(previousTag, replacementTag).catch((error) => alert(error.message));
+    return;
+  }
+  if (remove) updateFinancialTag(remove.dataset.deleteFinancialTag, "").catch((error) => alert(error.message));
+});
+document.querySelector("#financialTagManagerList")?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.target.id !== "financialTagRenameInput") return;
+  event.preventDefault();
+  event.stopPropagation();
+  document.querySelector("#financialTagManagerList [data-save-financial-tag]")?.click();
+});
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; renderFinancialEntries(); });
