@@ -213,7 +213,7 @@ const state = {
   financialEvolutionAccountId: "",
   financialEntryAccountFilter: "",
   financialEntryMonthFilter: new Date().toISOString().slice(0, 7),
-  financialEntryFilters: { search: "", type: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" },
+  financialEntryFilters: { search: "", type: "", accountId: "__bank_accounts__", categoryId: "", status: "", startDate: "", endDate: "" },
   financialEntryShowDailyBalance: true,
 };
 
@@ -1662,12 +1662,12 @@ function renderFinancialDonut(canvasId, legendId, data) {
   legend.innerHTML = data.length ? data.slice(0, 8).map((item, index) => `<span><i style="background:${FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]}"></i>${escapeHtml(item.name)} <strong>${BRL.format(item.value)}</strong></span>`).join("") : "<span>Sem lançamentos no período.</span>";
 }
 
-const FINANCIAL_EVOLUTION_BANK_ACCOUNTS = "__bank_accounts__";
+const FINANCIAL_BANK_ACCOUNTS_FILTER = "__bank_accounts__";
 
 function financialEvolutionAccounts() {
   return state.financialAccounts.filter((account) => account.active && (
     !state.financialEvolutionAccountId ||
-    (state.financialEvolutionAccountId === FINANCIAL_EVOLUTION_BANK_ACCOUNTS && account.account_type === "bank") ||
+    (state.financialEvolutionAccountId === FINANCIAL_BANK_ACCOUNTS_FILTER && account.account_type === "bank") ||
     account.id === state.financialEvolutionAccountId
   ));
 }
@@ -1691,8 +1691,8 @@ function renderFinancialEvolutionTable(year) {
 }
 
 function renderFinancialEvolution() {
-  const year = Number(state.financialDashboardMonth.slice(0, 4)); const accountSelect = document.querySelector("#financialEvolutionAccount"); const validAccount = state.financialEvolutionAccountId === FINANCIAL_EVOLUTION_BANK_ACCOUNTS || state.financialAccounts.some((account) => account.active && account.id === state.financialEvolutionAccountId); if (!validAccount) state.financialEvolutionAccountId = "";
-  accountSelect.innerHTML = `<option value="">Todas as contas</option><option value="${FINANCIAL_EVOLUTION_BANK_ACCOUNTS}">Contas bancárias</option>` + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEvolutionAccountId;
+  const year = Number(state.financialDashboardMonth.slice(0, 4)); const accountSelect = document.querySelector("#financialEvolutionAccount"); const validAccount = state.financialEvolutionAccountId === FINANCIAL_BANK_ACCOUNTS_FILTER || state.financialAccounts.some((account) => account.active && account.id === state.financialEvolutionAccountId); if (!validAccount) state.financialEvolutionAccountId = "";
+  accountSelect.innerHTML = `<option value="">Todas as contas</option><option value="${FINANCIAL_BANK_ACCOUNTS_FILTER}">Contas bancárias</option>` + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEvolutionAccountId;
   document.querySelector("#financialEvolutionPeriod").textContent = `janeiro ${year} — dezembro ${year}`;
   const chartMode = state.financialEvolutionView === "chart"; document.querySelector("#financialEvolutionChartPanel").hidden = !chartMode; document.querySelector("#financialEvolutionTablePanel").hidden = chartMode; document.querySelector("#financialEvolutionChartBtn").classList.toggle("active", chartMode); document.querySelector("#financialEvolutionTableBtn").classList.toggle("active", !chartMode);
   if (chartMode) renderFinancialBalanceChart(year); else renderFinancialEvolutionTable(year);
@@ -1877,6 +1877,27 @@ async function deleteFinancialRecord(table, id, label) {
 
 function financialEntryViewType(view = state.view) {
   return view === "financePayable" ? "expense" : view === "financeReceivable" ? "income" : null;
+}
+
+function financialAccountFilterMatches(entry, accountId, bankAccountIds) {
+  if (!accountId) return true;
+  if (accountId === FINANCIAL_BANK_ACCOUNTS_FILTER) {
+    return bankAccountIds.has(entry.account_id) || (entry.entry_type === "transfer" && bankAccountIds.has(entry.transfer_account_id));
+  }
+  return entry.account_id === accountId || (entry.entry_type === "transfer" && entry.transfer_account_id === accountId);
+}
+
+function financialAccountFilterMovement(entry, accountId, bankAccountIds) {
+  const amount = Number(entry.amount) || 0;
+  if (entry.entry_type === "income" || entry.entry_type === "expense") {
+    const accountMatches = !accountId || (accountId === FINANCIAL_BANK_ACCOUNTS_FILTER && bankAccountIds.has(entry.account_id)) || entry.account_id === accountId;
+    return accountMatches ? (entry.entry_type === "income" ? amount : -amount) : 0;
+  }
+  if (entry.entry_type !== "transfer" || !accountId) return 0;
+  if (accountId === FINANCIAL_BANK_ACCOUNTS_FILTER) {
+    return (bankAccountIds.has(entry.transfer_account_id) ? amount : 0) - (bankAccountIds.has(entry.account_id) ? amount : 0);
+  }
+  return (entry.transfer_account_id === accountId ? amount : 0) - (entry.account_id === accountId ? amount : 0);
 }
 
 function formatFinancialDate(value) {
@@ -2118,18 +2139,15 @@ function renderFinancialDailyBalanceBreaks(table) {
   body?.querySelectorAll(".financial-daily-balance-row, .financial-filter-balance-row").forEach((row) => row.remove());
   if (!body || state.view !== "financeTransactions") return;
   const filters = state.financialEntryFilters;
-  const hasExplicitFilter = Boolean(filters.search || filters.type || filters.accountId || filters.categoryId || filters.status || filters.startDate || filters.endDate);
+  const hasExplicitFilter = Boolean(filters.search || filters.type || (filters.accountId && filters.accountId !== FINANCIAL_BANK_ACCOUNTS_FILTER) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
   const rows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
+  const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
   if (hasExplicitFilter) {
     const accountId = state.financialEntryAccountFilter || filters.accountId;
     const visibleIds = new Set(rows.map((row) => row.dataset.financialEntryId));
     const dailyMovements = new Map();
     state.financialEntries.filter((entry) => visibleIds.has(entry.id) && entry.status !== "cancelled").forEach((entry) => {
-      const amount = Number(entry.amount) || 0;
-      let movement = 0;
-      if (entry.entry_type === "income") movement = amount;
-      else if (entry.entry_type === "expense") movement = -amount;
-      else if (entry.entry_type === "transfer" && accountId) movement = (entry.transfer_account_id === accountId ? amount : 0) - (entry.account_id === accountId ? amount : 0);
+      const movement = financialAccountFilterMovement(entry, accountId, bankAccountIds);
       const date = financialEntryDate(entry);
       dailyMovements.set(date, (dailyMovements.get(date) || 0) + movement);
     });
@@ -2157,7 +2175,7 @@ function renderFinancialDailyBalanceBreaks(table) {
   }
   if (!state.financialEntryShowDailyBalance) return;
   const selectedAccountId = state.financialEntryAccountFilter || filters.accountId;
-  const accounts = state.financialAccounts.filter((account) => account.active && (!selectedAccountId || account.id === selectedAccountId));
+  const accounts = state.financialAccounts.filter((account) => account.active && (!selectedAccountId || (selectedAccountId === FINANCIAL_BANK_ACCOUNTS_FILTER && account.account_type === "bank") || account.id === selectedAccountId));
   rows.forEach((row, index) => {
     const date = row.dataset.financialEntryDate;
     if (rows[index + 1]?.dataset.financialEntryDate === date) return;
@@ -2192,7 +2210,8 @@ function renderFinancialEntries(view = state.view) {
   const filterType = financialEntryViewType(view);
   const { start, end } = financialMonthBounds(state.financialEntryMonthFilter || state.financialDashboardMonth);
   const filters = state.financialEntryFilters;
-  const hasGlobalFilter = Boolean(filters.search || (view === "financeTransactions" && filters.type) || filters.accountId || filters.categoryId || filters.status || filters.startDate || filters.endDate);
+  const hasGlobalFilter = Boolean(filters.search || (view === "financeTransactions" && filters.type) || (filters.accountId && filters.accountId !== FINANCIAL_BANK_ACCOUNTS_FILTER) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
+  const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
   if (view === "financeTransactions") renderFinancialTransactionSummary(start, end);
   const entries = state.financialEntries.filter((entry) => {
     if (filterType && entry.entry_type !== filterType) return false;
@@ -2201,7 +2220,7 @@ function renderFinancialEntries(view = state.view) {
     if (state.financialEntryMonthFilter && !hasGlobalFilter && (entryDate < start || entryDate > end)) return false;
     const contextualAccount = view === "financeTransactions" ? state.financialEntryAccountFilter : "";
     const accountId = contextualAccount || filters.accountId;
-    if (accountId && entry.account_id !== accountId && !(entry.entry_type === "transfer" && entry.transfer_account_id === accountId)) return false;
+    if (!financialAccountFilterMatches(entry, accountId, bankAccountIds)) return false;
     if (contextualAccount && !hasGlobalFilter && (entryDate < start || entryDate > end)) return false;
     if (filters.startDate && entryDate < filters.startDate) return false;
     if (filters.endDate && entryDate > filters.endDate) return false;
@@ -2219,7 +2238,7 @@ function renderFinancialEntries(view = state.view) {
   const categories = new Map(state.financialCategories.map((category) => [category.id, category.name]));
   const accountSelect = document.querySelector("#financialEntryFilterAccount");
   const categorySelect = document.querySelector("#financialEntryFilterCategory");
-  if (accountSelect) { accountSelect.innerHTML = '<option value="">Todas as contas</option>' + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEntryAccountFilter || filters.accountId; accountSelect.disabled = Boolean(state.financialEntryAccountFilter); }
+  if (accountSelect) { accountSelect.innerHTML = `<option value="">Todas as contas</option><option value="${FINANCIAL_BANK_ACCOUNTS_FILTER}">Contas bancárias</option>` + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEntryAccountFilter || filters.accountId; accountSelect.disabled = Boolean(state.financialEntryAccountFilter); }
   if (categorySelect) { const eligibleCategories = state.financialCategories.filter((category) => category.active && (!filterType || category.category_type === filterType || category.category_type === "both")); categorySelect.innerHTML = '<option value="">Todas as categorias</option>' + financialGroupedCategoryOptions(eligibleCategories) ; categorySelect.value = filters.categoryId; }
   document.querySelector("#financialEntryFilterSearch").value = filters.search;
   document.querySelector("#financialEntryTypeFilter").hidden = view !== "financeTransactions";
@@ -6578,7 +6597,7 @@ document.querySelector("#financialEntryFilters")?.addEventListener("input", (eve
   renderFinancialEntries();
 });
 document.querySelector("#clearFinancialEntryFilters")?.addEventListener("click", () => {
-  state.financialEntryFilters = { search: "", type: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" };
+  state.financialEntryFilters = { search: "", type: "", accountId: FINANCIAL_BANK_ACCOUNTS_FILTER, categoryId: "", status: "", startDate: "", endDate: "" };
   state.financialEntryAccountFilter = "";
   state.financialEntryMonthFilter = currentFinancialMonth();
   renderFinancialEntries();
@@ -6624,7 +6643,7 @@ elements.financialAccountRows?.addEventListener("click", (event) => {
   }
   if (remove) deleteFinancialRecord("crm_financial_accounts", remove.dataset.deleteFinancialAccount, "esta conta").then((deleted) => { if (deleted) renderFinancialAccounts(); }).catch((error) => alert(error.message));
   if (transactions) {
-    state.financialEntryFilters = { search: "", type: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" };
+    state.financialEntryFilters = { search: "", type: "", accountId: FINANCIAL_BANK_ACCOUNTS_FILTER, categoryId: "", status: "", startDate: "", endDate: "" };
     state.financialEntryAccountFilter = transactions.dataset.financialAccountTransactions;
     state.financialEntryMonthFilter = state.financialDashboardMonth;
     showView("financeTransactions");

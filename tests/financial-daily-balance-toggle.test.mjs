@@ -7,6 +7,10 @@ const app = await readFile(new URL("../crmcabana/app.js", import.meta.url), "utf
 const start = app.indexOf("function renderFinancialDailyBalanceBreaks(table) {");
 const end = app.indexOf("\nfunction initializeFinancialTableSorting()", start);
 assert.ok(start >= 0 && end > start);
+const helpersStart = app.indexOf("function financialAccountFilterMatches(");
+const helpersEnd = app.indexOf("\nfunction formatFinancialDate(", helpersStart);
+assert.ok(helpersStart >= 0 && helpersEnd > helpersStart);
+const balanceSource = `const FINANCIAL_BANK_ACCOUNTS_FILTER = "__bank_accounts__";\n${app.slice(helpersStart, helpersEnd)}\n${app.slice(start, end)}\nrenderFinancialDailyBalanceBreaks`;
 
 function makeTable(dates) {
   const body = {
@@ -37,9 +41,9 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
       { id: "other", active: true },
     ],
     financialEntries: [
-      { id: "1", date: "2026-09-17", status: "paid", entry_type: "income", amount: 100 },
-      { id: "2", date: "2026-09-16", status: "paid", entry_type: "expense", amount: 20 },
-      { id: "3", date: "2026-09-16", status: "paid", entry_type: "income", amount: 5000 },
+      { id: "1", date: "2026-09-17", status: "paid", entry_type: "income", account_id: "bank", amount: 100 },
+      { id: "2", date: "2026-09-16", status: "paid", entry_type: "expense", account_id: "bank", amount: 20 },
+      { id: "3", date: "2026-09-16", status: "paid", entry_type: "income", account_id: "other", amount: 5000 },
     ],
   };
   const table = makeTable([["1", "2026-09-17"], ["2", "2026-09-16"]]);
@@ -53,7 +57,7 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
       return row;
     },
   };
-  const render = runInNewContext(`${app.slice(start, end)}\nrenderFinancialDailyBalanceBreaks`, {
+  const render = runInNewContext(balanceSource, {
     state,
     document,
     BRL: { format: (value) => `R$ ${value}` },
@@ -92,7 +96,7 @@ test("filtro apenas de data também usa o saldo filtrado; sem filtro mantém sal
       return row;
     },
   };
-  const render = runInNewContext(`${app.slice(start, end)}\nrenderFinancialDailyBalanceBreaks`, {
+  const render = runInNewContext(balanceSource, {
     state,
     document,
     BRL: { format: (value) => `R$ ${value}` },
@@ -104,4 +108,34 @@ test("filtro apenas de data também usa o saldo filtrado; sem filtro mantém sal
   state.financialEntryFilters.startDate = "";
   render(table);
   assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 900"));
+});
+
+test("contas bancárias por padrão usa saldo bancário; combinado com busca usa só os lançamentos exibidos", () => {
+  const state = {
+    view: "financeTransactions",
+    financialEntryFilters: { search: "", type: "", accountId: "__bank_accounts__", categoryId: "", status: "", startDate: "", endDate: "" },
+    financialEntryAccountFilter: "",
+    financialEntryShowDailyBalance: true,
+    financialAccounts: [{ id: "bank", account_type: "bank", active: true }, { id: "cash", account_type: "cash", active: true }],
+    financialEntries: [{ id: "1", date: "2026-09-16", status: "paid", entry_type: "income", account_id: "bank", amount: 100 }],
+  };
+  const table = makeTable([["1", "2026-09-16"]]);
+  const document = {
+    createElement() {
+      const row = { className: "", innerHTML: "", remove() { table.tBodies[0].rows.splice(table.tBodies[0].rows.indexOf(row), 1); } };
+      return row;
+    },
+  };
+  const render = runInNewContext(balanceSource, {
+    state,
+    document,
+    BRL: { format: (value) => `R$ ${value}` },
+    financialAccountBalance: (account) => account.id === "bank" ? 900 : 5000,
+    financialEntryDate: (entry) => entry.date,
+  });
+  render(table);
+  assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 900"));
+  state.financialEntryFilters.search = "pix";
+  render(table);
+  assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 100"));
 });

@@ -4,7 +4,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 
 const app = await readFile(new URL("../crmcabana/app.js", import.meta.url), "utf8");
-const start = app.indexOf('const FINANCIAL_EVOLUTION_BANK_ACCOUNTS =');
+const start = app.indexOf('const FINANCIAL_BANK_ACCOUNTS_FILTER =');
 const end = app.indexOf('\nfunction renderFinancialBalanceChart', start);
 assert.ok(start >= 0 && end > start);
 

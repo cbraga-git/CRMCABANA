@@ -617,7 +617,7 @@
             <div class="financial-entry-filters" id="financialEntryFilters">
               <label>Buscar<input id="financialEntryFilterSearch" type="search" placeholder="Descrição ou tag" /></label>
               <label id="financialEntryTypeFilter">Tipo<select id="financialEntryFilterType"><option value="">Todos os tipos</option><option value="income">Receita</option><option value="expense">Despesa</option><option value="transfer">Transferência</option></select></label>
-              <label>Conta<select id="financialEntryFilterAccount"><option value="">Todas as contas</option></select></label>
+              <label>Conta<select id="financialEntryFilterAccount"><option value="">Todas as contas</option><option value="__bank_accounts__" selected>Contas bancárias</option></select></label>
               <label>Categoria<select id="financialEntryFilterCategory"><option value="">Todas as categorias</option></select></label>
               <label>Situação<select id="financialEntryFilterStatus"><option value="">Todas</option><option value="pending">Pendente</option><option value="paid">Pago/recebido</option><option value="overdue">Vencido</option><option value="cancelled">Cancelado</option></select></label>
               <label>De<input id="financialEntryFilterStart" type="date" /></label>
@@ -1108,6 +1108,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=150"></script>
+    <script src="app.js?v=151"></script>
   </body>
 </html>
