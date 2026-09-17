@@ -2114,25 +2114,42 @@ function renderFinancialDailyBalanceBreaks(table) {
   body?.querySelectorAll(".financial-daily-balance-row, .financial-filter-balance-row").forEach((row) => row.remove());
   if (!body || state.view !== "financeTransactions") return;
   const filters = state.financialEntryFilters;
-  const hasNonDateFilter = Boolean(filters.search || filters.type || filters.accountId || filters.categoryId || filters.status);
+  const hasExplicitFilter = Boolean(filters.search || filters.type || filters.accountId || filters.categoryId || filters.status || filters.startDate || filters.endDate);
   const rows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
-  if (hasNonDateFilter) {
+  if (hasExplicitFilter) {
     const accountId = state.financialEntryAccountFilter || filters.accountId;
     const visibleIds = new Set(rows.map((row) => row.dataset.financialEntryId));
-    const balance = state.financialEntries.filter((entry) => visibleIds.has(entry.id) && entry.status !== "cancelled").reduce((sum, entry) => {
+    const dailyMovements = new Map();
+    state.financialEntries.filter((entry) => visibleIds.has(entry.id) && entry.status !== "cancelled").forEach((entry) => {
       const amount = Number(entry.amount) || 0;
-      if (entry.entry_type === "income") return sum + amount;
-      if (entry.entry_type === "expense") return sum - amount;
-      if (accountId && entry.transfer_account_id === accountId) return sum + amount;
-      if (accountId && entry.account_id === accountId) return sum - amount;
-      return sum;
-    }, 0);
-    if (rows.length) {
+      let movement = 0;
+      if (entry.entry_type === "income") movement = amount;
+      else if (entry.entry_type === "expense") movement = -amount;
+      else if (entry.entry_type === "transfer" && accountId) movement = (entry.transfer_account_id === accountId ? amount : 0) - (entry.account_id === accountId ? amount : 0);
+      const date = financialEntryDate(entry);
+      dailyMovements.set(date, (dailyMovements.get(date) || 0) + movement);
+    });
+    let balance = 0;
+    const balanceByDate = new Map();
+    Array.from(dailyMovements.keys()).sort().forEach((date) => {
+      balance += dailyMovements.get(date);
+      balanceByDate.set(date, balance);
+    });
+    if (!state.financialEntryShowDailyBalance && rows.length) {
       const summary = document.createElement("tr");
       summary.className = "financial-filter-balance-row";
       summary.innerHTML = `<td colspan="7"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span></td>`;
       body.appendChild(summary);
     }
+    if (state.financialEntryShowDailyBalance) rows.forEach((row, index) => {
+      const date = row.dataset.financialEntryDate;
+      if (rows[index + 1]?.dataset.financialEntryDate === date) return;
+      const summary = document.createElement("tr");
+      summary.className = "financial-daily-balance-row";
+      summary.innerHTML = `<td colspan="7"><span>Saldo do filtro até o dia <strong>${BRL.format(balanceByDate.get(date) || 0)}</strong></span></td>`;
+      row.after(summary);
+    });
+    return;
   }
   if (!state.financialEntryShowDailyBalance) return;
   const selectedAccountId = state.financialEntryAccountFilter || filters.accountId;
