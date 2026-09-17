@@ -12,26 +12,49 @@ function extract(start, end) {
   return app.slice(from, to);
 }
 
-const nextFinancialStatuses = runInNewContext(
-  `${extract("function nextFinancialStatuses(", "\nfunction setStatusFilter(")}\nnextFinancialStatuses`
+const nextSelectedStatuses = runInNewContext(
+  `${extract("function nextSelectedStatuses(", "\nfunction setStatusFilter(")}\nnextSelectedStatuses`
 );
 
 test("Shift+clique combina e remove status sem alterar o clique comum", () => {
-  let selected = nextFinancialStatuses(["Todos"], "Aprovado", true);
-  selected = nextFinancialStatuses(selected, "Novo", true);
+  let selected = nextSelectedStatuses(["Todos"], "Aprovado", true);
+  selected = nextSelectedStatuses(selected, "Novo", true);
   assert.deepEqual(Array.from(selected), ["Aprovado", "Novo"]);
-  selected = nextFinancialStatuses(selected, "Aprovado", true);
+  selected = nextSelectedStatuses(selected, "Aprovado", true);
   assert.deepEqual(Array.from(selected), ["Novo"]);
-  selected = nextFinancialStatuses(selected, "Novo", true);
+  selected = nextSelectedStatuses(selected, "Novo", true);
   assert.deepEqual(Array.from(selected), ["Todos"]);
-  assert.deepEqual(Array.from(nextFinancialStatuses(["Novo", "Aprovado"], "Recusado", false)), ["Recusado"]);
-  assert.deepEqual(Array.from(nextFinancialStatuses(["Novo"], "Todos", true)), ["Todos"]);
+  assert.deepEqual(Array.from(nextSelectedStatuses(["Novo", "Aprovado"], "Recusado", false)), ["Recusado"]);
+  assert.deepEqual(Array.from(nextSelectedStatuses(["Novo"], "Todos", true)), ["Todos"]);
+});
+
+test("seleção múltipla de orçamentos não altera pedidos nem resultados", () => {
+  const state = {
+    view: "budget",
+    budgetStatus: "Todos",
+    budgetSelectedStatuses: ["Todos"],
+    financialStatuses: ["Aprovado"],
+  };
+  const setStatusFilter = runInNewContext(
+    `${extract("function nextSelectedStatuses(", "\nfunction parseSortableDate(")}\nsetStatusFilter`,
+    { state, render: () => {} }
+  );
+  setStatusFilter("budget", "Novo", true);
+  setStatusFilter("budget", "Recusado", true);
+  assert.deepEqual(Array.from(state.budgetSelectedStatuses), ["Novo", "Recusado"]);
+  assert.deepEqual(Array.from(state.financialStatuses), ["Aprovado"]);
+  assert.equal(state.budgetStatus, "Todos");
+  state.view = "order";
+  setStatusFilter("budget", "Aprovado", false);
+  assert.equal(state.budgetStatus, "Aprovado");
+  assert.deepEqual(Array.from(state.budgetSelectedStatuses), ["Novo", "Recusado"]);
 });
 
 test("demonstrativo soma apenas os orçamentos dos status combinados", () => {
   const state = {
     view: "financial",
     financialStatuses: ["Aprovado", "Recusado"],
+    budgetSelectedStatuses: ["Todos"],
     budgetStatus: "Todos",
     budgetSearch: "",
     budgetStartDate: "",
@@ -58,4 +81,14 @@ test("demonstrativo soma apenas os orçamentos dos status combinados", () => {
   assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Aprovado", "Recusado"]);
   state.financialStatuses = ["Todos"];
   assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Novo", "Aprovado"]);
+
+  state.view = "budget";
+  state.budgetSelectedStatuses = ["Novo", "Recusado"];
+  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Novo", "Recusado"]);
+  state.budgetSelectedStatuses = ["Todos"];
+  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Novo", "Aprovado"]);
+
+  state.view = "order";
+  state.budgetStatus = "Aprovado";
+  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Aprovado"]);
 });

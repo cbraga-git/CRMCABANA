@@ -166,6 +166,7 @@ const state = {
   dashboardStatus: IN_PROGRESS_STATUS,
   clientStatus: IN_PROGRESS_STATUS,
   budgetStatus: "Todos",
+  budgetSelectedStatuses: ["Todos"],
   financialStatuses: ["Todos"],
   budgetStartDate: "",
   budgetEndDate: "",
@@ -591,6 +592,8 @@ function applyBudgetStatusConfig(rows) {
   BUDGET_STATUS = state.budgetStatuses.filter((status) => status.budget).map((status) => status.name);
   ORDER_STATUS = state.budgetStatuses.filter((status) => status.order).map((status) => status.name);
   if (!BUDGET_STATUS.length) BUDGET_STATUS = [DEFAULT_BUDGET_STATUSES[0].name];
+  state.budgetSelectedStatuses = state.budgetSelectedStatuses.filter((status) => status === "Todos" || BUDGET_STATUS.includes(status));
+  if (!state.budgetSelectedStatuses.length) state.budgetSelectedStatuses = ["Todos"];
   refreshBudgetStatusSelect();
 }
 
@@ -1562,7 +1565,8 @@ async function showView(view, selectedId) {
     resetBudgetEditorState();
   }
 
-  if ((view === "budget" || view === "order") && view !== previousView) state.budgetStatus = "Todos";
+  if (view === "budget" && view !== previousView) state.budgetSelectedStatuses = ["Todos"];
+  if (view === "order" && view !== previousView) state.budgetStatus = "Todos";
   state.view = view;
   document.body.dataset.view = view;
   state.selectedId = selectedId || state.selectedId;
@@ -2605,7 +2609,7 @@ async function migrateMobillsWorkbook(file) {
   return { total: entries.length, inserted: inserted.length, accounts: allAccountNames.size, categories: categoryMap.size };
 }
 
-function nextFinancialStatuses(selected, status, additive) {
+function nextSelectedStatuses(selected, status, additive) {
   if (!additive || status === "Todos") return [status];
   const current = selected.filter((item) => item !== "Todos");
   const next = current.includes(status) ? current.filter((item) => item !== status) : [...current, status];
@@ -2618,8 +2622,11 @@ function setStatusFilter(group, status, additive = false) {
     state.clientStatus = status;
   }
   if (group === "clients") state.clientStatus = status;
-  if (group === "budget") state.budgetStatus = status;
-  if (group === "financial") state.financialStatuses = nextFinancialStatuses(state.financialStatuses, status, additive);
+  if (group === "budget") {
+    if (state.view === "budget") state.budgetSelectedStatuses = nextSelectedStatuses(state.budgetSelectedStatuses, status, additive);
+    else state.budgetStatus = status;
+  }
+  if (group === "financial") state.financialStatuses = nextSelectedStatuses(state.financialStatuses, status, additive);
   render();
 }
 
@@ -2876,10 +2883,11 @@ function renderStatusFilters(container, activeStatus, group) {
 
   statuses.forEach((status) => {
     const button = document.createElement("button");
-    const active = group === "financial" ? state.financialStatuses.includes(status) : status === activeStatus;
+    const multiSelect = group === "financial" || (group === "budget" && state.view === "budget");
+    const active = group === "financial" ? state.financialStatuses.includes(status) : group === "budget" && state.view === "budget" ? state.budgetSelectedStatuses.includes(status) : status === activeStatus;
     button.className = `pill ${active ? "active" : ""}`;
     button.type = "button";
-    if (group === "financial") {
+    if (multiSelect) {
       button.setAttribute("aria-pressed", String(active));
       button.title = "Use Shift+clique para combinar status";
     }
@@ -2895,7 +2903,7 @@ function renderStatusFilters(container, activeStatus, group) {
       button.appendChild(count);
     }
 
-    button.addEventListener("click", (event) => setStatusFilter(group, status, group === "financial" && event.shiftKey));
+    button.addEventListener("click", (event) => setStatusFilter(group, status, multiSelect && event.shiftKey));
     container.appendChild(button);
   });
 }
@@ -4692,9 +4700,9 @@ function filteredBudgets() {
         ? state.budgetStatus === "Todos"
           ? ORDER_STATUS.includes(budget.status)
           : budget.status === state.budgetStatus
-        : state.budgetStatus === "Todos"
+        : state.budgetSelectedStatuses.includes("Todos")
         ? budget.status !== "Recusado" && budget.status !== "Finalizado"
-        : budget.status === state.budgetStatus;
+        : state.budgetSelectedStatuses.includes(budget.status);
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
     });
@@ -6354,7 +6362,7 @@ function updateSyncIndicator() {
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
-  renderStatusFilters(elements.budgetFilters, state.budgetStatus, "budget");
+  renderStatusFilters(elements.budgetFilters, state.view === "budget" ? state.budgetSelectedStatuses[0] : state.budgetStatus, "budget");
   renderStatusFilters(elements.financialFilters, state.financialStatuses[0], "financial");
   syncBudgetFilterInputs();
   renderDashboard();
