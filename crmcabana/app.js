@@ -1569,6 +1569,7 @@ async function showView(view, selectedId) {
   if (view === "order" && view !== previousView) state.budgetStatus = "Todos";
   state.view = view;
   document.body.dataset.view = view;
+  setMobileMenuOpen(false);
   state.selectedId = selectedId || state.selectedId;
   if (view === "detail" && previousView !== "detail") {
     state.returnView = previousView;
@@ -6470,6 +6471,28 @@ function toggleSidebar() {
   applySidebarCollapsed(collapsed);
   scheduleCurrentViewLayoutRefresh();
 }
+
+const mobileMenuMedia = window.matchMedia("(max-width: 700px)");
+
+function setMobileMenuOpen(open) {
+  const expanded = mobileMenuMedia.matches && Boolean(open);
+  document.body.dataset.mobileMenuOpen = String(expanded);
+  const toggle = document.querySelector("#mobileMenuToggle");
+  const sidebar = document.querySelector("#mainSidebar");
+  const backdrop = document.querySelector("#mobileMenuBackdrop");
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.setAttribute("aria-label", expanded ? "Fechar menu" : "Abrir menu");
+  }
+  if (sidebar) sidebar.inert = mobileMenuMedia.matches && !expanded;
+  if (backdrop) backdrop.hidden = !expanded;
+}
+
+document.querySelector("#mobileMenuToggle")?.addEventListener("click", () => setMobileMenuOpen(document.body.dataset.mobileMenuOpen !== "true"));
+document.querySelector("#mobileMenuBackdrop")?.addEventListener("click", () => setMobileMenuOpen(false));
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && document.body.dataset.mobileMenuOpen === "true") setMobileMenuOpen(false); });
+mobileMenuMedia.addEventListener("change", () => setMobileMenuOpen(false));
+setMobileMenuOpen(false);
 
 document.querySelector("#togglePassword").addEventListener("click", () => {
   const showingPassword = elements.authPassword.type === "text";
