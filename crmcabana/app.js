@@ -1632,7 +1632,8 @@ function financialEntryDate(entry) { return entry.due_date || entry.competence_d
 function financialMonthBounds(month) { const [year, monthNumber] = month.split("-").map(Number); return { start: `${year}-${String(monthNumber).padStart(2, "0")}-01`, end: `${year}-${String(monthNumber).padStart(2, "0")}-${String(new Date(year, monthNumber, 0).getDate()).padStart(2, "0")}` }; }
 
 function financialAccountBalance(account, endDate, projected) {
-  let balance = account.initial_balance_date <= endDate ? Number(account.initial_balance) || 0 : 0;
+  // O saldo inicial e a base de todo o historico; sua data e apenas uma referencia cadastral.
+  let balance = Number(account.initial_balance) || 0;
   state.financialEntries.forEach((entry) => {
     if (entry.status === "cancelled" || financialEntryDate(entry) > endDate || (!projected && entry.status !== "paid")) return;
     const amount = Number(entry.amount) || 0;
