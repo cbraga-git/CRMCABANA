@@ -2346,6 +2346,47 @@ function addMonthsToFinancialDate(value, months) {
   return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
 }
 
+function calculateFinancialEntryAmount(expression) {
+  const compact = String(expression || "").replace(/\s+/g, "").replace(/[×]/g, "*").replace(/[÷]/g, "/");
+  if (compact.length > 120) return null;
+  const tokens = compact.match(/\d[\d.,]*|[()+*/-]/g) || [];
+  if (!compact || tokens.join("") !== compact) return null;
+  let position = 0;
+  const number = (token) => {
+    if (!/^\d+(?:[.,]\d+)*$/.test(token) || token.includes(",") && !/^\d{1,3}(?:\.\d{3})*,\d+$/.test(token) && !/^\d+,\d+$/.test(token)) return NaN;
+    const normalized = token.includes(",") ? token.replace(/\./g, "").replace(",", ".") : /^\d{1,3}(?:\.\d{3})+$/.test(token) ? token.replace(/\./g, "") : token;
+    return Number(normalized);
+  };
+  const factor = () => {
+    if (tokens[position] === "+" || tokens[position] === "-") { const sign = tokens[position++] === "-" ? -1 : 1; return sign * factor(); }
+    if (tokens[position] === "(") { position++; const result = sum(); if (tokens[position++] !== ")") return NaN; return result; }
+    return number(tokens[position++] || "");
+  };
+  const product = () => {
+    let result = factor();
+    while (tokens[position] === "*" || tokens[position] === "/") { const operator = tokens[position++]; const right = factor(); result = operator === "*" ? result * right : result / right; }
+    return result;
+  };
+  const sum = () => {
+    let result = product();
+    while (tokens[position] === "+" || tokens[position] === "-") { const operator = tokens[position++]; const right = product(); result = operator === "+" ? result + right : result - right; }
+    return result;
+  };
+  const result = sum();
+  if (position !== tokens.length || !Number.isFinite(result)) return null;
+  const rounded = Math.round((result + Number.EPSILON) * 100) / 100;
+  return Number.isFinite(rounded) && rounded > 0 ? rounded : null;
+}
+
+function resolveFinancialEntryAmount(showError = false) {
+  const field = document.querySelector("#financialEntryAmount");
+  const amount = calculateFinancialEntryAmount(field.value);
+  field.setCustomValidity(amount === null ? "Informe um valor maior que zero usando apenas números, +, -, * e /." : "");
+  if (amount === null) { if (showError) field.reportValidity(); return null; }
+  field.value = amount.toFixed(2);
+  return amount;
+}
+
 function openFinancialEntryDialog(entryId = null) {
   if (!state.financialAccounts.some((item) => item.active)) { alert("Cadastre uma conta ativa antes de criar lançamentos."); return; }
   const entry = state.financialEntries.find((item) => item.id === entryId);
@@ -2358,6 +2399,7 @@ function openFinancialEntryDialog(entryId = null) {
   document.querySelector("#financialEntryStatus").value = entry?.status === "overdue" ? "pending" : entry?.status || "pending";
   document.querySelector("#financialEntryDescription").value = formatFinancialDescription(entry?.description);
   document.querySelector("#financialEntryAmount").value = entry?.amount || "";
+  document.querySelector("#financialEntryAmount").setCustomValidity("");
   document.querySelector("#financialEntryAccount").value = entry?.account_id || state.financialAccounts.find((item) => item.active)?.id || "";
   document.querySelector("#financialEntryTransferAccount").value = entry?.transfer_account_id || "";
   document.querySelector("#financialEntryCategory").value = entry?.category_id || "";
@@ -2377,11 +2419,13 @@ function openFinancialEntryDialog(entryId = null) {
 
 async function submitFinancialEntry(event) {
   event.preventDefault();
+  const amount = resolveFinancialEntryAmount(true);
+  if (amount === null) return;
   const type = document.querySelector("#financialEntryType").value;
   const status = document.querySelector("#financialEntryStatus").value;
   const pendingTag = normalizeFinancialTag(document.querySelector("#financialEntryTagInput").value);
   const tags = pendingTag ? [...state.financialEntryDraftTags, pendingTag] : state.financialEntryDraftTags;
-  const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount: Number(document.querySelector("#financialEntryAmount").value), issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
+  const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount, issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
   if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
   const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
   if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
@@ -6630,6 +6674,8 @@ elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
 elements.financialCategoryDialog?.addEventListener("cancel", () => { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; });
 elements.financialEntryForm?.addEventListener("submit", submitFinancialEntry);
+document.querySelector("#financialEntryAmount")?.addEventListener("input", (event) => event.target.setCustomValidity(""));
+document.querySelector("#financialEntryAmount")?.addEventListener("blur", () => resolveFinancialEntryAmount());
 document.querySelector("#newFinancialEntryBtn")?.addEventListener("click", () => openFinancialEntryDialog());
 document.querySelectorAll("[data-close-financial-dialog]").forEach((button) => button.addEventListener("click", () => {
   if (button.dataset.closeFinancialDialog === "category") { state.financialCategoryTargetItemId = null; state.financialCategoryTargetEntry = false; }

@@ -921,7 +921,7 @@
           <label>Tipo *<select id="financialEntryType"><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência</option></select></label>
           <label>Status *<select id="financialEntryStatus"><option value="pending">Pendente</option><option value="paid">Pago/recebido</option><option value="cancelled">Cancelado</option></select></label>
           <label>Descrição *<input id="financialEntryDescription" maxlength="240" required /></label>
-          <label><span id="financialEntryAmountLabel">Valor *</span><input id="financialEntryAmount" type="number" min="0.01" step="0.01" required /></label>
+          <label><span id="financialEntryAmountLabel">Valor *</span><input id="financialEntryAmount" type="text" inputmode="text" maxlength="120" placeholder="Ex.: (100 + 50) / 2" autocomplete="off" required /><small class="financial-amount-hint">Use +, -, * ou / para calcular.</small></label>
           <label>Conta *<select id="financialEntryAccount" required></select></label>
           <label id="financialEntryTransferField" hidden>Conta de destino *<select id="financialEntryTransferAccount"></select></label>
           <label id="financialEntryCategoryField">Categoria<select id="financialEntryCategory"><option value="">Sem categoria</option></select></label>
@@ -1112,6 +1112,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=153"></script>
+    <script src="app.js?v=154"></script>
   </body>
 </html>
