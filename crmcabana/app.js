@@ -4956,7 +4956,11 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories) {
     if (!category) throw new Error(`Cadastre a categoria ${name} dentro de Operação antes de lançar no financeiro.`);
     return category.id;
   };
-  const tags = [normalizeFinancialTag(`${budget.code || ""} ${budget.nobiliaId || ""}`), normalizeFinancialTag(String(client.name || "").slice(0, 20))].filter(Boolean);
+  const tags = [
+    normalizeFinancialTag(`${budget.code || ""} ${budget.nobiliaId || ""}`),
+    normalizeFinancialTag(String(client.name || "").slice(0, 20)),
+    normalizeFinancialTag(client.contact),
+  ].filter(Boolean);
   const issueDate = budget.nobiliaDate || budgetFinancialLocalDate(budget.createdAt);
   const base = { status: "pending", account_id: account.id, client_id: client.id, source_type: "sale", issue_date: issueDate, competence_date: postedDate, paid_at: null };
   const payments = (budget.cashPayments || []).map((payment, index) => {
@@ -5016,10 +5020,11 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     const { key, ...payload } = item;
     if (!previous) { await postFinancialRows("crm_financial_entries", [{ id, ...payload }]); result.created++; continue; }
     const amountChanged = budgetFinancialCents(previous.amount) !== budgetFinancialCents(item.amount);
-    const notes = amountChanged ? notesWithFinancialTags(`${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim(), financialEntryTags(previous)) : previous.notes;
+    const noteText = amountChanged ? `${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim() : financialEntryNotes(previous);
+    const notes = notesWithFinancialTags(noteText, [...financialEntryTags(previous), ...financialEntryTags(item)]);
     const changes = { amount: item.amount, category_id: item.category_id, description: item.description, notes };
     if (item.key === "lela" || item.key === "iris") changes.due_date = item.due_date;
-    if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description && (!Object.hasOwn(changes, "due_date") || previous.due_date === changes.due_date)) continue;
+    if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description && previous.notes === changes.notes && (!Object.hasOwn(changes, "due_date") || previous.due_date === changes.due_date)) continue;
     await saveFinancialRecord("crm_financial_entries", id, changes);
     result.updated++;
   }
