@@ -32,12 +32,12 @@ function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + N
     parseMoney: Number,
     BRL: { format: (value) => `R$ ${value.toFixed(2)}` },
   };
-  const { budgetFinancialPlan, budgetFinancialDueDate, budgetFinancialStatusAllowed } = runInNewContext(
-    `${app.slice(statusStart, statusEnd)}\n${app.slice(start, end)}\n({ budgetFinancialPlan, budgetFinancialDueDate, budgetFinancialStatusAllowed })`, context,
+  const { budgetFinancialPlan, budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed } = runInNewContext(
+    `${app.slice(statusStart, statusEnd)}\n${app.slice(start, end)}\n({ budgetFinancialPlan, budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed })`, context,
   );
   const budget = { id: "budget-1", code: "123", nobiliaId: "N-8", nobiliaDate: "2026-09-10", createdAt: "2026-09-01T12:00:00Z", rows, settings: {}, cashPayments: payments };
   const client = { id: "client-1", name: "Maria de Oliveira" };
-  return { plan: () => budgetFinancialPlan(budget, client, "2026-09-21", { id: "mercado" }, categories), budgetFinancialDueDate, budgetFinancialStatusAllowed };
+  return { plan: () => budgetFinancialPlan(budget, client, "2026-09-21", { id: "mercado" }, categories), budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed };
 }
 
 test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
@@ -45,17 +45,20 @@ test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   const { plan, budgetFinancialDueDate } = planFor([
     { factoryFreight: 100, hardware: 30, release: 20, assembly: 40, lela: 10, iris: 5, tax: 12 },
     { factoryFreight: 25, hardware: 0, release: 0, assembly: 10, lela: 2, iris: 1, tax: 3 },
-  ], [{ parcel: "1", value: "100", dueDate: "2026-09-25" }, { parcel: "2", value: "150", dueDate: "2026-10-25" }]);
+  ], [{ parcel: "1", value: "100", dueDate: "2026-09-25" }, { parcel: "2", value: "150", dueDate: "2026-10-25" }, { parcel: "3", value: "0", dueDate: "2026-12-10" }]);
   const items = plan();
-  assert.equal(items.length, 9);
+  assert.equal(items.length, 10);
   assert.equal(items.find((item) => item.key === "factoryFreight").amount, 125);
   assert.equal(items.find((item) => item.key === "assembly").amount, 50);
   assert.equal(items.find((item) => item.key === "factoryFreight").due_date, "2026-09-26");
   assert.equal(items.find((item) => item.key === "hardware").due_date, "2026-10-31");
+  assert.equal(items.find((item) => item.key === "lela").due_date, "2026-10-31");
+  assert.equal(items.find((item) => item.key === "iris").due_date, "2026-10-31");
   assert.equal(items.find((item) => item.key === "tax").due_date, "2026-12-21");
   assert.equal(budgetFinancialDueDate("2026-12-01", { taxDue: true }), "2027-02-21");
   assert.equal(items.find((item) => item.key === "income-1").due_date, "2026-09-25");
   assert.equal(items.find((item) => item.key === "income-2").amount, 150);
+  assert.equal(items.find((item) => item.key === "income-3").amount, 0);
   assert.equal(items.filter((item) => item.entry_type === "income").reduce((sum, item) => sum + item.amount, 0), 250);
   assert.equal(items.find((item) => item.key === "factoryFreight").category_id, "category-0");
   assert.equal(items.find((item) => item.key === "hardware").category_id, "category-1");
@@ -67,6 +70,15 @@ test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   assert.equal(items[0].status, "pending");
   assert.match(items[0].notes, /123 n-8/);
   assert.match(items[0].notes, /maria de oliveira/);
+});
+
+test("Lela e Iris seguem a ultima parcela positiva, mesmo fora de ordem", () => {
+  const { plan, budgetFinancialMonthEnd } = planFor([{ lela: 10, iris: 10 }], [
+    { value: "100", dueDate: "2027-02-05" }, { value: "50", dueDate: "2027-01-20" },
+  ]);
+  assert.equal(plan().find((item) => item.key === "lela").due_date, "2027-02-28");
+  assert.equal(plan().find((item) => item.key === "iris").due_date, "2027-02-28");
+  assert.equal(budgetFinancialMonthEnd("2028-02-02"), "2028-02-29");
 });
 
 test("nao lanca status excluidos nem receitas divergentes do liquido", () => {
@@ -88,16 +100,18 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
     { id: "paid-id", amount: 100, status: "paid", notes: "pago" },
     { id: "pending-id", amount: 50, status: "pending", notes: "anterior", category_id: "old", description: "Ferragens" },
     { id: "zero-id", amount: 10, status: "pending", notes: "anterior" },
+    { id: "lela-id", amount: 20, status: "pending", notes: "anterior", category_id: "lela", description: "Lela", due_date: "2026-10-31" },
   ];
   const plan = [
     { key: "factoryFreight", amount: 120, category_id: "factory", description: "Fábrica + Frete" },
     { key: "hardware", amount: 60, category_id: "hardware", description: "Ferragens" },
     { key: "tax", amount: 0, category_id: null, description: "Impostos" },
     { key: "income-1", amount: 250, category_id: "income", description: "Pagamento à Vista" },
+    { key: "lela", amount: 20, category_id: "lela", description: "Lela", due_date: "2026-11-30" },
   ];
   const context = {
     remoteDatabaseEnabled: () => true, currentUserId: () => "user",
-    budgetFinancialEntryIds: async () => [["factoryFreight", "paid-id"], ["hardware", "pending-id"], ["tax", "zero-id"], ["income-1", "new-id"]],
+    budgetFinancialEntryIds: async () => [["factoryFreight", "paid-id"], ["hardware", "pending-id"], ["tax", "zero-id"], ["income-1", "new-id"], ["lela", "lela-id"]],
     fetchBudgetFinancialEntries: async () => existing,
     budgetFinancialStatusAllowed: () => true,
     loadFinancialRegisters: async () => {},
@@ -119,12 +133,14 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
   const sync = runInNewContext(`${app.slice(syncStart, syncEnd)}\nsyncBudgetFinancialEntries`, context);
   const result = await sync({ id: "budget", code: "123", status: "Pedido" }, { id: "client" }, true);
   assert.equal(result.paid, 1);
-  assert.equal(result.updated, 1);
+  assert.equal(result.updated, 2);
   assert.equal(result.deleted, 1);
   assert.equal(result.created, 1);
   assert.equal(writes.some((write) => write.id === "paid-id"), false);
   assert.equal(writes.find((write) => write.id === "pending-id").payload.amount, 60);
   assert.match(writes.find((write) => write.id === "pending-id").payload.notes, /Valor atualizado/);
+  assert.equal(writes.find((write) => write.id === "lela-id").payload.due_date, "2026-11-30");
+  assert.equal(writes.find((write) => write.id === "lela-id").payload.notes, "anterior");
   assert.equal(writes.find((write) => write.id.includes("zero-id")).method, "DELETE");
   assert.equal(writes.find((write) => write.id === "new-id").method, "POST");
 });

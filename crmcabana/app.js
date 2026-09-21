@@ -4918,8 +4918,8 @@ const BUDGET_FINANCIAL_EXPENSES = [
   { key: "hardware", description: "Ferragens", category: "Insumos", days: 40 },
   { key: "release", description: "Liberação", category: "Operação", days: 40 },
   { key: "assembly", description: "Montagem", category: "Montagem", days: 40 },
-  { key: "lela", description: "Lela", category: "Comissão Lela", days: 40 },
-  { key: "iris", description: "Iris", category: "Comissão Iris", days: 40 },
+  { key: "lela", description: "Lela", category: "Comissão Lela", finalPaymentMonth: true },
+  { key: "iris", description: "Iris", category: "Comissão Iris", finalPaymentMonth: true },
   { key: "tax", description: "Impostos", category: "Impostos", taxDue: true },
 ];
 
@@ -4934,6 +4934,12 @@ function budgetFinancialDueDate(postedDate, rule) {
   const due = new Date(Date.UTC(year, month - 1, day + (rule.taxDue ? 45 : rule.days)));
   if (rule.taxDue) return new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth() + 1, 21)).toISOString().slice(0, 10);
   return due.toISOString().slice(0, 10);
+}
+
+function budgetFinancialMonthEnd(date) {
+  if (!date) return null;
+  const [year, month] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 }
 
 function budgetFinancialCents(value) { return Math.round((Number(value) || 0) * 100); }
@@ -4953,11 +4959,6 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories) {
   const tags = [normalizeFinancialTag(`${budget.code || ""} ${budget.nobiliaId || ""}`), normalizeFinancialTag(String(client.name || "").slice(0, 20))].filter(Boolean);
   const issueDate = budget.nobiliaDate || budgetFinancialLocalDate(budget.createdAt);
   const base = { status: "pending", account_id: account.id, client_id: client.id, source_type: "sale", issue_date: issueDate, competence_date: postedDate, paid_at: null };
-  const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
-    const amount = budgetFinancialCents(calculated.reduce((sum, row) => sum + (Number(row[rule.key]) || 0), 0)) / 100;
-    return { key: rule.key, entry_type: "expense", description: formatFinancialDescription(rule.description), amount,
-      category_id: amount ? categoryFor(rule.category, "expense") : null, due_date: budgetFinancialDueDate(postedDate, rule), ...base };
-  });
   const payments = (budget.cashPayments || []).map((payment, index) => {
     const amount = budgetFinancialCents(parseMoney(payment.value)) / 100;
     return { key: `income-${index + 1}`, entry_type: "income", description: formatFinancialDescription(`Pagamento à Vista - Parcela ${payment.parcel || index + 1}`), amount,
@@ -4966,6 +4967,13 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories) {
   const paymentCents = payments.reduce((sum, payment) => sum + budgetFinancialCents(payment.amount), 0);
   if (paymentCents !== netCents) throw new Error(`O pagamento à vista deve somar o líquido do orçamento: ${BRL.format(netCents / 100)}. Valor informado: ${BRL.format(paymentCents / 100)}.`);
   if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento de cada parcela à vista com valor maior que zero.");
+  const finalPaymentDate = payments.filter((payment) => payment.amount > 0).map((payment) => payment.due_date).sort().at(-1);
+  const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
+    const amount = budgetFinancialCents(calculated.reduce((sum, row) => sum + (Number(row[rule.key]) || 0), 0)) / 100;
+    return { key: rule.key, entry_type: "expense", description: formatFinancialDescription(rule.description), amount,
+      category_id: amount ? categoryFor(rule.category, "expense") : null,
+      due_date: rule.finalPaymentMonth ? budgetFinancialMonthEnd(finalPaymentDate) : budgetFinancialDueDate(postedDate, rule), ...base };
+  });
   return [...expenses, ...payments].map((item) => ({ ...item, notes: notesWithFinancialTags("", tags) }));
 }
 
@@ -5010,7 +5018,8 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     const amountChanged = budgetFinancialCents(previous.amount) !== budgetFinancialCents(item.amount);
     const notes = amountChanged ? notesWithFinancialTags(`${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim(), financialEntryTags(previous)) : previous.notes;
     const changes = { amount: item.amount, category_id: item.category_id, description: item.description, notes };
-    if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description) continue;
+    if (item.key === "lela" || item.key === "iris") changes.due_date = item.due_date;
+    if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description && (!Object.hasOwn(changes, "due_date") || previous.due_date === changes.due_date)) continue;
     await saveFinancialRecord("crm_financial_entries", id, changes);
     result.updated++;
   }
