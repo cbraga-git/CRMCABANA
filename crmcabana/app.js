@@ -3500,6 +3500,16 @@ function handleBudgetStatusDateFields() {
   }
   state.budgetLastStatus = status;
   updateBudgetSaleAtFieldVisibility();
+  updateBudgetFinancialButton();
+}
+
+function budgetFinancialStatusAllowed(status) {
+  return !["novo", "recusado", "finalizado"].includes(normalizedMigrationText(status));
+}
+
+function updateBudgetFinancialButton() {
+  const button = document.querySelector("#budgetLaunchFinancialBtn");
+  if (button) button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
 }
 
 function currentBudgetDraft() {
@@ -3619,6 +3629,7 @@ function clientBudget(client) {
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
     deliveryForecastAt: saved.deliveryForecastAt || "",
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
+    financialLaunchedAt: saved.financialLaunchedAt || "",
     notes: saved.notes || "",
   };
 }
@@ -3637,6 +3648,7 @@ function blankBudget() {
     orderMaterials: [],
     deliveryForecastAt: "",
     cashPayments: defaultCashPaymentRows(),
+    financialLaunchedAt: "",
     notes: "",
   };
 }
@@ -4894,10 +4906,116 @@ function renderBudget() {
   elements.budgetEditor.hidden = !editing;
   if (editing) {
     fillBudgetForm(sourceBudgetClient());
+    updateBudgetFinancialButton();
     if (elements.budgetDeleteBtn) {
       elements.budgetDeleteBtn.hidden = state.budgetIsNew || !state.budgetEditingId;
     }
   }
+}
+
+const BUDGET_FINANCIAL_EXPENSES = [
+  { key: "factoryFreight", description: "Fábrica + Frete", category: "Fabrica", days: 5 },
+  { key: "hardware", description: "Ferragens", category: "Insumos", days: 40 },
+  { key: "release", description: "Liberação", category: "Operação", days: 40 },
+  { key: "assembly", description: "Montagem", category: "Montagem", days: 40 },
+  { key: "lela", description: "Lela", category: "Comissão Lela", days: 40 },
+  { key: "iris", description: "Iris", category: "Comissão Iris", days: 40 },
+  { key: "tax", description: "Impostos", category: "Impostos", taxDue: true },
+];
+
+function budgetFinancialLocalDate(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("Data do orçamento inválida.");
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function budgetFinancialDueDate(postedDate, rule) {
+  const [year, month, day] = postedDate.split("-").map(Number);
+  const due = new Date(Date.UTC(year, month - 1, day + (rule.taxDue ? 45 : rule.days)));
+  if (rule.taxDue) return new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth() + 1, 21)).toISOString().slice(0, 10);
+  return due.toISOString().slice(0, 10);
+}
+
+function budgetFinancialCents(value) { return Math.round((Number(value) || 0) * 100); }
+
+function budgetFinancialPlan(budget, client, postedDate, account, categories) {
+  const calculated = calculateBudgetRows(budget.rows || [], budget.settings || {});
+  const netCents = budgetFinancialCents(budgetTotals(calculated, budget.settings || {}).net);
+  const operation = categories.find((item) => item.active && normalizedMigrationText(item.name) === "operacao" && !item.parent_id);
+  if (!operation) throw new Error("Cadastre a categoria principal Operação antes de lançar no financeiro.");
+  const categoryFor = (name, type) => {
+    const normalized = normalizedMigrationText(name);
+    const category = categories.find((item) => item.active && item.parent_id === operation.id && normalizedMigrationText(item.name) === normalized && (item.category_type === type || item.category_type === "both"))
+      || (normalized === "operacao" && (operation.category_type === type || operation.category_type === "both") ? operation : null);
+    if (!category) throw new Error(`Cadastre a categoria ${name} dentro de Operação antes de lançar no financeiro.`);
+    return category.id;
+  };
+  const tags = [normalizeFinancialTag(`${budget.code || ""} ${budget.nobiliaId || ""}`), normalizeFinancialTag(String(client.name || "").slice(0, 20))].filter(Boolean);
+  const issueDate = budget.nobiliaDate || budgetFinancialLocalDate(budget.createdAt);
+  const base = { status: "pending", account_id: account.id, client_id: client.id, source_type: "sale", issue_date: issueDate, competence_date: postedDate, paid_at: null };
+  const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
+    const amount = budgetFinancialCents(calculated.reduce((sum, row) => sum + (Number(row[rule.key]) || 0), 0)) / 100;
+    return { key: rule.key, entry_type: "expense", description: formatFinancialDescription(rule.description), amount,
+      category_id: amount ? categoryFor(rule.category, "expense") : null, due_date: budgetFinancialDueDate(postedDate, rule), ...base };
+  });
+  const payments = (budget.cashPayments || []).map((payment, index) => {
+    const amount = budgetFinancialCents(parseMoney(payment.value)) / 100;
+    return { key: `income-${index + 1}`, entry_type: "income", description: formatFinancialDescription(`Pagamento à Vista - Parcela ${payment.parcel || index + 1}`), amount,
+      category_id: amount ? categoryFor("Receita Venda de Planejados", "income") : null, due_date: payment.dueDate || null, ...base };
+  });
+  const paymentCents = payments.reduce((sum, payment) => sum + budgetFinancialCents(payment.amount), 0);
+  if (paymentCents !== netCents) throw new Error(`O pagamento à vista deve somar o líquido do orçamento: ${BRL.format(netCents / 100)}. Valor informado: ${BRL.format(paymentCents / 100)}.`);
+  if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento de cada parcela à vista com valor maior que zero.");
+  return [...expenses, ...payments].map((item) => ({ ...item, notes: notesWithFinancialTags("", tags) }));
+}
+
+async function budgetFinancialEntryIds(budget) {
+  return Promise.all([...BUDGET_FINANCIAL_EXPENSES.map((rule) => rule.key), "income-1", "income-2", "income-3"].map(async (key) => [key, await deterministicMigrationUuid(`crm-budget-financial:${budget.id}:${key}`)]));
+}
+
+async function fetchBudgetFinancialEntries(ids) {
+  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.join(",")})&select=*`), () => ({ headers: supabaseHeaders() }));
+  if (!response.ok) throw new Error("Não foi possível consultar os lançamentos vinculados ao orçamento.");
+  return response.json();
+}
+
+async function syncBudgetFinancialEntries(budget, client, createIfMissing = false) {
+  if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("O financeiro precisa estar conectado ao banco para lançar o orçamento.");
+  const pairs = await budgetFinancialEntryIds(budget);
+  const idByKey = new Map(pairs);
+  const existing = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
+  if (!createIfMissing && !existing.length) return { created: 0, updated: 0, deleted: 0, paid: 0, linked: false };
+  if (!budgetFinancialStatusAllowed(budget.status)) return { created: 0, updated: 0, deleted: 0, paid: 0, linked: true, excluded: true };
+  await loadFinancialRegisters();
+  const account = state.financialAccounts.find((item) => item.active && item.account_type === "bank" && normalizedMigrationText(`${item.name} ${item.institution || ""}`).includes("mercado pago"));
+  if (!account) throw new Error("Cadastre e ative a conta bancária Mercado Pago antes de lançar no financeiro.");
+  const postedDate = budgetFinancialLocalDate();
+  const plan = budgetFinancialPlan(budget, client, postedDate, account, state.financialCategories);
+  const current = new Map(existing.map((entry) => [entry.id, entry]));
+  const result = { created: 0, updated: 0, deleted: 0, paid: 0, linked: true };
+  for (const item of plan) {
+    const id = idByKey.get(item.key);
+    const previous = current.get(id);
+    if (previous?.status === "paid") { result.paid++; continue; }
+    if (!item.amount) {
+      if (previous) {
+        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+        if (!response.ok) throw new Error(`Não foi possível excluir ${item.description} do financeiro.`);
+        result.deleted++;
+      }
+      continue;
+    }
+    const { key, ...payload } = item;
+    if (!previous) { await postFinancialRows("crm_financial_entries", [{ id, ...payload }]); result.created++; continue; }
+    const amountChanged = budgetFinancialCents(previous.amount) !== budgetFinancialCents(item.amount);
+    const notes = amountChanged ? notesWithFinancialTags(`${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim(), financialEntryTags(previous)) : previous.notes;
+    const changes = { amount: item.amount, category_id: item.category_id, description: item.description, notes };
+    if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description) continue;
+    await saveFinancialRecord("crm_financial_entries", id, changes);
+    result.updated++;
+  }
+  await loadFinancialRegisters();
+  return result;
 }
 
 async function saveBudget(options = {}) {
@@ -4913,6 +5031,7 @@ async function saveBudget(options = {}) {
   const sourceId = state.budgetSourceId;
   const budgetCode = budgetInputValue("budgetCode") || nextBudgetCode();
   const budgetStatus = configuredDocumentStatuses().includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
+  const previousBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   const budgetPayload = {
     id: state.budgetEditingId || `budget-${Date.now()}`,
     code: budgetCode,
@@ -4926,9 +5045,20 @@ async function saveBudget(options = {}) {
     orderMaterials: readOrderMaterialRows(),
     deliveryForecastAt: readOrderDeliveryForecastAt(),
     cashPayments: readCashPaymentRows(),
+    financialLaunchedAt: options.launchFinancial ? previousBudget?.financialLaunchedAt || new Date().toISOString() : previousBudget?.financialLaunchedAt || "",
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
   };
+  if (options.launchFinancial) {
+    if (!budgetFinancialStatusAllowed(budgetStatus)) { alert("O financeiro não pode ser lançado para orçamento Novo, Recusado ou Finalizado."); return false; }
+    if (!remoteDatabaseEnabled() || !currentUserId()) { alert("Conecte o CRM ao banco antes de lançar o financeiro."); return false; }
+    try {
+      await loadFinancialRegisters();
+      const account = state.financialAccounts.find((item) => item.active && item.account_type === "bank" && normalizedMigrationText(`${item.name} ${item.institution || ""}`).includes("mercado pago"));
+      if (!account) throw new Error("Cadastre e ative a conta bancária Mercado Pago antes de lançar no financeiro.");
+      budgetFinancialPlan(budgetPayload, client, budgetFinancialLocalDate(), account, state.financialCategories);
+    } catch (error) { alert(error.message); return false; }
+  }
   if (budgetCodeExists(budgetPayload.code, budgetIdentity(budgetPayload))) {
     alert(`Ja existe um orcamento com o numero ${budgetPayload.code}. Altere o ID do orcamento antes de salvar.`);
     document.querySelector("#budgetCode")?.focus();
@@ -4959,6 +5089,10 @@ async function saveBudget(options = {}) {
   state.selectedId = client.id;
   const changedIds = sourceId && sourceId !== client.id ? [client.id, sourceId] : [client.id];
   if (!(await saveClients(changedIds))) return false;
+  let financialResult = null;
+  let financialError = null;
+  try { if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true); }
+  catch (error) { financialError = error; }
   refreshEnvironmentCatalog(rows.map((row) => row.name));
   state.budgetEditing = false;
   state.budgetDirty = false;
@@ -4967,7 +5101,12 @@ async function saveBudget(options = {}) {
   state.budgetEditingId = null;
   state.budgetDraft = null;
   render();
-  if (!options.silent) alert("Orçamento salvo com sucesso.");
+  if (financialError) alert(`Orçamento salvo, mas não foi possível atualizar o financeiro: ${financialError.message}. Tente salvar novamente.`);
+  else if (financialResult?.paid) alert(`Orçamento salvo. ${financialResult.paid} transação(ões) paga(s)/recebida(s) não pode(m) ser alterada(s); os demais lançamentos foram atualizados.`);
+  else if (financialResult?.excluded) alert("Orçamento salvo. Os lançamentos financeiros existentes foram mantidos porque este status não permite lançar no financeiro.");
+  else if (options.launchFinancial) alert(`Financeiro lançado: ${financialResult.created} novo(s), ${financialResult.updated} atualizado(s) e ${financialResult.deleted} excluído(s).`);
+  else if (!options.silent) alert("Orçamento salvo com sucesso.");
+  return true;
 }
 
 async function deleteCurrentBudget() {
@@ -6992,6 +7131,14 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", async (event
     button.disabled = false;
     button.textContent = originalLabel;
   }
+});
+document.querySelector("#budgetLaunchFinancialBtn")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  const label = button.textContent;
+  button.textContent = "Lançando...";
+  try { await saveBudget({ launchFinancial: true, silent: true }); }
+  finally { button.disabled = false; button.textContent = label; }
 });
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
 [

@@ -2517,6 +2517,8 @@ body[data-view="order"] .budget-table {
   line-height: 1;
 }
 
+.budget-financial-button { white-space: nowrap; }
+
 .budget-action-button.danger {
   border-color: rgba(244, 63, 104, 0.62);
   color: #b42343;
@@ -2580,7 +2582,7 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-editor-header .header-actions {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .budget-editor-header .button {
