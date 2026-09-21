@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="referrer" content="no-referrer" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=106" />
+    <link rel="stylesheet" href="styles.css?v=107" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -357,7 +357,6 @@
                 <button class="button secondary budget-action-button" id="budgetImportPromobBtn" type="button" aria-label="Importar XML do Promob" title="Importar XML do Promob">📥</button>
                 <button class="button secondary budget-action-button" id="budgetPrintOrderBtn" type="button" aria-label="Gerar pedido" title="Gerar pedido">🤝</button>
                 <button class="button secondary budget-action-button" id="budgetPrintQuoteBtn" type="button" aria-label="Gerar orçamento" title="Gerar orçamento">🧾</button>
-                <button class="button secondary budget-financial-button" id="budgetLaunchFinancialBtn" type="button" hidden>Lançar Financeiro</button>
                 <button class="button secondary budget-action-button danger" id="budgetDeleteBtn" type="button" aria-label="Excluir orçamento" title="Excluir orçamento">🗑</button>
                 <button class="button primary budget-action-button" id="budgetSaveBtn" type="button" aria-label="Salvar orçamento" title="Salvar orçamento">💾</button>
               </div>
@@ -474,7 +473,7 @@
                       <th><label>Montagem (%)<input id="budgetAssemblyRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>LELA (%)<input id="budgetLelaRate" type="number" min="0" max="100" step="0.01" /></label></th>
                       <th><label>IRIS (%)<input id="budgetIrisRate" type="number" min="0" max="100" step="0.01" /></label></th>
-                      <th><label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label></th>
+                      <th><div class="budget-tax-actions"><label>Impostos (%)<input id="budgetTaxRate" type="number" min="0" max="100" step="0.01" /></label><button class="button secondary budget-financial-button" id="budgetLaunchFinancialBtn" type="button" hidden>Lançar Financeiro</button></div></th>
                       <th class="budget-daily-field"><label>Qtd diária<input id="budgetDailyQuantity" type="number" min="0" step="0.01" /></label></th>
                       <th class="budget-daily-field" data-budget-column="net"><label>Vr diária<input id="budgetDailyValue" class="money-input" inputmode="decimal" /></label></th>
                       <th class="budget-daily-field"><label>Total diária<input id="budgetDailyTotal" readonly /></label></th>

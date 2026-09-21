@@ -2517,7 +2517,9 @@ body[data-view="order"] .budget-table {
   line-height: 1;
 }
 
-.budget-financial-button { white-space: nowrap; }
+.budget-tax-actions { display: flex; align-items: end; gap: 8px; }
+.budget-tax-actions label { min-width: 105px; }
+.budget-financial-button { min-height: 26px; padding: 0 10px; font-size: 11px; white-space: nowrap; }
 
 .budget-action-button.danger {
   border-color: rgba(244, 63, 104, 0.62);
@@ -2582,7 +2584,7 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-editor-header .header-actions {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .budget-editor-header .button {

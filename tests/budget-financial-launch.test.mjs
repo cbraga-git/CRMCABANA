@@ -42,6 +42,8 @@ function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + N
 
 test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   assert.match(html, /id="budgetLaunchFinancialBtn"[^>]*>Lançar Financeiro/);
+  assert.match(html, /class="budget-tax-actions"[\s\S]*?id="budgetTaxRate"[\s\S]*?id="budgetLaunchFinancialBtn"/);
+  assert.equal(html.indexOf('id="budgetLaunchFinancialBtn"') > html.indexOf('id="budgetTaxRate"'), true);
   const { plan, budgetFinancialDueDate } = planFor([
     { factoryFreight: 100, hardware: 30, release: 20, assembly: 40, lela: 10, iris: 5, tax: 12 },
     { factoryFreight: 25, hardware: 0, release: 0, assembly: 10, lela: 2, iris: 1, tax: 3 },
