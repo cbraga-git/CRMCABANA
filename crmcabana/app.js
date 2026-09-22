@@ -2272,7 +2272,7 @@ function renderFinancialEntries(view = state.view) {
     const categoryLabel = entry.entry_type === "transfer" ? "Transferência" : categories.get(entry.category_id) || "Sem categoria";
     const tags = financialEntryTags(entry);
     const tagList = tags.length ? `<div class="financial-entry-list-tags">${tags.map((tag) => `<span class="financial-entry-tag-chip"><span>${escapeHtml(tag)}</span></span>`).join("")}</div>` : "";
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
   }).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   const entryTable = elements.financialEntryRows.closest("table");
   if (!financialTableSorts.has(entryTable)) {
@@ -2387,14 +2387,15 @@ function resolveFinancialEntryAmount(showError = false) {
   return amount;
 }
 
-function openFinancialEntryDialog(entryId = null) {
+function openFinancialEntryDialog(entryId = null, duplicate = false) {
   if (!state.financialAccounts.some((item) => item.active)) { alert("Cadastre uma conta ativa antes de criar lançamentos."); return; }
   const entry = state.financialEntries.find((item) => item.id === entryId);
-  state.financialEditingEntryId = entry?.id || null;
+  if (entryId && !entry) { alert("Transação não encontrada. Atualize a lista e tente novamente."); return; }
+  state.financialEditingEntryId = duplicate ? null : entry?.id || null;
   elements.financialEntryForm.reset();
   fillFinancialEntryOptions();
   const today = new Date().toISOString().slice(0, 10);
-  document.querySelector("#financialEntryDialogTitle").textContent = entry ? "Editar lançamento" : "Novo lançamento";
+  document.querySelector("#financialEntryDialogTitle").textContent = duplicate ? "Duplicar lançamento" : entry ? "Editar lançamento" : "Novo lançamento";
   document.querySelector("#financialEntryType").value = entry?.entry_type || financialEntryViewType() || "expense";
   document.querySelector("#financialEntryStatus").value = entry?.status === "overdue" ? "pending" : entry?.status || "pending";
   document.querySelector("#financialEntryDescription").value = formatFinancialDescription(entry?.description);
@@ -6918,8 +6919,10 @@ elements.financialEntryRows?.addEventListener("click", (event) => {
     return;
   }
   const edit = event.target.closest("[data-edit-financial-entry]");
+  const duplicate = event.target.closest("[data-duplicate-financial-entry]");
   const remove = event.target.closest("[data-delete-financial-entry]");
   if (edit) { closeFinancialEntryMenus(); openFinancialEntryDialog(edit.dataset.editFinancialEntry); }
+  if (duplicate) { closeFinancialEntryMenus(); openFinancialEntryDialog(duplicate.dataset.duplicateFinancialEntry, true); }
   if (remove) { closeFinancialEntryMenus(); deleteFinancialRecord("crm_financial_entries", remove.dataset.deleteFinancialEntry, "este lançamento").then((deleted) => { if (deleted) renderFinancialEntries(); }).catch((error) => alert(error.message)); }
 });
 document.addEventListener("click", (event) => { if (!event.target.closest(".financial-entry-actions")) closeFinancialEntryMenus(); });
