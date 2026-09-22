@@ -1409,7 +1409,7 @@ async function deleteRemoteClient(clientId) {
 // changedIds identifica quais clientes tiveram dados alterados nesta operacao. Enviamos ao
 // banco apenas esses registros (nunca o array inteiro em memoria), para que uma sessao com
 // dados desatualizados de OUTROS clientes nunca sobrescreva o que outra sessao salvou.
-async function saveClients(changedIds = []) {
+async function saveClients(changedIds = [], options = {}) {
   state.clients = state.clients.map((client) => normalizeClientBudgetStatus(normalizeClientStatus(client)));
   localStorage.setItem(userStorageKey(), JSON.stringify(state.clients));
   if (!remoteDatabaseEnabled() || !currentUserId() || !changedIds.length) return true;
@@ -1429,6 +1429,22 @@ async function saveClients(changedIds = []) {
   } catch (error) {
     console.warn(error);
     if (error.conflict) {
+      if (options.onConflict) {
+        try {
+          const recovered = await options.onConflict(error);
+          if (recovered) {
+            markPendingSyncIds(changedIds, false);
+            localStorage.setItem(userStorageKey(), JSON.stringify(state.clients));
+            updateSyncIndicator();
+            return true;
+          }
+        } catch (recoveryError) {
+          console.warn(recoveryError);
+          alert(recoveryError.message);
+          updateSyncIndicator();
+          return false;
+        }
+      }
       alert(error.message);
     } else {
       markPendingSyncIds(changedIds, true);
@@ -5033,6 +5049,30 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   return result;
 }
 
+async function recoverBudgetSaveConflict(clientId, previousBudget, budgetPayload) {
+  const response = await authorizedFetch(supabaseEndpoint(`?id=eq.${encodeURIComponent(clientId)}&select=user_id,data,updated_at&limit=1`), () => ({ headers: supabaseHeaders() }));
+  if (!response.ok) throw new Error("Não foi possível buscar a versão mais recente do cadastro. O orçamento continua aberto com suas alterações.");
+  const [row] = await response.json();
+  if (!row?.data) throw new Error("O cadastro não existe mais no servidor. O orçamento continua aberto com suas alterações.");
+  const remoteClient = normalizeClientBudgetStatus(normalizeClientStatus({ ...row.data, _recordUserId: row.user_id, _remoteUpdatedAt: row.updated_at }));
+  const identity = budgetIdentity(budgetPayload);
+  const remoteBudgets = clientBudgetHistory(remoteClient);
+  const remoteBudget = remoteBudgets.find((budget) => budgetIdentity(budget) === identity);
+  if (previousBudget && (!remoteBudget || remoteBudget.updatedAt !== previousBudget.updatedAt)) {
+    throw new Error("Este mesmo orçamento foi alterado em outra aba, dispositivo ou por outro usuário. Suas alterações continuam abertas nesta tela; copie os dados necessários antes de decidir qual versão manter.");
+  }
+  if (remoteBudgets.some((budget) => budgetIdentity(budget) !== identity && normalizedBudgetCode(budget.code) === normalizedBudgetCode(budgetPayload.code))) {
+    throw new Error(`A versão mais recente já possui outro orçamento com o número ${budgetPayload.code}. Suas alterações continuam abertas nesta tela.`);
+  }
+  const existingIndex = remoteBudgets.findIndex((budget) => budgetIdentity(budget) === identity);
+  if (existingIndex >= 0) remoteBudgets[existingIndex] = budgetPayload;
+  else remoteBudgets.unshift(budgetPayload);
+  const mergedClient = { ...remoteClient, budget: budgetPayload, budgets: remoteBudgets };
+  await saveRemoteClient(mergedClient);
+  state.clients = state.clients.map((item) => item.id === clientId ? mergedClient : item);
+  return true;
+}
+
 async function saveBudget(options = {}) {
   const client = selectedBudgetClient();
   if (!isAdmin()) return;
@@ -5103,7 +5143,10 @@ async function saveBudget(options = {}) {
   );
   state.selectedId = client.id;
   const changedIds = sourceId && sourceId !== client.id ? [client.id, sourceId] : [client.id];
-  if (!(await saveClients(changedIds))) return false;
+  const conflictRecovery = changedIds.length === 1
+    ? { onConflict: () => recoverBudgetSaveConflict(client.id, previousBudget, budgetPayload) }
+    : {};
+  if (!(await saveClients(changedIds, conflictRecovery))) return false;
   let financialResult = null;
   let financialError = null;
   try { if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true); }
