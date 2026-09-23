@@ -4934,9 +4934,10 @@ const BUDGET_FINANCIAL_EXPENSES = [
   { key: "factoryFreight", description: "Fábrica + Frete", category: "Fabrica", days: 5 },
   { key: "hardware", description: "Ferragens", category: "Insumos", days: 40 },
   { key: "release", description: "Liberação", category: "Operação", days: 40 },
-  { key: "assembly", description: "Montagem", category: "Montagem", days: 40 },
-  { key: "lela", description: "Lela", category: "Comissão Lela", finalPaymentMonth: true },
-  { key: "iris", description: "Iris", category: "Comissão Iris", finalPaymentMonth: true },
+  { key: "assembly", sourceKey: "assembly", description: "Montagem - Início", category: "Montagem", days: 40, splitPart: 1, assemblyDateField: "assemblyStartDate", syncDueDate: true },
+  { key: "assemblyFinal", sourceKey: "assembly", description: "Montagem - Final", category: "Montagem", days: 40, splitPart: 2, assemblyDateField: "assemblyEndDate", syncDueDate: true },
+  { key: "lela", description: "Lela", category: "Comissão Lela", finalPaymentMonth: true, syncDueDate: true },
+  { key: "iris", description: "Iris", category: "Comissão Iris", finalPaymentMonth: true, syncDueDate: true },
   { key: "tax", description: "Impostos", category: "Impostos", taxDue: true },
 ];
 
@@ -4990,10 +4991,16 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories) {
   if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento de cada parcela à vista com valor maior que zero.");
   const finalPaymentDate = payments.filter((payment) => payment.amount > 0).map((payment) => payment.due_date).sort().at(-1);
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
-    const amount = budgetFinancialCents(calculated.reduce((sum, row) => sum + (Number(row[rule.key]) || 0), 0)) / 100;
+    const sourceKey = rule.sourceKey || rule.key;
+    const totalCents = budgetFinancialCents(calculated.reduce((sum, row) => sum + (Number(row[sourceKey]) || 0), 0));
+    const amountCents = rule.splitPart === 1 ? Math.floor(totalCents / 2) : rule.splitPart === 2 ? totalCents - Math.floor(totalCents / 2) : totalCents;
+    const amount = amountCents / 100;
+    const dueDate = rule.assemblyDateField
+      ? budget.settings?.[rule.assemblyDateField] || budgetFinancialDueDate(postedDate, rule)
+      : rule.finalPaymentMonth ? budgetFinancialMonthEnd(finalPaymentDate) : budgetFinancialDueDate(postedDate, rule);
     return { key: rule.key, entry_type: "expense", description: formatFinancialDescription(rule.description), amount,
       category_id: amount ? categoryFor(rule.category, "expense") : null,
-      due_date: rule.finalPaymentMonth ? budgetFinancialMonthEnd(finalPaymentDate) : budgetFinancialDueDate(postedDate, rule), ...base };
+      due_date: dueDate, ...base };
   });
   return [...expenses, ...payments].map((item) => ({ ...item, notes: notesWithFinancialTags("", tags) }));
 }
@@ -5021,8 +5028,14 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   const postedDate = budgetFinancialLocalDate();
   const plan = budgetFinancialPlan(budget, client, postedDate, account, state.financialCategories);
   const current = new Map(existing.map((entry) => [entry.id, entry]));
+  const originalAssembly = current.get(idByKey.get("assembly"));
+  const plannedAssembly = plan.find((item) => item.key === "assembly");
+  const legacyPaidAssembly = originalAssembly?.status === "paid"
+    && !current.has(idByKey.get("assemblyFinal"))
+    && budgetFinancialCents(originalAssembly.amount) !== budgetFinancialCents(plannedAssembly?.amount);
   const result = { created: 0, updated: 0, deleted: 0, paid: 0, linked: true };
   for (const item of plan) {
+    if (item.key === "assemblyFinal" && legacyPaidAssembly) continue;
     const id = idByKey.get(item.key);
     const previous = current.get(id);
     if (previous?.status === "paid") { result.paid++; continue; }
@@ -5040,7 +5053,7 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     const noteText = amountChanged ? `${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim() : financialEntryNotes(previous);
     const notes = notesWithFinancialTags(noteText, [...financialEntryTags(previous), ...financialEntryTags(item)]);
     const changes = { amount: item.amount, category_id: item.category_id, description: item.description, notes };
-    if (item.key === "lela" || item.key === "iris") changes.due_date = item.due_date;
+    if (BUDGET_FINANCIAL_EXPENSES.find((rule) => rule.key === item.key)?.syncDueDate) changes.due_date = item.due_date;
     if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description && previous.notes === changes.notes && (!Object.hasOwn(changes, "due_date") || previous.due_date === changes.due_date)) continue;
     await saveFinancialRecord("crm_financial_entries", id, changes);
     result.updated++;

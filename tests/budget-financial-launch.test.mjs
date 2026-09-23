@@ -21,7 +21,7 @@ const categories = [
   ].map(([name, category_type], index) => ({ id: `category-${index}`, name, parent_id: "operation", category_type, active: true })),
 ];
 
-function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + Number(payment.value || 0), 0), contact = "") {
+function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + Number(payment.value || 0), 0), contact = "", settings = {}) {
   const context = {
     calculateBudgetRows: (value) => value,
     budgetTotals: () => ({ net }),
@@ -35,7 +35,7 @@ function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + N
   const { budgetFinancialPlan, budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed } = runInNewContext(
     `${app.slice(statusStart, statusEnd)}\n${app.slice(start, end)}\n({ budgetFinancialPlan, budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed })`, context,
   );
-  const budget = { id: "budget-1", code: "123", nobiliaId: "N-8", nobiliaDate: "2026-09-10", createdAt: "2026-09-01T12:00:00Z", rows, settings: {}, cashPayments: payments };
+  const budget = { id: "budget-1", code: "123", nobiliaId: "N-8", nobiliaDate: "2026-09-10", createdAt: "2026-09-01T12:00:00Z", rows, settings, cashPayments: payments };
   const client = { id: "client-1", name: "Maria de Oliveira", contact };
   return { plan: () => budgetFinancialPlan(budget, client, "2026-09-21", { id: "mercado" }, categories), budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed };
 }
@@ -47,11 +47,14 @@ test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   const { plan, budgetFinancialDueDate } = planFor([
     { factoryFreight: 100, hardware: 30, release: 20, assembly: 40, lela: 10, iris: 5, tax: 12 },
     { factoryFreight: 25, hardware: 0, release: 0, assembly: 10, lela: 2, iris: 1, tax: 3 },
-  ], [{ parcel: "1", value: "100", dueDate: "2026-09-25" }, { parcel: "2", value: "150", dueDate: "2026-10-25" }, { parcel: "3", value: "0", dueDate: "2026-12-10" }], undefined, "Priscila Almeida");
+  ], [{ parcel: "1", value: "100", dueDate: "2026-09-25" }, { parcel: "2", value: "150", dueDate: "2026-10-25" }, { parcel: "3", value: "0", dueDate: "2026-12-10" }], undefined, "Priscila Almeida", { assemblyStartDate: "2026-11-03", assemblyEndDate: "2026-11-18" });
   const items = plan();
-  assert.equal(items.length, 10);
+  assert.equal(items.length, 11);
   assert.equal(items.find((item) => item.key === "factoryFreight").amount, 125);
-  assert.equal(items.find((item) => item.key === "assembly").amount, 50);
+  assert.equal(items.find((item) => item.key === "assembly").amount, 25);
+  assert.equal(items.find((item) => item.key === "assemblyFinal").amount, 25);
+  assert.equal(items.find((item) => item.key === "assembly").due_date, "2026-11-03");
+  assert.equal(items.find((item) => item.key === "assemblyFinal").due_date, "2026-11-18");
   assert.equal(items.find((item) => item.key === "factoryFreight").due_date, "2026-09-26");
   assert.equal(items.find((item) => item.key === "hardware").due_date, "2026-10-31");
   assert.equal(items.find((item) => item.key === "lela").due_date, "2026-10-31");
@@ -89,6 +92,18 @@ test("Lela e Iris seguem a ultima parcela positiva, mesmo fora de ordem", () => 
   assert.equal(budgetFinancialMonthEnd("2028-02-02"), "2028-02-29");
 });
 
+test("montagem é dividida em duas e usa 40 dias quando as datas não existem", () => {
+  const { plan } = planFor([{ assembly: 101.01 }], [{ value: "0", dueDate: "" }], 0);
+  const items = plan();
+  const start = items.find((item) => item.key === "assembly");
+  const end = items.find((item) => item.key === "assemblyFinal");
+  assert.equal(start.amount, 50.5);
+  assert.equal(end.amount, 50.51);
+  assert.equal(Math.round((start.amount + end.amount) * 100), 10101);
+  assert.equal(start.due_date, "2026-10-31");
+  assert.equal(end.due_date, "2026-10-31");
+});
+
 test("nao lanca status excluidos nem receitas divergentes do liquido", () => {
   const { plan, budgetFinancialStatusAllowed } = planFor([], [{ value: "100", dueDate: "2026-09-25" }], 101);
   assert.equal(budgetFinancialStatusAllowed("Novo"), false);
@@ -110,6 +125,7 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
     { id: "zero-id", amount: 10, status: "pending", notes: "anterior" },
     { id: "lela-id", amount: 20, status: "pending", notes: "anterior", category_id: "lela", description: "Lela", due_date: "2026-10-31" },
     { id: "iris-id", amount: 20, status: "pending", notes: "anterior", category_id: "iris", description: "Iris", due_date: "2026-11-30" },
+    { id: "assembly-id", amount: 100, status: "paid", notes: "pago", category_id: "assembly", description: "Montagem" },
   ];
   const plan = [
     { key: "factoryFreight", amount: 120, category_id: "factory", description: "Fábrica + Frete" },
@@ -118,10 +134,12 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
     { key: "income-1", amount: 250, category_id: "income", description: "Pagamento à Vista" },
     { key: "lela", amount: 20, category_id: "lela", description: "Lela", due_date: "2026-11-30", notes: "contact-tag" },
     { key: "iris", amount: 20, category_id: "iris", description: "Iris", due_date: "2026-11-30", notes: "contact-tag" },
+    { key: "assembly", amount: 50, category_id: "assembly", description: "Montagem - Início", due_date: "2026-10-01" },
+    { key: "assemblyFinal", amount: 50, category_id: "assembly", description: "Montagem - Final", due_date: "2026-10-15" },
   ];
   const context = {
     remoteDatabaseEnabled: () => true, currentUserId: () => "user",
-    budgetFinancialEntryIds: async () => [["factoryFreight", "paid-id"], ["hardware", "pending-id"], ["tax", "zero-id"], ["income-1", "new-id"], ["lela", "lela-id"], ["iris", "iris-id"]],
+    budgetFinancialEntryIds: async () => [["factoryFreight", "paid-id"], ["hardware", "pending-id"], ["tax", "zero-id"], ["income-1", "new-id"], ["lela", "lela-id"], ["iris", "iris-id"], ["assembly", "assembly-id"], ["assemblyFinal", "assembly-final-id"]],
     fetchBudgetFinancialEntries: async () => existing,
     budgetFinancialStatusAllowed: () => true,
     loadFinancialRegisters: async () => {},
@@ -129,6 +147,10 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
     normalizedMigrationText: (value) => String(value).toLowerCase(),
     budgetFinancialLocalDate: () => "2026-09-21",
     budgetFinancialPlan: () => plan,
+    BUDGET_FINANCIAL_EXPENSES: [
+      { key: "assembly", syncDueDate: true }, { key: "assemblyFinal", syncDueDate: true },
+      { key: "lela", syncDueDate: true }, { key: "iris", syncDueDate: true },
+    ],
     budgetFinancialCents: (value) => Math.round(Number(value) * 100),
     financialEntryNotes: (entry) => entry.notes,
     financialEntryTags: (entry) => entry.notes === "contact-tag" ? ["contact-tag"] : ["tag"],
@@ -142,7 +164,7 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
   };
   const sync = runInNewContext(`${app.slice(syncStart, syncEnd)}\nsyncBudgetFinancialEntries`, context);
   const result = await sync({ id: "budget", code: "123", status: "Pedido" }, { id: "client" }, true);
-  assert.equal(result.paid, 1);
+  assert.equal(result.paid, 2);
   assert.equal(result.updated, 3);
   assert.equal(result.deleted, 1);
   assert.equal(result.created, 1);
@@ -155,4 +177,5 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
   assert.match(writes.find((write) => write.id === "iris-id").payload.notes, /contact-tag/);
   assert.equal(writes.find((write) => write.id.includes("zero-id")).method, "DELETE");
   assert.equal(writes.find((write) => write.id === "new-id").method, "POST");
+  assert.equal(writes.some((write) => write.id === "assembly-final-id"), false);
 });
