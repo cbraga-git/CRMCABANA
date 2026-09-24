@@ -34,6 +34,13 @@ create table if not exists public.crm_budget_statuses (
   check (applies_to_budget or applies_to_order)
 );
 
+create table if not exists public.crm_presence (
+  session_id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  email text not null default '',
+  last_seen timestamptz not null default now()
+);
+
 insert into public.crm_budget_statuses (name, applies_to_budget, applies_to_order, sort_order)
 values
   ('Novo Orçamento', true, false, 0), ('Negociação', true, false, 1),
@@ -69,6 +76,7 @@ alter table public.crm_clients enable row level security;
 alter table public.crm_profiles enable row level security;
 alter table public.crm_audit_logs enable row level security;
 alter table public.crm_budget_statuses enable row level security;
+alter table public.crm_presence enable row level security;
 
 create or replace function public.crm_is_admin()
 returns boolean
@@ -125,6 +133,10 @@ drop policy if exists "crm_profiles_update_admin" on public.crm_profiles;
 drop policy if exists "crm_audit_logs_select_admin" on public.crm_audit_logs;
 drop policy if exists "crm_audit_logs_insert_admin" on public.crm_audit_logs;
 drop policy if exists "crm_budget_statuses_select" on public.crm_budget_statuses;
+drop policy if exists "crm_presence_select" on public.crm_presence;
+drop policy if exists "crm_presence_insert_self" on public.crm_presence;
+drop policy if exists "crm_presence_update_self" on public.crm_presence;
+drop policy if exists "crm_presence_delete_self" on public.crm_presence;
 
 create policy "crm_clients_select"
 on public.crm_clients
@@ -175,6 +187,18 @@ with check (public.crm_is_admin());
 
 create policy "crm_budget_statuses_select" on public.crm_budget_statuses
 for select using (auth.uid() is not null);
+
+create policy "crm_presence_select" on public.crm_presence
+for select using (auth.uid() is not null);
+
+create policy "crm_presence_insert_self" on public.crm_presence
+for insert with check (auth.uid() = user_id);
+
+create policy "crm_presence_update_self" on public.crm_presence
+for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "crm_presence_delete_self" on public.crm_presence
+for delete using (auth.uid() = user_id);
 
 create or replace function public.crm_admin_replace_budget_statuses(statuses jsonb)
 returns void language plpgsql security definer set search_path = public as $$

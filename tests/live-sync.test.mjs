@@ -26,7 +26,7 @@ test("preserva edições locais ainda não salvas durante a atualização", () =
 test("exibe o estado da conexão somente quando a sincronização remota está ativa", () => {
   assert.match(html, /id="liveSyncChip" hidden/);
   assert.match(html, /id="liveSyncStatus">Online/);
-  assert.match(html, /app\.js\?v=161/);
+  assert.match(html, /app\.js\?v=162/);
   assert.match(css, /\.live-sync-chip\[hidden\] \{ display: none; \}/);
   assert.match(app, /elements\.liveSyncChip\.hidden = !state\.session \|\| !remoteDatabaseEnabled\(\)/);
 });

@@ -11,6 +11,7 @@ const CLIENT_COLUMNS_WIDTH_KEY = "movelcrm-client-column-widths";
 const BUDGET_COLUMNS_WIDTH_KEY = "movelcrm-budget-column-widths";
 const BUDGET_STATUS_STORAGE_KEY = "movelcrm-budget-statuses";
 const APP_PREFERENCES_KEY = "movelcrm-app-preferences";
+const PRESENCE_SESSION_KEY = "movelcrm-presence-session";
 const DEFAULT_APP_PREFERENCES = {
   budgetCodeSeparator: " - ",
   showStatusCounts: true,
@@ -215,6 +216,7 @@ const state = {
   financialEntryMonthFilter: new Date().toISOString().slice(0, 7),
   financialEntryFilters: { search: "", type: "", accountId: "__bank_accounts__", categoryId: "", status: "", startDate: "", endDate: "" },
   financialEntryShowDailyBalance: true,
+  onlineUsers: [],
 };
 
 const elements = {
@@ -232,6 +234,9 @@ const elements = {
   syncPendingChip: document.querySelector("#syncPendingChip"),
   liveSyncChip: document.querySelector("#liveSyncChip"),
   liveSyncStatus: document.querySelector("#liveSyncStatus"),
+  onlineUsersPanel: document.querySelector("#onlineUsersPanel"),
+  onlineUsersCount: document.querySelector("#onlineUsersCount"),
+  onlineUsersList: document.querySelector("#onlineUsersList"),
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
@@ -345,6 +350,15 @@ function authEnabled() {
 
 function currentUserId() {
   return state.session?.user?.id || null;
+}
+
+function currentPresenceSessionId() {
+  let sessionId = sessionStorage.getItem(PRESENCE_SESSION_KEY);
+  if (!sessionId) {
+    sessionId = crypto.randomUUID ? crypto.randomUUID() : `presence-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    sessionStorage.setItem(PRESENCE_SESSION_KEY, sessionId);
+  }
+  return sessionId;
 }
 
 function currentAccessToken() {
@@ -1101,6 +1115,7 @@ async function signIn(email, password) {
 
 async function signOut() {
   const signingOutUserId = currentUserId();
+  await removeCurrentPresence();
   if (state.session?.access_token) {
     try {
       await fetch(supabaseAuthEndpoint("/logout"), {
@@ -1118,6 +1133,8 @@ async function signOut() {
   clearSyncedBrowserCache(signingOutUserId);
   state.userRole = "user";
   state.userProfiles = [];
+  state.onlineUsers = [];
+  sessionStorage.removeItem(PRESENCE_SESSION_KEY);
   state.clients = [];
   state.selectedId = null;
   if (elements.budgetNavItem) elements.budgetNavItem.hidden = true;
@@ -5832,6 +5849,7 @@ const BACKUP_TABLES = [
   { name: CONFIG.profilesTable || "crm_profiles", key: "id" },
   { name: "crm_audit_logs", key: "id" },
   { name: "crm_budget_statuses", key: "name" },
+  { name: "crm_presence", key: "session_id" },
   { name: "crm_financial_accounts", key: "id" },
   { name: "crm_financial_categories", key: "id" },
   { name: "crm_financial_cost_centers", key: "id" },
@@ -6637,8 +6655,13 @@ function updateSyncIndicator() {
 }
 
 const LIVE_SYNC_INTERVAL_MS = 5000;
+const PRESENCE_HEARTBEAT_INTERVAL_MS = 15000;
+const PRESENCE_ONLINE_WINDOW_MS = 45000;
 let liveSyncTimer = null;
 let liveSyncRunning = false;
+let lastPresenceHeartbeat = 0;
+let presenceAvailable = true;
+let presenceRetryAt = 0;
 
 function setLiveSyncStatus(status) {
   if (!elements.liveSyncChip || !elements.liveSyncStatus) return;
@@ -6646,6 +6669,75 @@ function setLiveSyncStatus(status) {
   elements.liveSyncChip.classList.toggle("syncing", status === "syncing");
   elements.liveSyncChip.classList.toggle("offline", status === "offline");
   elements.liveSyncStatus.textContent = status === "syncing" ? "Atualizando..." : status === "offline" ? "Sem conexão" : "Online";
+}
+
+function renderOnlineUsers() {
+  if (!elements.onlineUsersPanel || !elements.onlineUsersList || !elements.onlineUsersCount) return;
+  elements.onlineUsersPanel.hidden = !presenceAvailable || !state.session || !state.onlineUsers.length;
+  elements.onlineUsersCount.textContent = String(state.onlineUsers.length);
+  elements.onlineUsersList.replaceChildren();
+  state.onlineUsers.forEach((user) => {
+    const row = document.createElement("div");
+    row.className = "online-user";
+    row.title = user.email;
+    const dot = document.createElement("span");
+    dot.className = "online-user-dot";
+    dot.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.className = "online-user-name";
+    name.textContent = `${user.email.split("@")[0] || "Usuario"}${user.user_id === currentUserId() ? " (voce)" : ""}`;
+    row.append(dot, name);
+    elements.onlineUsersList.append(row);
+  });
+}
+
+async function syncPresence() {
+  if (Date.now() < presenceRetryAt || !state.session || !remoteDatabaseEnabled() || !currentUserId()) return;
+  try {
+    const now = Date.now();
+    if (now - lastPresenceHeartbeat >= PRESENCE_HEARTBEAT_INTERVAL_MS) {
+      const heartbeat = await authorizedFetch(supabaseTableEndpoint("crm_presence", "?on_conflict=session_id"), () => ({
+        method: "POST",
+        headers: supabaseHeaders("resolution=merge-duplicates,return=minimal"),
+        body: JSON.stringify({
+          session_id: currentPresenceSessionId(),
+          user_id: currentUserId(),
+          email: state.session?.user?.email || "",
+          last_seen: new Date(now).toISOString(),
+        }),
+      }));
+      if (!heartbeat.ok) throw new Error(`presence_heartbeat_${heartbeat.status}`);
+      lastPresenceHeartbeat = now;
+    }
+    const threshold = new Date(now - PRESENCE_ONLINE_WINDOW_MS).toISOString();
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_presence", `?last_seen=gte.${encodeURIComponent(threshold)}&select=user_id,email,last_seen&order=last_seen.desc`), () => ({ headers: supabaseHeaders() }));
+    if (!response.ok) throw new Error(`presence_list_${response.status}`);
+    const rows = await response.json();
+    const uniqueUsers = new Map();
+    rows.forEach((row) => { if (!uniqueUsers.has(row.user_id)) uniqueUsers.set(row.user_id, row); });
+    state.onlineUsers = Array.from(uniqueUsers.values());
+    presenceAvailable = true;
+    presenceRetryAt = 0;
+    renderOnlineUsers();
+  } catch (error) {
+    presenceAvailable = false;
+    presenceRetryAt = Date.now() + 30000;
+    state.onlineUsers = [];
+    renderOnlineUsers();
+    console.warn("Lista de usuarios conectados indisponivel. Atualize o schema do Supabase.", error);
+  }
+}
+
+async function removeCurrentPresence() {
+  if (!presenceAvailable || !state.session || !remoteDatabaseEnabled() || !currentUserId()) return;
+  try {
+    await authorizedFetch(supabaseTableEndpoint("crm_presence", `?session_id=eq.${encodeURIComponent(currentPresenceSessionId())}`), () => ({
+      method: "DELETE",
+      headers: supabaseHeaders(),
+    }));
+  } catch (error) {
+    console.warn(error);
+  }
 }
 
 function liveClientSignature(clients = state.clients) {
@@ -6671,6 +6763,7 @@ async function syncLiveData() {
   if (liveSyncRunning || document.hidden || !state.session || !remoteDatabaseEnabled() || !currentUserId()) return false;
   liveSyncRunning = true;
   setLiveSyncStatus("syncing");
+  await syncPresence();
   let clientsChanged = false;
   let financialChanged = false;
   try {
@@ -6707,6 +6800,7 @@ async function syncLiveData() {
 function startLiveSync() {
   if (liveSyncTimer) window.clearInterval(liveSyncTimer);
   setLiveSyncStatus("online");
+  syncPresence();
   liveSyncTimer = window.setInterval(syncLiveData, LIVE_SYNC_INTERVAL_MS);
 }
 

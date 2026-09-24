@@ -63,7 +63,7 @@ function readStoredZip(bytes) {
 test("backup inclui todas as tabelas publicas do CRM", () => {
   const { BACKUP_TABLES } = backupContext();
   const declaredTables = [...`${schema}\n${financialSchema}`.matchAll(/create table if not exists public\.(crm_\w+)/g)].map((match) => match[1]);
-  assert.equal(declaredTables.length, 12);
+  assert.equal(declaredTables.length, 13);
   assert.deepEqual(Array.from(BACKUP_TABLES, ({ name }) => name).sort(), declaredTables.sort());
 });
 
