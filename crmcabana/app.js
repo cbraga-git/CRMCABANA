@@ -230,6 +230,8 @@ const elements = {
   logoutBtn: document.querySelector("#logoutBtn"),
   sidebarToggle: document.querySelector("#sidebarToggle"),
   syncPendingChip: document.querySelector("#syncPendingChip"),
+  liveSyncChip: document.querySelector("#liveSyncChip"),
+  liveSyncStatus: document.querySelector("#liveSyncStatus"),
   userName: document.querySelector("#userName"),
   userEmail: document.querySelector("#userEmail"),
   usersNavItem: document.querySelector("#usersNavItem"),
@@ -6634,6 +6636,84 @@ function updateSyncIndicator() {
   if (elements.syncPendingChip) elements.syncPendingChip.hidden = !hasPendingSync();
 }
 
+const LIVE_SYNC_INTERVAL_MS = 5000;
+let liveSyncTimer = null;
+let liveSyncRunning = false;
+
+function setLiveSyncStatus(status) {
+  if (!elements.liveSyncChip || !elements.liveSyncStatus) return;
+  elements.liveSyncChip.hidden = !state.session || !remoteDatabaseEnabled();
+  elements.liveSyncChip.classList.toggle("syncing", status === "syncing");
+  elements.liveSyncChip.classList.toggle("offline", status === "offline");
+  elements.liveSyncStatus.textContent = status === "syncing" ? "Atualizando..." : status === "offline" ? "Sem conexão" : "Online";
+}
+
+function liveClientSignature(clients = state.clients) {
+  return clients.map((client) => `${client.id}:${client._remoteUpdatedAt || ""}`).sort().join("|");
+}
+
+function liveFinancialSignature() {
+  return [state.financialAccounts, state.financialCategories, state.financialEntries, state.financialImports]
+    .flatMap((rows, group) => rows.map((row) => `${group}:${row.id}:${row.updated_at || row.created_at || ""}`))
+    .sort().join("|");
+}
+
+function liveClientRefreshBlocked() {
+  return hasPendingSync() || state.projectDirty || state.budgetDirty || state.clientDialogDirty;
+}
+
+function liveFinancialRefreshBlocked() {
+  return [elements.financialAccountDialog, elements.financialCategoryDialog, elements.financialEntryDialog, document.querySelector("#financialTagManagerDialog")]
+    .some((dialog) => dialog?.open);
+}
+
+async function syncLiveData() {
+  if (liveSyncRunning || document.hidden || !state.session || !remoteDatabaseEnabled() || !currentUserId()) return false;
+  liveSyncRunning = true;
+  setLiveSyncStatus("syncing");
+  let clientsChanged = false;
+  let financialChanged = false;
+  try {
+    if (!liveClientRefreshBlocked()) {
+      const previousSignature = liveClientSignature();
+      const remoteClients = await loadRemoteClients();
+      if (liveClientSignature(remoteClients) !== previousSignature) {
+        const selectedId = state.selectedId;
+        state.clients = remoteClients;
+        state.selectedId = remoteClients.some((client) => client.id === selectedId) ? selectedId : remoteClients[0]?.id || null;
+        localStorage.setItem(userStorageKey(), JSON.stringify(state.clients));
+        refreshEnvironmentCatalog();
+        clientsChanged = true;
+      }
+    }
+    if (isAdmin() && !liveFinancialRefreshBlocked()) {
+      const previousSignature = liveFinancialSignature();
+      await loadFinancialRegisters();
+      financialChanged = liveFinancialSignature() !== previousSignature;
+    }
+    if (clientsChanged) render();
+    if (financialChanged && isFinanceModuleView(state.view)) renderFinanceModuleView(state.view);
+    setLiveSyncStatus("online");
+    return clientsChanged || financialChanged;
+  } catch (error) {
+    console.warn("Atualização automática indisponível.", error);
+    setLiveSyncStatus("offline");
+    return false;
+  } finally {
+    liveSyncRunning = false;
+  }
+}
+
+function startLiveSync() {
+  if (liveSyncTimer) window.clearInterval(liveSyncTimer);
+  setLiveSyncStatus("online");
+  liveSyncTimer = window.setInterval(syncLiveData, LIVE_SYNC_INTERVAL_MS);
+}
+
+document.addEventListener("visibilitychange", () => { if (!document.hidden) syncLiveData(); });
+window.addEventListener("focus", syncLiveData);
+window.addEventListener("online", syncLiveData);
+
 function render() {
   renderStatusFilters(elements.dashboardFilters, state.dashboardStatus, "dashboard");
   renderStatusFilters(elements.clientFilters, state.clientStatus, "clients");
@@ -7438,6 +7518,7 @@ async function startApp() {
   state.view = initialView;
   await showView(initialView);
   render();
+  startLiveSync();
   return true;
 }
 

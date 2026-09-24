@@ -355,6 +355,12 @@ button {
   padding-top: 0;
 }
 
+.live-sync-chip { display: flex; align-items: center; gap: 7px; margin-top: 6px; border-top: 0; padding-top: 0; }
+.live-sync-chip[hidden] { display: none; }
+.live-sync-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, .14); }
+.live-sync-chip.syncing .live-sync-dot { background: #facc15; box-shadow: 0 0 0 3px rgba(250, 204, 21, .14); }
+.live-sync-chip.offline .live-sync-dot { background: #fb7185; box-shadow: 0 0 0 3px rgba(251, 113, 133, .14); }
+
 .sync-pending-chip strong {
   color: #ffb020;
 }
