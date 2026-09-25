@@ -216,6 +216,8 @@ const state = {
   financialEntryMonthFilter: new Date().toISOString().slice(0, 7),
   financialEntryFilters: { search: "", type: "", accountId: "__bank_accounts__", categoryId: "", status: "", startDate: "", endDate: "" },
   financialEntryShowDailyBalance: true,
+  financialEntryPage: 1,
+  financialEntryPageSize: 20,
   onlineUsers: [],
 };
 
@@ -2113,6 +2115,7 @@ function stepFinancialEntryMonth(step) {
   const [year, month] = base.split("-").map(Number);
   const target = new Date(year, month - 1 + step, 1);
   state.financialEntryMonthFilter = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}`;
+  state.financialEntryPage = 1;
   renderFinancialEntries();
 }
 
@@ -2157,7 +2160,10 @@ function applyFinancialTableSort(table) {
   if (!sort || !body) return;
   body.querySelectorAll(".financial-daily-balance-row, .financial-filter-balance-row").forEach((row) => row.remove());
   const rows = Array.from(body.rows);
-  if (rows.length < 2 || rows.some((row) => row.querySelector(".empty-table-cell"))) return;
+  if (rows.length < 2 || rows.some((row) => row.querySelector(".empty-table-cell"))) {
+    if (table.classList.contains("financial-entry-table")) renderFinancialEntryPagination(table);
+    return;
+  }
   rows.map((row, position) => ({ row, position, value: financialSortCellValue(row.cells[sort.column], sort.type) }))
     .sort((first, second) => {
       if (table.classList.contains("financial-entry-table") && sort.column !== 1) {
@@ -2168,7 +2174,34 @@ function applyFinancialTableSort(table) {
       return result ? result * (sort.direction === "asc" ? 1 : -1) : first.position - second.position;
     })
     .forEach(({ row }) => body.appendChild(row));
-  if (table.classList.contains("financial-entry-table")) renderFinancialDailyBalanceBreaks(table);
+  if (table.classList.contains("financial-entry-table")) renderFinancialEntryPagination(table);
+}
+
+function financialEntryPageBounds(total, page, pageSize) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.min(Math.max(1, page), pages);
+  const start = (current - 1) * pageSize;
+  return { current, pages, start, end: Math.min(start + pageSize, total) };
+}
+
+function renderFinancialEntryPagination(table) {
+  const rows = Array.from(table?.tBodies[0]?.rows || []).filter((row) => row.dataset.financialEntryId);
+  const bounds = financialEntryPageBounds(rows.length, state.financialEntryPage, state.financialEntryPageSize);
+  state.financialEntryPage = bounds.current;
+  rows.forEach((row, index) => { row.hidden = index < bounds.start || index >= bounds.end; });
+  const pagination = document.querySelector("#financialEntryPagination");
+  const summary = document.querySelector("#financialEntryPaginationSummary");
+  const status = document.querySelector("#financialEntryPaginationStatus");
+  if (pagination) {
+    pagination.hidden = rows.length <= state.financialEntryPageSize;
+    const previous = pagination.querySelector('[data-financial-entry-page="previous"]');
+    const next = pagination.querySelector('[data-financial-entry-page="next"]');
+    if (previous) previous.disabled = bounds.current === 1;
+    if (next) next.disabled = bounds.current === bounds.pages;
+  }
+  if (summary) summary.textContent = rows.length ? `Exibindo ${bounds.start + 1}–${bounds.end} de ${rows.length} transações` : "Nenhuma transação";
+  if (status) status.textContent = `Página ${bounds.current} de ${bounds.pages}`;
+  renderFinancialDailyBalanceBreaks(table);
 }
 
 function renderFinancialDailyBalanceBreaks(table) {
@@ -2177,11 +2210,12 @@ function renderFinancialDailyBalanceBreaks(table) {
   if (!body || state.view !== "financeTransactions") return;
   const filters = state.financialEntryFilters;
   const hasExplicitFilter = Boolean(filters.search || filters.type || (filters.accountId && filters.accountId !== FINANCIAL_BANK_ACCOUNTS_FILTER) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
-  const rows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
+  const allRows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
+  const rows = allRows.filter((row) => !row.hidden);
   const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
   if (hasExplicitFilter) {
     const accountId = state.financialEntryAccountFilter || filters.accountId;
-    const visibleIds = new Set(rows.map((row) => row.dataset.financialEntryId));
+    const visibleIds = new Set(allRows.map((row) => row.dataset.financialEntryId));
     const dailyMovements = new Map();
     state.financialEntries.filter((entry) => visibleIds.has(entry.id) && entry.status !== "cancelled").forEach((entry) => {
       const movement = financialAccountFilterMovement(entry, accountId, bankAccountIds);
@@ -2317,7 +2351,6 @@ function renderFinancialEntries(view = state.view) {
     entryTable.querySelector("thead th:nth-child(2)")?.setAttribute("aria-sort", "descending");
   }
   applyFinancialTableSort(entryTable);
-  renderFinancialDailyBalanceBreaks(entryTable);
 }
 
 function compareFinancialCategoryPriority(first, second) {
@@ -7032,7 +7065,7 @@ document.querySelector("#financialTagManagerList")?.addEventListener("keydown", 
 });
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
-document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; renderFinancialEntries(); });
+document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; state.financialEntryPage = 1; renderFinancialEntries(); });
 document.querySelector("#financialEntryShowDailyBalance")?.addEventListener("change", (event) => { state.financialEntryShowDailyBalance = event.target.checked; renderFinancialDailyBalanceBreaks(elements.financialEntryRows?.closest("table")); });
 document.querySelectorAll("[data-financial-month-step]").forEach((button) => button.addEventListener("click", () => stepFinancialEntryMonth(Number(button.dataset.financialMonthStep))));
 document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
@@ -7041,6 +7074,7 @@ document.querySelector("#financialEvolutionTableBtn")?.addEventListener("click",
 document.querySelector("#clearFinancialEntryFilter")?.addEventListener("click", () => {
   state.financialEntryAccountFilter = "";
   state.financialEntryMonthFilter = "";
+  state.financialEntryPage = 1;
   renderFinancialEntries("financeTransactions");
 });
 document.querySelector("#financialEntryFilters")?.addEventListener("input", (event) => {
@@ -7048,13 +7082,22 @@ document.querySelector("#financialEntryFilters")?.addEventListener("input", (eve
   const key = keys[event.target.id];
   if (!key || event.target.disabled) return;
   state.financialEntryFilters[key] = event.target.value;
+  state.financialEntryPage = 1;
   renderFinancialEntries();
 });
 document.querySelector("#clearFinancialEntryFilters")?.addEventListener("click", () => {
   state.financialEntryFilters = { search: "", type: "", accountId: FINANCIAL_BANK_ACCOUNTS_FILTER, categoryId: "", status: "", startDate: "", endDate: "" };
   state.financialEntryAccountFilter = "";
   state.financialEntryMonthFilter = currentFinancialMonth();
+  state.financialEntryPage = 1;
   renderFinancialEntries();
+});
+document.querySelector("#financialEntryPagination")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-financial-entry-page]");
+  if (!button || button.disabled) return;
+  state.financialEntryPage += button.dataset.financialEntryPage === "next" ? 1 : -1;
+  renderFinancialEntryPagination(elements.financialEntryRows?.closest("table"));
+  document.querySelector("#financialEntriesPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 elements.financialAccountForm?.addEventListener("submit", submitFinancialAccount);
 elements.financialCategoryForm?.addEventListener("submit", submitFinancialCategory);
@@ -7102,6 +7145,7 @@ elements.financialAccountRows?.addEventListener("click", (event) => {
     state.financialEntryFilters = { search: "", type: "", accountId: FINANCIAL_BANK_ACCOUNTS_FILTER, categoryId: "", status: "", startDate: "", endDate: "" };
     state.financialEntryAccountFilter = transactions.dataset.financialAccountTransactions;
     state.financialEntryMonthFilter = state.financialDashboardMonth;
+    state.financialEntryPage = 1;
     showView("financeTransactions");
   }
   if (expense) {
