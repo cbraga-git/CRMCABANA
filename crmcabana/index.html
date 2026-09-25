@@ -629,7 +629,7 @@
             <header><div><h2 id="financialEntriesTitle">Lançamentos</h2><p>Receitas, despesas e transferências financeiras.</p></div><div class="financial-month-navigator" aria-label="Navegar por mês"><button type="button" data-financial-month-step="-1" aria-label="Mês anterior">‹</button><label><span id="financialEntryMonthLabel">Mês</span><input id="financialEntryMonth" type="month" aria-label="Selecionar mês" /></label><button type="button" data-financial-month-step="1" aria-label="Próximo mês">›</button></div><button class="button primary" id="newFinancialEntryBtn" type="button">+ Novo lançamento</button></header>
             <div class="financial-entries-context" id="financialEntriesContext" hidden><span></span><button class="link-button" id="clearFinancialEntryFilter" type="button">Limpar filtro</button></div>
             <div class="financial-entry-filters" id="financialEntryFilters">
-              <label>Buscar<input id="financialEntryFilterSearch" type="search" placeholder="Descrição ou tag" /></label>
+              <label>Buscar<input id="financialEntryFilterSearch" type="search" placeholder="Descrição, observação ou tag" /></label>
               <label id="financialEntryTypeFilter">Tipo<select id="financialEntryFilterType"><option value="">Todos os tipos</option><option value="income">Receita</option><option value="expense">Despesa</option><option value="transfer">Transferência</option></select></label>
               <label>Conta<select id="financialEntryFilterAccount"><option value="">Todas as contas</option><option value="__bank_accounts__" selected>Contas bancárias</option></select></label>
               <label>Categoria<select id="financialEntryFilterCategory"><option value="">Todas as categorias</option></select></label>
@@ -639,7 +639,7 @@
               <button class="button secondary" id="clearFinancialEntryFilters" type="button">Limpar</button>
             </div>
             <div class="financial-entry-balance-controls" id="financialEntryBalanceControls"><label title="Sem filtros, mostra o saldo previsto das contas. Com filtros, mostra o acumulado dos lançamentos exibidos até cada dia."><input id="financialEntryShowDailyBalance" type="checkbox" checked /> Mostrar saldo do dia</label></div>
-            <div class="table-wrap"><table class="financial-entry-table" data-financial-sortable><thead><tr><th data-sort-type="text" aria-label="Status">Status</th><th data-sort-type="date">Vencimento</th><th data-sort-type="text">Descrição</th><th data-sort-type="text">Categoria</th><th data-sort-type="text">Conta</th><th data-sort-type="number">Valor</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
+            <div class="table-wrap"><table class="financial-entry-table" data-financial-sortable><thead><tr><th data-sort-type="text" aria-label="Status">Status</th><th data-sort-type="date">Vencimento</th><th data-sort-type="text">Descrição</th><th data-sort-type="text">Observações</th><th data-sort-type="text">Categoria</th><th data-sort-type="text">Conta</th><th data-sort-type="number">Valor</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
           </section>
 
           <section class="financial-register" id="financialImportPanel" hidden>

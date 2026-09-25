@@ -2197,7 +2197,7 @@ function renderFinancialDailyBalanceBreaks(table) {
     if (!state.financialEntryShowDailyBalance && rows.length) {
       const summary = document.createElement("tr");
       summary.className = "financial-filter-balance-row";
-      summary.innerHTML = `<td colspan="7"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span></td>`;
+      summary.innerHTML = `<td colspan="8"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span></td>`;
       body.appendChild(summary);
     }
     if (state.financialEntryShowDailyBalance) rows.forEach((row, index) => {
@@ -2205,7 +2205,7 @@ function renderFinancialDailyBalanceBreaks(table) {
       if (rows[index + 1]?.dataset.financialEntryDate === date) return;
       const summary = document.createElement("tr");
       summary.className = "financial-daily-balance-row";
-      summary.innerHTML = `<td colspan="7"><span>Saldo do filtro até o dia <strong>${BRL.format(balanceByDate.get(date) || 0)}</strong></span></td>`;
+      summary.innerHTML = `<td colspan="8"><span>Saldo do filtro até o dia <strong>${BRL.format(balanceByDate.get(date) || 0)}</strong></span></td>`;
       row.after(summary);
     });
     return;
@@ -2219,7 +2219,7 @@ function renderFinancialDailyBalanceBreaks(table) {
     const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, date, true), 0);
     const summary = document.createElement("tr");
     summary.className = "financial-daily-balance-row";
-    summary.innerHTML = `<td colspan="7"><span>Saldo previsto no final do dia <strong>${BRL.format(balance)}</strong></span></td>`;
+    summary.innerHTML = `<td colspan="8"><span>Saldo previsto no final do dia <strong>${BRL.format(balance)}</strong></span></td>`;
     row.after(summary);
   });
 }
@@ -2266,8 +2266,9 @@ function renderFinancialEntries(view = state.view) {
     if (filters.search) {
       const search = filters.search.toLocaleLowerCase("pt-BR");
       const matchesDescription = String(entry.description || "").toLocaleLowerCase("pt-BR").includes(search);
+      const matchesNotes = financialEntryNotes(entry).toLocaleLowerCase("pt-BR").includes(search);
       const matchesTag = financialEntryTags(entry).some((tag) => tag.includes(search));
-      if (!matchesDescription && !matchesTag) return false;
+      if (!matchesDescription && !matchesNotes && !matchesTag) return false;
     }
     return true;
   });
@@ -2305,10 +2306,11 @@ function renderFinancialEntries(view = state.view) {
     const statusLabel = { pending: "Pendente", paid: "Pago/recebido", overdue: "Vencido", cancelled: "Cancelado" }[entry.status] || entry.status;
     const statusIcon = { paid: "✓", pending: "!", overdue: "!", cancelled: "×" }[entry.status] || "•";
     const categoryLabel = entry.entry_type === "transfer" ? "Transferência" : categories.get(entry.category_id) || "Sem categoria";
+    const notes = financialEntryNotes(entry);
     const tags = financialEntryTags(entry);
     const tagList = tags.length ? `<div class="financial-entry-list-tags">${tags.map((tag) => `<span class="financial-entry-tag-chip"><span>${escapeHtml(tag)}</span></span>`).join("")}</div>` : "";
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
-  }).join("") : '<tr><td colspan="7" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td class="financial-entry-notes" data-sort-value="${escapeHtml(notes)}">${notes ? escapeHtml(notes) : "—"}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
+  }).join("") : '<tr><td colspan="8" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   const entryTable = elements.financialEntryRows.closest("table");
   if (!financialTableSorts.has(entryTable)) {
     financialTableSorts.set(entryTable, { column: 1, direction: "desc", type: "date" });

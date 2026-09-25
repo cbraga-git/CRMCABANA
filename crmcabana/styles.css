@@ -972,7 +972,8 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
 .financial-register tbody tr.financial-entry-paid:hover { background: rgba(34, 166, 87, .15); }
 .financial-entry-table th:first-child, .financial-entry-table td:first-child { width: 74px; text-align: center; }
 .financial-entry-table th:last-child, .financial-entry-table td:last-child { width: 72px; text-align: center; }
-.financial-entry-table td:nth-child(6) { font-weight: 800; white-space: nowrap; }
+.financial-entry-table td:nth-child(7) { font-weight: 800; white-space: nowrap; }
+.financial-entry-notes { min-width: 180px; max-width: 320px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .financial-entry-value.income { color: #168044; }
 .financial-entry-value.expense { color: #c9362b; }
 .financial-entry-status-icon { display: inline-grid; width: 27px; height: 27px; place-items: center; border-radius: 50%; color: #fff; font-size: 16px; font-weight: 900; }
