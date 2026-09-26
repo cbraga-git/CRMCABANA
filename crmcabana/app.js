@@ -107,6 +107,8 @@ const DEFAULT_BUDGET_SETTINGS = {
   dailyQuantity: 0,
   dailyValue: 0,
   assemblerName: "",
+  assemblyBeneficiary: "",
+  assemblyPixKey: "",
   assemblyStartDate: "",
   assemblyEndDate: "",
 };
@@ -3825,6 +3827,8 @@ function readBudgetSettings() {
     dailyQuantity: Number(budgetInputValue("budgetDailyQuantity")) || 0,
     dailyValue: parseMoney(budgetInputValue("budgetDailyValue")),
     assemblerName: budgetInputValue("budgetAssemblerName").trim(),
+    assemblyBeneficiary: budgetInputValue("budgetAssemblyBeneficiary").trim(),
+    assemblyPixKey: budgetInputValue("budgetAssemblyPixKey").trim(),
     assemblyStartDate: budgetInputValue("budgetAssemblyStartDate"),
     assemblyEndDate: budgetInputValue("budgetAssemblyEndDate"),
   };
@@ -4750,6 +4754,8 @@ function fillBudgetForm(client) {
   document.querySelector("#budgetDailyQuantity").value = settings.dailyQuantity || "";
   document.querySelector("#budgetDailyValue").value = formatMoneyInput(settings.dailyValue || 0);
   document.querySelector("#budgetAssemblerName").value = settings.assemblerName || "";
+  document.querySelector("#budgetAssemblyBeneficiary").value = settings.assemblyBeneficiary || "";
+  document.querySelector("#budgetAssemblyPixKey").value = settings.assemblyPixKey || "";
   document.querySelector("#budgetAssemblyStartDate").value = settings.assemblyStartDate || "";
   document.querySelector("#budgetAssemblyEndDate").value = settings.assemblyEndDate || "";
   updateBudgetAssemblyDays();
@@ -7459,6 +7465,8 @@ document.querySelector("#budgetStatus")?.addEventListener("change", handleBudget
   "#budgetDailyQuantity",
   "#budgetDailyValue",
   "#budgetAssemblerName",
+  "#budgetAssemblyBeneficiary",
+  "#budgetAssemblyPixKey",
   "#budgetAssemblyStartDate",
   "#budgetAssemblyEndDate",
   "#orderDeliveryForecastAt",

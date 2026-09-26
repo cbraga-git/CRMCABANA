@@ -2500,6 +2500,10 @@ body[data-view="order"] .budget-table {
   grid-column: 1 / -1;
 }
 
+.budget-assembly-pix {
+  grid-column: span 2;
+}
+
 .budget-editor {
   display: grid;
   gap: 8px;

@@ -141,6 +141,15 @@ test("ambientes aparecem antes da demonstração de pagamentos no orçamento", (
   assert.ok(environments >= 0 && payments > environments && footer > payments);
 });
 
+test("dados da montagem salvam favorecido e chave Pix", () => {
+  assert.match(html, /id="budgetAssemblyBeneficiary"/);
+  assert.match(html, /id="budgetAssemblyPixKey"/);
+  assert.match(app, /assemblyBeneficiary:\s*budgetInputValue\("budgetAssemblyBeneficiary"\)\.trim\(\)/);
+  assert.match(app, /assemblyPixKey:\s*budgetInputValue\("budgetAssemblyPixKey"\)\.trim\(\)/);
+  assert.match(app, /settings\.assemblyBeneficiary \|\| ""/);
+  assert.match(app, /settings\.assemblyPixKey \|\| ""/);
+});
+
 test("filtros de status de orcamento exibem contagem discreta por categoria", () => {
   assert.match(app, /pill-count|statusCounts|renderStatusFilters/);
   assert.match(app, /count.*status|status.*count/i);
