@@ -45,6 +45,7 @@ test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   assert.match(html, /id="budgetSimulateFinancialBtn"[^>]*>Simular lançamento/);
   assert.match(html, /id="budgetDeleteSimulationBtn"[^>]*>Excluir simulado/);
   assert.match(html, /id="budgetFinalizeSimulationBtn"[^>]*>Efetivar simulado/);
+  assert.match(app, /button\.textContent = budget\?\.financialSimulationAt \? "Simulado" : budget\?\.financialLaunchedAt \? "Lançado" : "Lançar Financeiro"/);
   assert.match(html, /class="budget-tax-actions"[\s\S]*?id="budgetTaxRate"[\s\S]*?id="budgetLaunchFinancialBtn"/);
   assert.equal(html.indexOf('id="budgetLaunchFinancialBtn"') > html.indexOf('id="budgetTaxRate"'), true);
   const { plan, budgetFinancialDueDate } = planFor([
@@ -114,13 +115,15 @@ test("montagem é dividida em duas e usa 40 dias quando as datas não existem", 
   assert.equal(end.due_date, "2026-10-31");
 });
 
-test("nao lanca status excluidos nem receitas divergentes do liquido", () => {
+test("nao lanca status excluidos e aceita receitas diferentes do liquido", () => {
   const { plan, budgetFinancialStatusAllowed } = planFor([], [{ value: "100", dueDate: "2026-09-25" }], 101);
   assert.equal(budgetFinancialStatusAllowed("Novo"), false);
   assert.equal(budgetFinancialStatusAllowed("Recusado"), false);
   assert.equal(budgetFinancialStatusAllowed("Finalizado"), false);
   assert.equal(budgetFinancialStatusAllowed("Pedido"), true);
-  assert.throws(plan, /deve somar o líquido/);
+  const items = plan();
+  assert.equal(items.find((item) => item.key === "income-1").amount, 100);
+  assert.doesNotMatch(app, /deve somar o líquido/);
   assert.match(app, /financialSimulationAt: simulationFinancialAction[\s\S]*?else if \(budgetPayload\.financialSimulationAt\) financialResult = await syncBudgetFinancialEntries/);
 });
 

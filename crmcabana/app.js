@@ -3590,7 +3590,15 @@ function budgetFinancialStatusAllowed(status) {
 
 function updateBudgetFinancialButton() {
   const button = document.querySelector("#budgetLaunchFinancialBtn");
-  if (button) button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
+  if (!button) return;
+  const budget = !state.budgetIsNew && state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
+  button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
+  button.textContent = budget?.financialSimulationAt ? "Simulado" : budget?.financialLaunchedAt ? "Lançado" : "Lançar Financeiro";
+  button.title = budget?.financialSimulationAt
+    ? "Abrir opções da simulação financeira"
+    : budget?.financialLaunchedAt
+      ? "Abrir opções do lançamento financeiro"
+      : "Lançar ou simular o financeiro";
 }
 
 function normalizeBudgetAssistances(assistances = []) {
@@ -5127,7 +5135,6 @@ function budgetFinancialCents(value) { return Math.round((Number(value) || 0) * 
 
 function budgetFinancialPlan(budget, client, postedDate, account, categories, options = {}) {
   const calculated = calculateBudgetRows(budget.rows || [], budget.settings || {});
-  const netCents = budgetFinancialCents(budgetTotals(calculated, budget.settings || {}).net);
   const operation = categories.find((item) => item.active && normalizedMigrationText(item.name) === "operacao" && !item.parent_id);
   if (!operation) throw new Error("Cadastre a categoria principal Operação antes de lançar no financeiro.");
   const categoryFor = (name, type) => {
@@ -5150,8 +5157,6 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
     return { key: `income-${index + 1}`, entry_type: "income", description: financialDescription(`Pagamento à Vista - Parcela ${payment.parcel || index + 1}`), amount,
       category_id: amount ? categoryFor("Receita Venda de Planejados", "income") : null, due_date: payment.dueDate || null, ...base };
   });
-  const paymentCents = payments.reduce((sum, payment) => sum + budgetFinancialCents(payment.amount), 0);
-  if (paymentCents !== netCents) throw new Error(`O pagamento à vista deve somar o líquido do orçamento: ${BRL.format(netCents / 100)}. Valor informado: ${BRL.format(paymentCents / 100)}.`);
   if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento de cada parcela à vista com valor maior que zero.");
   const finalPaymentDate = payments.filter((payment) => payment.amount > 0).map((payment) => payment.due_date).sort().at(-1);
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
