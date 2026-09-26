@@ -134,6 +134,12 @@ test("orçamento exibe contato do cliente ao lado da data da venda", () => {
   assert.match(app, /elements\.budgetContactField\.hidden = hidden/);
 });
 
+test("ambientes aparecem antes da demonstração de pagamentos no orçamento", () => {
+  const environments = html.indexOf('class="project-editor budget-environments"');
+  const payments = html.indexOf('class="payments-grid"');
+  assert.ok(environments >= 0 && payments > environments);
+});
+
 test("filtros de status de orcamento exibem contagem discreta por categoria", () => {
   assert.match(app, /pill-count|statusCounts|renderStatusFilters/);
   assert.match(app, /count.*status|status.*count/i);

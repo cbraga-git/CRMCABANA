@@ -404,71 +404,6 @@
               <article><span>Margem</span><strong id="budgetMargin">0%</strong></article>
             </section>
 
-            <section class="payments-grid" aria-label="Pagamentos">
-              <article class="budget-panel cash-payment-card">
-                <h2>Pagamento a vista</h2>
-                <table class="cash-payment-table">
-                  <thead>
-                    <tr>
-                      <th>Parcela</th>
-                      <th>Valor</th>
-                      <th>Vencimento</th>
-                      <th>Forma de pagamento</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cashPaymentRows"></tbody>
-                </table>
-              </article>
-
-              <article class="budget-panel">
-                <h2>Financiamento</h2>
-                <div class="budget-finance-grid">
-                  <label>Entrada
-                    <input id="budgetEntry" class="money-input" inputmode="decimal" />
-                  </label>
-                  <label>Entrada em
-                    <select id="budgetEntryTerm">
-                      <option value="30">30 dias</option>
-                      <option value="60">60 dias</option>
-                    </select>
-                  </label>
-                  <label>Qtd Parcelas
-                    <select id="budgetInstallments">
-                      <option value="0">Sem financiamento</option>
-                      <option>1</option>
-                      <option>2</option>
-                      <option>3</option>
-                      <option>4</option>
-                      <option>5</option>
-                      <option>6</option>
-                      <option>7</option>
-                      <option>8</option>
-                      <option>9</option>
-                      <option>10</option>
-                      <option>11</option>
-                      <option>12</option>
-                      <option>13</option>
-                      <option>14</option>
-                      <option>15</option>
-                      <option>16</option>
-                      <option>17</option>
-                      <option>18</option>
-                      <option>19</option>
-                      <option>20</option>
-                      <option>21</option>
-                      <option>22</option>
-                      <option>23</option>
-                      <option>24</option>
-                    </select>
-                  </label>
-                  <div><span>Base financiada</span><strong id="budgetFinancedBase">R$ 0,00</strong></div>
-                  <div><span>Valor parcela</span><strong id="budgetInstallmentValue">R$ 0,00</strong></div>
-                  <div><span>Retenção</span><strong id="budgetRetentionValue">R$ 0,00</strong></div>
-                  <div><span>Total financiamento</span><strong id="budgetFinancingTotal">R$ 0,00</strong></div>
-                </div>
-              </article>
-            </section>
-
             <section class="project-editor budget-environments">
               <div class="editor-heading">
                 <span>Ambientes</span>
@@ -577,6 +512,71 @@
                   </div>
                 </section>
               </div>
+            </section>
+
+            <section class="payments-grid" aria-label="Pagamentos">
+              <article class="budget-panel cash-payment-card">
+                <h2>Pagamento a vista</h2>
+                <table class="cash-payment-table">
+                  <thead>
+                    <tr>
+                      <th>Parcela</th>
+                      <th>Valor</th>
+                      <th>Vencimento</th>
+                      <th>Forma de pagamento</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cashPaymentRows"></tbody>
+                </table>
+              </article>
+
+              <article class="budget-panel">
+                <h2>Financiamento</h2>
+                <div class="budget-finance-grid">
+                  <label>Entrada
+                    <input id="budgetEntry" class="money-input" inputmode="decimal" />
+                  </label>
+                  <label>Entrada em
+                    <select id="budgetEntryTerm">
+                      <option value="30">30 dias</option>
+                      <option value="60">60 dias</option>
+                    </select>
+                  </label>
+                  <label>Qtd Parcelas
+                    <select id="budgetInstallments">
+                      <option value="0">Sem financiamento</option>
+                      <option>1</option>
+                      <option>2</option>
+                      <option>3</option>
+                      <option>4</option>
+                      <option>5</option>
+                      <option>6</option>
+                      <option>7</option>
+                      <option>8</option>
+                      <option>9</option>
+                      <option>10</option>
+                      <option>11</option>
+                      <option>12</option>
+                      <option>13</option>
+                      <option>14</option>
+                      <option>15</option>
+                      <option>16</option>
+                      <option>17</option>
+                      <option>18</option>
+                      <option>19</option>
+                      <option>20</option>
+                      <option>21</option>
+                      <option>22</option>
+                      <option>23</option>
+                      <option>24</option>
+                    </select>
+                  </label>
+                  <div><span>Base financiada</span><strong id="budgetFinancedBase">R$ 0,00</strong></div>
+                  <div><span>Valor parcela</span><strong id="budgetInstallmentValue">R$ 0,00</strong></div>
+                  <div><span>Retenção</span><strong id="budgetRetentionValue">R$ 0,00</strong></div>
+                  <div><span>Total financiamento</span><strong id="budgetFinancingTotal">R$ 0,00</strong></div>
+                </div>
+              </article>
             </section>
           </section>
         </section>
