@@ -32,6 +32,25 @@ test("montagem usa percentual normalmente e valor livre para LEDS", () => {
   assert.equal(rows[1].profit, 225);
 });
 
+test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambientes", () => {
+  const rows = calculate([
+    { name: "Cozinha", gross: 1000, factory: 400, hardware: 0 },
+    { name: "LEDS", gross: 500, factory: 100, hardware: 0, assembly: 50 },
+  ], { ...settings, discountRate: 10, freightValue: 100, freightMode: "value" });
+  assert.equal(rows[0].net, 900);
+  assert.equal(rows[0].freight, 100);
+  assert.equal(rows[1].net, 500);
+  assert.equal(rows[1].freight, 0);
+  assert.equal(rows[1].factoryFreight, 100);
+
+  const percentRows = calculate([
+    { name: "Cozinha", gross: 1000, factory: 400, hardware: 0 },
+    { name: "LEDS", gross: 500, factory: 100, hardware: 0, assembly: 50 },
+  ], { ...settings, discountRate: 10, freightValue: 10, freightMode: "percent" });
+  assert.equal(percentRows[0].freight, 40);
+  assert.equal(percentRows[1].freight, 0);
+});
+
 test("linha LEDS exige montagem manual positiva", () => {
   const alerts = [];
   const validate = runInNewContext(`${extract("function validateBudgetLedAssembly(", "\nasync function saveBudget(")}\nvalidateBudgetLedAssembly`, {

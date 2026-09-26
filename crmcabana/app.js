@@ -3960,22 +3960,24 @@ function calculateBudgetRows(rows, settings) {
     tax: percentToRate(settings.taxRate),
   };
 
-  const totalFactory = rows.reduce((sum, row) => sum + Math.max(0, parseMoney(row.factory)), 0);
+  const freightRows = rows.filter((row) => normalizedMigrationText(row.name) !== "leds");
+  const totalFactory = freightRows.reduce((sum, row) => sum + Math.max(0, parseMoney(row.factory)), 0);
   const freightInput = Math.max(0, parseMoney(settings.freightValue));
   const totalFreight = settings.freightMode === "percent" ? totalFactory * percentToRate(freightInput) : freightInput;
-  const distributableRows = rows.filter((row) => row.name || row.gross || row.factory || row.hardware).length || rows.length;
+  const distributableRows = freightRows.filter((row) => row.name || row.gross || row.factory || row.hardware).length || freightRows.length;
 
   return rows.map((row) => {
     const gross = parseMoney(row.gross);
     const factory = parseMoney(row.factory);
     const hardware = parseMoney(row.hardware);
-    const net = gross - gross * rates.discount;
+    const isLeds = normalizedMigrationText(row.name) === "leds";
+    const net = isLeds ? gross : gross - gross * rates.discount;
     const hasValues = Boolean(row.name || gross || factory || hardware);
-    const freight = totalFactory > 0
+    const freight = isLeds ? 0 : totalFactory > 0
       ? totalFreight * Math.max(0, factory) / totalFactory
       : hasValues && distributableRows > 0 ? totalFreight / distributableRows : 0;
     const release = net * rates.release;
-    const assembly = normalizedMigrationText(row.name) === "leds" ? Math.max(0, parseMoney(row.assembly)) : net * rates.assembly;
+    const assembly = isLeds ? Math.max(0, parseMoney(row.assembly)) : net * rates.assembly;
     const tax = net * rates.tax;
     const profitBeforeProfitRates = net - factory - hardware - freight - release - assembly - tax;
     const profitRateTotal = rates.lela + rates.iris;
@@ -4046,7 +4048,7 @@ function budgetTotals(calculatedRows, settings) {
     ...rowTotals,
     dailyTotal,
   };
-  const financedBase = Math.max(0, totals.gross - totals.gross * percentToRate(settings.discountRate) - settings.entry);
+  const financedBase = Math.max(0, totals.net - settings.entry);
   const term = Number(settings.entryTerm) === 60 ? 60 : 30;
   const financingRate = FINANCING_RATES[term]?.[settings.installments] || { coefficient: 0, retention: 0 };
   const installmentValue = financedBase * financingRate.coefficient;
