@@ -2651,7 +2651,7 @@ body[data-view="order"] .budget-table {
   gap: 8px;
 }
 
-.budget-auxiliary-toolbar:has(.budget-sale-field:not([hidden])),
+.budget-auxiliary-toolbar:has(.budget-contact-field),
 body[data-view="order"] .budget-auxiliary-toolbar {
   display: flex;
 }

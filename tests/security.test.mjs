@@ -123,15 +123,17 @@ test("listagem de orcamentos exibe o campo ID Nobilia apos o ID do orçamento", 
 
 test("listagem de orcamentos exibe contato e permite buscar e ordenar pelo campo", () => {
   assert.match(html, /data-sort="client"[^>]*>Cliente<\/th>\s*<th data-sort="contact"[^>]*>Contato<\/th>/);
-  assert.match(app, /contact: item\.client\.contact \|\| ""/);
+  assert.match(app, /contact: item\.budget\.contact \?\? item\.client\.contact \?\? ""/);
   assert.match(app, /searchableValues[\s\S]*?client\.contact/);
-  assert.match(app, /combinedCodeValue,\s*client\.name,\s*client\.contact,/);
+  assert.match(app, /combinedCodeValue,\s*client\.name,\s*budget\.contact \?\? client\.contact,/);
 });
 
 test("orçamento exibe contato do cliente ao lado da data da venda", () => {
   assert.match(html, /id="budgetSaleAtField"[\s\S]*?id="budgetSaleAt"[\s\S]*?id="budgetContactField"[\s\S]*?id="budgetContact"/);
-  assert.match(app, /elements\.budgetContact\.value = client\?\.contact \|\| "-"/);
-  assert.match(app, /elements\.budgetContactField\.hidden = hidden/);
+  assert.doesNotMatch(html, /id="budgetContact"[^>]*readonly/);
+  assert.match(app, /budget\.contact \?\? targetClient\?\.contact/);
+  assert.match(app, /contact: elements\.budgetContact\?\.value\.trim\(\) \|\| ""/);
+  assert.doesNotMatch(app, /budgetContactField\.hidden/);
 });
 
 test("ambientes aparecem antes da demonstração de pagamentos no orçamento", () => {
