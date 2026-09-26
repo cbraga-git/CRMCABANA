@@ -2497,8 +2497,18 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-assembler-name {
-  grid-column: 1 / -1;
+  grid-column: span 2;
 }
+
+.budget-assistance-button { min-height: 34px; align-self: end; white-space: nowrap; }
+.budget-assistance-dialog { width: 100%; }
+.budget-assistance-history { display: grid; gap: 8px; margin-top: 16px; }
+.budget-assistance-history h3 { font-size: 14px; }
+.budget-assistance-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.budget-assistance-item > div { display: grid; min-width: 0; gap: 3px; }
+.budget-assistance-item strong { overflow-wrap: anywhere; }
+.budget-assistance-item span, .budget-assistance-empty { color: var(--muted); font-size: 12px; }
+.budget-assistance-empty { margin: 0; padding: 12px 0; }
 
 .budget-assembly-pix {
   grid-column: span 2;
@@ -2760,6 +2770,8 @@ body[data-view="order"] .order-material-editor {
   font-size: 12px;
   font-weight: 500;
 }
+
+.budget-row-assembly input { width: 100%; min-width: 92px; }
 
 .budget-table input,
 .budget-table select {

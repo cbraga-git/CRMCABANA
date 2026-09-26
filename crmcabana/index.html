@@ -564,6 +564,7 @@
                     <label class="budget-assembler-name">Nome montador
                       <input id="budgetAssemblerName" type="text" placeholder="Nome do montador" />
                     </label>
+                    <button class="button secondary budget-assistance-button" id="budgetAssistanceBtn" type="button" disabled>+ Assistência</button>
                     <label class="budget-assembly-beneficiary">Favorecido
                       <input id="budgetAssemblyBeneficiary" type="text" placeholder="Nome do favorecido" />
                     </label>
@@ -902,6 +903,22 @@
         </section>
       </main>
     </div>
+
+    <dialog id="budgetAssistanceDialog">
+      <form method="dialog" id="budgetAssistanceForm" class="dialog-card budget-assistance-dialog">
+        <header><h2>Assistência</h2><button id="closeBudgetAssistanceDialog" type="button" aria-label="Fechar">x</button></header>
+        <div class="dialog-grid">
+          <label>Nome do montador<input id="budgetAssistanceAssembler" readonly /></label>
+          <label>Valor da assistência *<input id="budgetAssistanceAmount" class="money-input" inputmode="decimal" required /></label>
+          <label class="span-2">Descrição da assistência *<textarea id="budgetAssistanceDescription" rows="4" required></textarea></label>
+        </div>
+        <section class="budget-assistance-history" aria-label="Assistências adicionadas">
+          <h3>Assistências adicionadas</h3>
+          <div id="budgetAssistanceRows"></div>
+        </section>
+        <footer><button class="button secondary" id="cancelBudgetAssistanceDialog" type="button">Fechar</button><button class="button primary" type="submit">Adicionar assistência</button></footer>
+      </form>
+    </dialog>
 
     <dialog id="financialAccountDialog">
       <form method="dialog" id="financialAccountForm" class="dialog-card">

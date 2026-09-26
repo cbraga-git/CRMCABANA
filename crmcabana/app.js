@@ -185,6 +185,7 @@ const state = {
   budgetEditingId: null,
   budgetLastStatus: "",
   budgetDraft: null,
+  budgetAssistanceDrafts: [],
   selectedId: null,
   editingId: null,
   projectAction: "stay",
@@ -313,6 +314,9 @@ const elements = {
   budgetSaleAt: document.querySelector("#budgetSaleAt"),
   budgetSaleAtField: document.querySelector("#budgetSaleAtField"),
   budgetContact: document.querySelector("#budgetContact"),
+  budgetAssistanceDialog: document.querySelector("#budgetAssistanceDialog"),
+  budgetAssistanceForm: document.querySelector("#budgetAssistanceForm"),
+  budgetAssistanceRows: document.querySelector("#budgetAssistanceRows"),
   orderDeliveryForecastAt: document.querySelector("#orderDeliveryForecastAt"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
@@ -3577,6 +3581,7 @@ function handleBudgetStatusDateFields() {
   state.budgetLastStatus = status;
   updateBudgetSaleAtFieldVisibility();
   updateBudgetFinancialButton();
+  updateBudgetAssistanceButton();
 }
 
 function budgetFinancialStatusAllowed(status) {
@@ -3586,6 +3591,40 @@ function budgetFinancialStatusAllowed(status) {
 function updateBudgetFinancialButton() {
   const button = document.querySelector("#budgetLaunchFinancialBtn");
   if (button) button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
+}
+
+function normalizeBudgetAssistances(assistances = []) {
+  return (Array.isArray(assistances) ? assistances : []).map((item, index) => ({
+    id: String(item?.id || `assistance-${index + 1}`),
+    assemblerName: String(item?.assemblerName || "").trim(),
+    description: String(item?.description || "").trim(),
+    amount: Math.max(0, parseMoney(item?.amount)),
+    createdAt: item?.createdAt || "",
+  })).filter((item) => item.description && item.amount > 0);
+}
+
+function updateBudgetAssistanceButton() {
+  const button = document.querySelector("#budgetAssistanceBtn");
+  if (!button) return;
+  const enabled = normalizedMigrationText(budgetInputValue("budgetStatus")) === "finalizado";
+  button.disabled = !enabled;
+  button.title = enabled ? "Registrar assistência" : "Disponível somente para orçamentos finalizados";
+}
+
+function renderBudgetAssistanceRows() {
+  if (!elements.budgetAssistanceRows) return;
+  const assistances = normalizeBudgetAssistances(state.budgetAssistanceDrafts);
+  elements.budgetAssistanceRows.innerHTML = assistances.length ? assistances.map((item) => `<article class="budget-assistance-item"><div><strong>${escapeHtml(item.description)}</strong><span>${escapeHtml(item.assemblerName || "Sem montador")} · ${BRL.format(item.amount)}</span></div><button class="link-button danger" type="button" data-remove-budget-assistance="${escapeHtml(item.id)}" aria-label="Remover assistência">Remover</button></article>`).join("") : '<p class="budget-assistance-empty">Nenhuma assistência adicionada.</p>';
+}
+
+function openBudgetAssistanceDialog() {
+  if (normalizedMigrationText(budgetInputValue("budgetStatus")) !== "finalizado") return;
+  document.querySelector("#budgetAssistanceAssembler").value = budgetInputValue("budgetAssemblerName").trim();
+  document.querySelector("#budgetAssistanceDescription").value = "";
+  document.querySelector("#budgetAssistanceAmount").value = "";
+  renderBudgetAssistanceRows();
+  elements.budgetAssistanceDialog?.showModal();
+  document.querySelector("#budgetAssistanceDescription")?.focus();
 }
 
 function currentBudgetDraft() {
@@ -3604,6 +3643,7 @@ function currentBudgetDraft() {
     orderMaterials: readOrderMaterialRows(),
     deliveryForecastAt: readOrderDeliveryForecastAt(),
     cashPayments: readCashPaymentRows(),
+    assistances: normalizeBudgetAssistances(state.budgetAssistanceDrafts),
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
   };
 }
@@ -3707,6 +3747,7 @@ function clientBudget(client) {
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
     deliveryForecastAt: saved.deliveryForecastAt || "",
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
+    assistances: normalizeBudgetAssistances(saved.assistances),
     financialLaunchedAt: saved.financialLaunchedAt || "",
     notes: saved.notes || "",
   };
@@ -3726,6 +3767,7 @@ function blankBudget() {
     orderMaterials: [],
     deliveryForecastAt: "",
     cashPayments: defaultCashPaymentRows(),
+    assistances: [],
     financialLaunchedAt: "",
     notes: "",
   };
@@ -3850,6 +3892,7 @@ function readBudgetRows() {
         gross: parseMoney(row.querySelector('[data-budget-field="gross"]')?.value),
         factory: parseMoney(row.querySelector('[data-budget-field="factory"]')?.value),
         hardware: parseMoney(row.querySelector('[data-budget-field="hardware"]')?.value),
+        assembly: parseMoney(row.querySelector('[data-budget-field="assembly"]')?.value),
       };
     })
     .filter((row) => row.name || row.gross || row.factory || row.hardware);
@@ -3927,7 +3970,7 @@ function calculateBudgetRows(rows, settings) {
       ? totalFreight * Math.max(0, factory) / totalFactory
       : hasValues && distributableRows > 0 ? totalFreight / distributableRows : 0;
     const release = net * rates.release;
-    const assembly = net * rates.assembly;
+    const assembly = normalizedMigrationText(row.name) === "leds" ? Math.max(0, parseMoney(row.assembly)) : net * rates.assembly;
     const tax = net * rates.tax;
     const profitBeforeProfitRates = net - factory - hardware - freight - release - assembly - tax;
     const profitRateTotal = rates.lela + rates.iris;
@@ -4641,6 +4684,15 @@ function setBudgetTableOrderMode(orderMode) {
   });
 }
 
+function syncBudgetRowAssemblyMode(row) {
+  const isLeds = normalizedMigrationText(row.querySelector('[data-budget-field="name"]')?.value) === "leds";
+  const result = row.querySelector('[data-budget-result="assembly"]');
+  const input = row.querySelector('[data-budget-field="assembly"]');
+  if (result) result.hidden = isLeds;
+  if (input) input.hidden = !isLeds;
+  row.classList.toggle("budget-leds-row", isLeds);
+}
+
 function createBudgetRow(rowData = {}) {
   const row = document.createElement("tr");
   row.innerHTML = `
@@ -4650,7 +4702,7 @@ function createBudgetRow(rowData = {}) {
     <td data-budget-result="factoryFreight"></td>
     <td><input class="money-input" data-budget-field="hardware" inputmode="decimal" title="Tambem aceita contas, ex: 1.200,00+350,50" /></td>
     <td data-budget-result="release"></td>
-    <td data-budget-result="assembly"></td>
+    <td class="budget-row-assembly"><span data-budget-result="assembly"></span><input class="money-input" data-budget-field="assembly" inputmode="decimal" aria-label="Valor de montagem para LEDS" hidden /></td>
     <td data-budget-result="lela"></td>
     <td data-budget-result="iris"></td>
     <td data-budget-result="tax"></td>
@@ -4664,6 +4716,7 @@ function createBudgetRow(rowData = {}) {
   };
   const environmentPicker = createEnvironmentPicker(rowData.name || "", () => {
     markBudgetDirty();
+    syncBudgetRowAssemblyMode(row);
     updateBudgetSummary();
     focusBudgetGross();
   });
@@ -4678,7 +4731,9 @@ function createBudgetRow(rowData = {}) {
   row.querySelector('[data-budget-field="gross"]').value = formatMoneyInput(rowData.gross || 0);
   row.querySelector('[data-budget-field="factory"]').value = formatMoneyInput(rowData.factory || 0);
   row.querySelector('[data-budget-field="hardware"]').value = formatMoneyInput(rowData.hardware || 0);
-  row.querySelectorAll('[data-budget-field="gross"], [data-budget-field="factory"], [data-budget-field="hardware"]').forEach((input) => {
+  row.querySelector('[data-budget-field="assembly"]').value = rowData.assembly ? formatMoneyInput(rowData.assembly) : "";
+  syncBudgetRowAssemblyMode(row);
+  row.querySelectorAll('[data-budget-field="gross"], [data-budget-field="factory"], [data-budget-field="hardware"], [data-budget-field="assembly"]').forEach((input) => {
     input.addEventListener("input", () => {
       markBudgetDirty();
       updateBudgetSummary();
@@ -4711,6 +4766,19 @@ function createBudgetRow(rowData = {}) {
     event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
     markBudgetDirty();
     updateBudgetSummary();
+    if (row.classList.contains("budget-leds-row")) {
+      row.querySelector('[data-budget-field="assembly"]')?.focus();
+      return;
+    }
+    focusNextBudgetRowFieldOrEnvironment(row, "gross");
+  });
+  row.querySelector('[data-budget-field="assembly"]').addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
+    markBudgetDirty();
+    updateBudgetSummary();
     focusNextBudgetRowFieldOrEnvironment(row, "gross");
   });
   row.querySelector("[data-budget-remove]").addEventListener("click", () => {
@@ -4728,6 +4796,7 @@ function fillBudgetForm(client) {
   state.budgetEditingId = budgetIdentity(budget) || state.budgetEditingId;
   const settings = budget.settings;
   const targetClient = selectedBudgetClient();
+  state.budgetAssistanceDrafts = normalizeBudgetAssistances(budget.assistances);
   const documentLabel = state.view === "order" ? "Pedido" : "Orçamento";
   document.querySelector("#budgetEditorTitle").textContent = documentLabel;
   renderBudgetSeller(targetClient);
@@ -4764,6 +4833,7 @@ function fillBudgetForm(client) {
   }
   state.budgetLastStatus = document.querySelector("#budgetStatus").value;
   updateBudgetSaleAtFieldVisibility();
+  updateBudgetAssistanceButton();
   if (elements.orderDeliveryForecastAt) {
     elements.orderDeliveryForecastAt.value = budget.deliveryForecastAt ? formatDateTimeLocal(budget.deliveryForecastAt) : "";
   }
@@ -5154,6 +5224,32 @@ async function recoverBudgetSaveConflict(clientId, previousBudget, budgetPayload
   return true;
 }
 
+function validateBudgetAssemblyDetails(status, settings) {
+  if (normalizedMigrationText(status) === "novo") return true;
+  const required = [
+    ["assemblerName", "Nome do montador", "#budgetAssemblerName"],
+    ["assemblyBeneficiary", "Favorecido", "#budgetAssemblyBeneficiary"],
+    ["assemblyPixKey", "Chave Pix", "#budgetAssemblyPixKey"],
+    ["assemblyStartDate", "Data inicial", "#budgetAssemblyStartDate"],
+    ["assemblyEndDate", "Data final", "#budgetAssemblyEndDate"],
+  ];
+  const missing = required.filter(([key]) => !String(settings?.[key] || "").trim());
+  if (!missing.length) return true;
+  alert(`Para salvar um orçamento com status ${status}, preencha os dados da montagem: ${missing.map(([, label]) => label).join(", ")}.`);
+  document.querySelector(missing[0][2])?.focus();
+  return false;
+}
+
+function validateBudgetLedAssembly(rows) {
+  const missingLedAssembly = rows.some((row) => normalizedMigrationText(row.name) === "leds" && parseMoney(row.assembly) <= 0);
+  if (!missingLedAssembly) return true;
+  alert("Informe o valor de Montagem para o ambiente LEDS antes de salvar o orçamento.");
+  Array.from(elements.budgetRows?.querySelectorAll("tr") || [])
+    .find((row) => normalizedMigrationText(row.querySelector('[data-budget-field="name"]')?.value) === "leds" && parseMoney(row.querySelector('[data-budget-field="assembly"]')?.value) <= 0)
+    ?.querySelector('[data-budget-field="assembly"]')?.focus();
+  return false;
+}
+
 async function saveBudget(options = {}) {
   const client = selectedBudgetClient();
   if (!isAdmin()) return;
@@ -5167,6 +5263,8 @@ async function saveBudget(options = {}) {
   const sourceId = state.budgetSourceId;
   const budgetCode = budgetInputValue("budgetCode") || nextBudgetCode();
   const budgetStatus = configuredDocumentStatuses().includes(budgetInputValue("budgetStatus")) ? budgetInputValue("budgetStatus") : BUDGET_STATUS[0];
+  if (!validateBudgetAssemblyDetails(budgetStatus, settings)) return false;
+  if (!validateBudgetLedAssembly(rows)) return false;
   const previousBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   const budgetPayload = {
     id: state.budgetEditingId || `budget-${Date.now()}`,
@@ -5182,6 +5280,7 @@ async function saveBudget(options = {}) {
     orderMaterials: readOrderMaterialRows(),
     deliveryForecastAt: readOrderDeliveryForecastAt(),
     cashPayments: readCashPaymentRows(),
+    assistances: normalizeBudgetAssistances(state.budgetAssistanceDrafts),
     financialLaunchedAt: options.launchFinancial ? previousBudget?.financialLaunchedAt || new Date().toISOString() : previousBudget?.financialLaunchedAt || "",
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
@@ -7406,6 +7505,38 @@ document.querySelector("#budgetEditClientBtn")?.addEventListener("click", async 
     return;
   }
   openProjectDialog(null);
+});
+document.querySelector("#budgetAssistanceBtn")?.addEventListener("click", openBudgetAssistanceDialog);
+document.querySelectorAll("#closeBudgetAssistanceDialog, #cancelBudgetAssistanceDialog").forEach((button) => button.addEventListener("click", () => elements.budgetAssistanceDialog?.close()));
+elements.budgetAssistanceForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const description = document.querySelector("#budgetAssistanceDescription").value.trim();
+  const amountInput = document.querySelector("#budgetAssistanceAmount");
+  const amount = parseMoney(amountInput.value);
+  if (!description) { document.querySelector("#budgetAssistanceDescription").focus(); return; }
+  if (amount <= 0) { amountInput.setCustomValidity("Informe um valor maior que zero."); amountInput.reportValidity(); return; }
+  amountInput.setCustomValidity("");
+  state.budgetAssistanceDrafts.push({
+    id: globalThis.crypto?.randomUUID?.() || `assistance-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    assemblerName: document.querySelector("#budgetAssistanceAssembler").value.trim(),
+    description,
+    amount,
+    createdAt: new Date().toISOString(),
+  });
+  markBudgetDirty();
+  renderBudgetAssistanceRows();
+  document.querySelector("#budgetAssistanceDescription").value = "";
+  amountInput.value = "";
+  document.querySelector("#budgetAssistanceDescription").focus();
+});
+document.querySelector("#budgetAssistanceAmount")?.addEventListener("input", (event) => event.target.setCustomValidity(""));
+document.querySelector("#budgetAssistanceAmount")?.addEventListener("blur", (event) => { if (event.target.value) event.target.value = formatMoneyInput(event.target.value); });
+elements.budgetAssistanceRows?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-budget-assistance]");
+  if (!button) return;
+  state.budgetAssistanceDrafts = state.budgetAssistanceDrafts.filter((item) => item.id !== button.dataset.removeBudgetAssistance);
+  markBudgetDirty();
+  renderBudgetAssistanceRows();
 });
 elements.budgetClientSelect?.addEventListener("change", () => {
   state.selectedId = elements.budgetClientSelect.value || null;
