@@ -3752,6 +3752,7 @@ function clientBudget(client) {
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
     assistances: normalizeBudgetAssistances(saved.assistances),
     financialLaunchedAt: saved.financialLaunchedAt || "",
+    financialSimulationAt: saved.financialSimulationAt || "",
     notes: saved.notes || "",
   };
 }
@@ -3772,6 +3773,7 @@ function blankBudget() {
     cashPayments: defaultCashPaymentRows(),
     assistances: [],
     financialLaunchedAt: "",
+    financialSimulationAt: "",
     notes: "",
   };
 }
@@ -5103,7 +5105,7 @@ function budgetFinancialMonthEnd(date) {
 
 function budgetFinancialCents(value) { return Math.round((Number(value) || 0) * 100); }
 
-function budgetFinancialPlan(budget, client, postedDate, account, categories) {
+function budgetFinancialPlan(budget, client, postedDate, account, categories, options = {}) {
   const calculated = calculateBudgetRows(budget.rows || [], budget.settings || {});
   const netCents = budgetFinancialCents(budgetTotals(calculated, budget.settings || {}).net);
   const operation = categories.find((item) => item.active && normalizedMigrationText(item.name) === "operacao" && !item.parent_id);
@@ -5122,9 +5124,10 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories) {
   ].filter(Boolean);
   const issueDate = budget.nobiliaDate || budgetFinancialLocalDate(budget.createdAt);
   const base = { status: "pending", account_id: account.id, client_id: client.id, source_type: "sale", issue_date: issueDate, competence_date: postedDate, paid_at: null };
+  const financialDescription = (description) => `${options.simulated ? "Simulado - " : ""}${formatFinancialDescription(description)}`;
   const payments = (budget.cashPayments || []).map((payment, index) => {
     const amount = budgetFinancialCents(parseMoney(payment.value)) / 100;
-    return { key: `income-${index + 1}`, entry_type: "income", description: formatFinancialDescription(`Pagamento à Vista - Parcela ${payment.parcel || index + 1}`), amount,
+    return { key: `income-${index + 1}`, entry_type: "income", description: financialDescription(`Pagamento à Vista - Parcela ${payment.parcel || index + 1}`), amount,
       category_id: amount ? categoryFor("Receita Venda de Planejados", "income") : null, due_date: payment.dueDate || null, ...base };
   });
   const paymentCents = payments.reduce((sum, payment) => sum + budgetFinancialCents(payment.amount), 0);
@@ -5139,7 +5142,7 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories) {
     const dueDate = rule.assemblyDateField
       ? budget.settings?.[rule.assemblyDateField] || budgetFinancialDueDate(postedDate, rule)
       : rule.finalPaymentMonth ? budgetFinancialMonthEnd(finalPaymentDate) : budgetFinancialDueDate(postedDate, rule);
-    return { key: rule.key, entry_type: "expense", description: formatFinancialDescription(rule.description), amount,
+    return { key: rule.key, entry_type: "expense", description: financialDescription(rule.description), amount,
       category_id: amount ? categoryFor(rule.category, "expense") : null,
       due_date: dueDate, ...base };
   });
@@ -5156,7 +5159,7 @@ async function fetchBudgetFinancialEntries(ids) {
   return response.json();
 }
 
-async function syncBudgetFinancialEntries(budget, client, createIfMissing = false) {
+async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = "effective") {
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("O financeiro precisa estar conectado ao banco para lançar o orçamento.");
   const pairs = await budgetFinancialEntryIds(budget);
   const idByKey = new Map(pairs);
@@ -5167,7 +5170,7 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   const account = state.financialAccounts.find((item) => item.active && item.account_type === "bank" && normalizedMigrationText(`${item.name} ${item.institution || ""}`).includes("mercado pago"));
   if (!account) throw new Error("Cadastre e ative a conta bancária Mercado Pago antes de lançar no financeiro.");
   const postedDate = budgetFinancialLocalDate();
-  const plan = budgetFinancialPlan(budget, client, postedDate, account, state.financialCategories);
+  const plan = budgetFinancialPlan(budget, client, postedDate, account, state.financialCategories, { simulated: mode === "simulation" });
   const current = new Map(existing.map((entry) => [entry.id, entry]));
   const originalAssembly = current.get(idByKey.get("assembly"));
   const plannedAssembly = plan.find((item) => item.key === "assembly");
@@ -5201,6 +5204,22 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   }
   await loadFinancialRegisters();
   return result;
+}
+
+async function deleteBudgetFinancialSimulation(budget) {
+  if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("O financeiro precisa estar conectado ao banco para excluir a simulação.");
+  const pairs = await budgetFinancialEntryIds(budget);
+  const existing = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
+  if (existing.some((entry) => entry.status === "paid")) throw new Error("A simulação possui transação paga ou recebida e não pode ser excluída.");
+  if (existing.some((entry) => !/^simulado\s*-\s*/i.test(String(entry.description || "")))) {
+    throw new Error("Existem lançamentos efetivos vinculados a este orçamento. A exclusão do simulado foi cancelada para proteger o financeiro.");
+  }
+  if (existing.length) {
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${existing.map((entry) => entry.id).join(",")})`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    if (!response.ok) throw new Error("Não foi possível excluir as transações simuladas.");
+  }
+  await loadFinancialRegisters();
+  return { deleted: existing.length };
 }
 
 async function recoverBudgetSaveConflict(clientId, previousBudget, budgetPayload) {
@@ -5269,6 +5288,11 @@ async function saveBudget(options = {}) {
   if (!validateBudgetAssemblyDetails(budgetStatus, settings)) return false;
   if (!validateBudgetLedAssembly(rows)) return false;
   const previousBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
+  const financialAction = options.financialAction || (options.launchFinancial ? "launch" : "");
+  const effectiveFinancialAction = financialAction === "launch" || financialAction === "finalizeSimulation";
+  const simulationFinancialAction = financialAction === "simulate";
+  const deleteSimulationAction = financialAction === "deleteSimulation";
+  const financialActionAt = new Date().toISOString();
   const budgetPayload = {
     id: state.budgetEditingId || `budget-${Date.now()}`,
     code: budgetCode,
@@ -5284,19 +5308,27 @@ async function saveBudget(options = {}) {
     deliveryForecastAt: readOrderDeliveryForecastAt(),
     cashPayments: readCashPaymentRows(),
     assistances: normalizeBudgetAssistances(state.budgetAssistanceDrafts),
-    financialLaunchedAt: options.launchFinancial ? previousBudget?.financialLaunchedAt || new Date().toISOString() : previousBudget?.financialLaunchedAt || "",
+    financialLaunchedAt: effectiveFinancialAction ? previousBudget?.financialLaunchedAt || financialActionAt : deleteSimulationAction || simulationFinancialAction ? "" : previousBudget?.financialLaunchedAt || "",
+    financialSimulationAt: simulationFinancialAction ? previousBudget?.financialSimulationAt || financialActionAt : effectiveFinancialAction || deleteSimulationAction ? "" : previousBudget?.financialSimulationAt || "",
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
   };
-  if (options.launchFinancial) {
-    if (!budgetFinancialStatusAllowed(budgetStatus)) { alert("O financeiro não pode ser lançado para orçamento Novo, Recusado ou Finalizado."); return false; }
-    if (!remoteDatabaseEnabled() || !currentUserId()) { alert("Conecte o CRM ao banco antes de lançar o financeiro."); return false; }
+  if (financialAction && !deleteSimulationAction) {
+    if (!budgetFinancialStatusAllowed(budgetStatus)) { alert("O financeiro não pode ser lançado ou simulado para orçamento Novo, Recusado ou Finalizado."); return false; }
+    if (!remoteDatabaseEnabled() || !currentUserId()) { alert("Conecte o CRM ao banco antes de lançar ou simular o financeiro."); return false; }
     try {
       await loadFinancialRegisters();
       const account = state.financialAccounts.find((item) => item.active && item.account_type === "bank" && normalizedMigrationText(`${item.name} ${item.institution || ""}`).includes("mercado pago"));
       if (!account) throw new Error("Cadastre e ative a conta bancária Mercado Pago antes de lançar no financeiro.");
-      budgetFinancialPlan(budgetPayload, client, budgetFinancialLocalDate(), account, state.financialCategories);
+      budgetFinancialPlan(budgetPayload, client, budgetFinancialLocalDate(), account, state.financialCategories, { simulated: simulationFinancialAction });
     } catch (error) { alert(error.message); return false; }
+  }
+  let deletedSimulation = null;
+  if (deleteSimulationAction) {
+    if (!previousBudget?.financialSimulationAt) { alert("Este orçamento não possui uma simulação financeira para excluir."); return false; }
+    if (!confirm("Excluir todas as transações simuladas deste orçamento?")) return false;
+    try { deletedSimulation = await deleteBudgetFinancialSimulation(previousBudget); }
+    catch (error) { alert(error.message); return false; }
   }
   if (budgetCodeExists(budgetPayload.code, budgetIdentity(budgetPayload))) {
     alert(`Ja existe um orcamento com o numero ${budgetPayload.code}. Altere o ID do orcamento antes de salvar.`);
@@ -5333,7 +5365,10 @@ async function saveBudget(options = {}) {
   if (!(await saveClients(changedIds, conflictRecovery))) return false;
   let financialResult = null;
   let financialError = null;
-  try { if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true); }
+  try {
+    if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "effective");
+    else if (budgetPayload.financialSimulationAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "simulation");
+  }
   catch (error) { financialError = error; }
   refreshEnvironmentCatalog(rows.map((row) => row.name));
   state.budgetEditing = false;
@@ -5346,7 +5381,9 @@ async function saveBudget(options = {}) {
   if (financialError) alert(`Orçamento salvo, mas não foi possível atualizar o financeiro: ${financialError.message}. Tente salvar novamente.`);
   else if (financialResult?.paid) alert(`Orçamento salvo. ${financialResult.paid} transação(ões) paga(s)/recebida(s) não pode(m) ser alterada(s); os demais lançamentos foram atualizados.`);
   else if (financialResult?.excluded) alert("Orçamento salvo. Os lançamentos financeiros existentes foram mantidos porque este status não permite lançar no financeiro.");
-  else if (options.launchFinancial) alert(`Financeiro lançado: ${financialResult.created} novo(s), ${financialResult.updated} atualizado(s) e ${financialResult.deleted} excluído(s).`);
+  else if (deleteSimulationAction) alert(`Simulação excluída: ${deletedSimulation.deleted} transação(ões) removida(s).`);
+  else if (simulationFinancialAction) alert(`Simulação criada: ${financialResult.created} nova(s), ${financialResult.updated} atualizada(s) e ${financialResult.deleted} excluída(s).`);
+  else if (effectiveFinancialAction) alert(`Financeiro lançado: ${financialResult.created} novo(s), ${financialResult.updated} atualizado(s) e ${financialResult.deleted} excluído(s).`);
   else if (!options.silent) alert("Orçamento salvo com sucesso.");
   return true;
 }
@@ -7575,14 +7612,44 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", async (event
     button.textContent = originalLabel;
   }
 });
-document.querySelector("#budgetLaunchFinancialBtn")?.addEventListener("click", async (event) => {
-  const button = event.currentTarget;
-  button.disabled = true;
+function openBudgetFinancialDialog() {
+  const dialog = document.querySelector("#budgetFinancialDialog");
+  const savedBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
+  const hasSimulation = Boolean(savedBudget?.financialSimulationAt);
+  const hasEffectiveLaunch = Boolean(savedBudget?.financialLaunchedAt);
+  document.querySelector("#budgetSimulateFinancialBtn").hidden = hasSimulation || hasEffectiveLaunch;
+  document.querySelector("#budgetPostFinancialBtn").hidden = hasSimulation;
+  document.querySelector("#budgetDeleteSimulationBtn").hidden = !hasSimulation;
+  document.querySelector("#budgetFinalizeSimulationBtn").hidden = !hasSimulation;
+  document.querySelector("#budgetPostFinancialBtn").textContent = hasEffectiveLaunch ? "Atualizar lançamento" : "Lançar";
+  document.querySelector("#budgetFinancialDialogMessage").textContent = hasSimulation
+    ? "Este orçamento possui transações simuladas. Você pode excluí-las ou efetivá-las sem criar duplicidades."
+    : hasEffectiveLaunch
+      ? "Este orçamento já possui lançamento financeiro. A atualização mantém transações pagas ou recebidas e sincroniza as pendentes."
+      : 'Escolha “Simular lançamento” para criar transações identificadas por “Simulado -”, ou “Lançar” para efetivá-las diretamente.';
+  dialog?.showModal();
+}
+
+async function runBudgetFinancialAction(action, button) {
+  const buttons = Array.from(document.querySelectorAll("#budgetFinancialDialog .budget-financial-dialog-actions button"));
   const label = button.textContent;
-  button.textContent = "Lançando...";
-  try { await saveBudget({ launchFinancial: true, silent: true }); }
-  finally { button.disabled = false; button.textContent = label; }
-});
+  buttons.forEach((item) => { item.disabled = true; });
+  button.textContent = action === "deleteSimulation" ? "Excluindo..." : action === "simulate" ? "Simulando..." : "Processando...";
+  try {
+    const saved = await saveBudget({ financialAction: action, silent: true });
+    if (saved) document.querySelector("#budgetFinancialDialog")?.close();
+  } finally {
+    buttons.forEach((item) => { item.disabled = false; });
+    button.textContent = label;
+  }
+}
+
+document.querySelector("#budgetLaunchFinancialBtn")?.addEventListener("click", openBudgetFinancialDialog);
+document.querySelector("#closeBudgetFinancialDialog")?.addEventListener("click", () => document.querySelector("#budgetFinancialDialog")?.close());
+document.querySelector("#budgetSimulateFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("simulate", event.currentTarget));
+document.querySelector("#budgetPostFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("launch", event.currentTarget));
+document.querySelector("#budgetDeleteSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("deleteSimulation", event.currentTarget));
+document.querySelector("#budgetFinalizeSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("finalizeSimulation", event.currentTarget));
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
 [
   "#budgetCreatedAt",

@@ -2584,6 +2584,10 @@ body[data-view="order"] .budget-table {
 .budget-tax-actions { display: flex; align-items: end; gap: 8px; }
 .budget-tax-actions label { min-width: 105px; }
 .budget-financial-button { min-height: 26px; padding: 0 10px; font-size: 11px; white-space: nowrap; }
+.budget-financial-dialog { width: min(520px, calc(100vw - 28px)); }
+.budget-financial-dialog > p { margin: 18px 0; line-height: 1.5; }
+.budget-financial-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.budget-financial-dialog-actions .danger { border-color: #b42343; background: #fff; color: #b42343; }
 
 .budget-action-button.danger {
   border-color: rgba(244, 63, 104, 0.62);

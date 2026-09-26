@@ -37,11 +37,14 @@ function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + N
   );
   const budget = { id: "budget-1", code: "123", nobiliaId: "N-8", nobiliaDate: "2026-09-10", createdAt: "2026-09-01T12:00:00Z", rows, settings, cashPayments: payments };
   const client = { id: "client-1", name: "Maria de Oliveira", contact };
-  return { plan: () => budgetFinancialPlan(budget, client, "2026-09-21", { id: "mercado" }, categories), budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed };
+  return { plan: (options) => budgetFinancialPlan(budget, client, "2026-09-21", { id: "mercado" }, categories, options), budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed };
 }
 
 test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   assert.match(html, /id="budgetLaunchFinancialBtn"[^>]*>Lançar Financeiro/);
+  assert.match(html, /id="budgetSimulateFinancialBtn"[^>]*>Simular lançamento/);
+  assert.match(html, /id="budgetDeleteSimulationBtn"[^>]*>Excluir simulado/);
+  assert.match(html, /id="budgetFinalizeSimulationBtn"[^>]*>Efetivar simulado/);
   assert.match(html, /class="budget-tax-actions"[\s\S]*?id="budgetTaxRate"[\s\S]*?id="budgetLaunchFinancialBtn"/);
   assert.equal(html.indexOf('id="budgetLaunchFinancialBtn"') > html.indexOf('id="budgetTaxRate"'), true);
   const { plan, budgetFinancialDueDate } = planFor([
@@ -78,6 +81,13 @@ test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   assert.match(items[0].notes, /priscila almeida/);
 });
 
+test("simulacao prefixa todas as descricoes e efetivacao usa as descricoes normais", () => {
+  const { plan } = planFor([{ factoryFreight: 100 }], [{ parcel: "1", value: "100", dueDate: "2026-09-25" }], 100);
+  assert.equal(plan({ simulated: true }).every((item) => item.description.startsWith("Simulado - ")), true);
+  assert.equal(plan().every((item) => !item.description.startsWith("Simulado - ")), true);
+  assert.match(app, /crm-budget-financial:\$\{budget\.id\}:\$\{key\}/);
+});
+
 test("contato vazio nao gera tag adicional", () => {
   const { plan } = planFor([], [{ value: "0", dueDate: "" }], 0, "   ");
   assert.equal(plan()[0].notes.split("|").length, 2);
@@ -111,11 +121,11 @@ test("nao lanca status excluidos nem receitas divergentes do liquido", () => {
   assert.equal(budgetFinancialStatusAllowed("Finalizado"), false);
   assert.equal(budgetFinancialStatusAllowed("Pedido"), true);
   assert.throws(plan, /deve somar o líquido/);
-  assert.match(app, /financialLaunchedAt: options\.launchFinancial[\s\S]*?if \(budgetPayload\.financialLaunchedAt\) financialResult = await syncBudgetFinancialEntries/);
+  assert.match(app, /financialSimulationAt: simulationFinancialAction[\s\S]*?else if \(budgetPayload\.financialSimulationAt\) financialResult = await syncBudgetFinancialEntries/);
 });
 
 test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao duplica", async () => {
-  const syncStart = app.indexOf("async function syncBudgetFinancialEntries(budget, client, createIfMissing = false) {");
+  const syncStart = app.indexOf("async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = \"effective\") {");
   const syncEnd = app.indexOf("\nasync function saveBudget(options = {})", syncStart);
   assert.ok(syncStart >= 0 && syncEnd > syncStart);
   const writes = [];
@@ -178,4 +188,31 @@ test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao dupli
   assert.equal(writes.find((write) => write.id.includes("zero-id")).method, "DELETE");
   assert.equal(writes.find((write) => write.id === "new-id").method, "POST");
   assert.equal(writes.some((write) => write.id === "assembly-final-id"), false);
+});
+
+test("exclusao remove apenas transacoes simuladas e bloqueia lancamentos efetivos", async () => {
+  const deleteStart = app.indexOf("async function deleteBudgetFinancialSimulation(budget) {");
+  const deleteEnd = app.indexOf("\nasync function recoverBudgetSaveConflict", deleteStart);
+  const deletedUrls = [];
+  const context = {
+    remoteDatabaseEnabled: () => true,
+    currentUserId: () => "user",
+    budgetFinancialEntryIds: async () => [["income-1", "income-id"], ["tax", "tax-id"]],
+    fetchBudgetFinancialEntries: async () => [
+      { id: "income-id", status: "pending", description: "Simulado - Pagamento à Vista" },
+      { id: "tax-id", status: "pending", description: "Simulado - Impostos" },
+    ],
+    supabaseTableEndpoint: (_, query) => query,
+    supabaseHeaders: () => ({}),
+    authorizedFetch: async (url) => { deletedUrls.push(url); return { ok: true }; },
+    loadFinancialRegisters: async () => {},
+  };
+  const remove = runInNewContext(`${app.slice(deleteStart, deleteEnd)}\ndeleteBudgetFinancialSimulation`, context);
+  const result = await remove({ id: "budget-1" });
+  assert.equal(result.deleted, 2);
+  assert.equal(deletedUrls.length, 1);
+  assert.match(deletedUrls[0], /id=in\.\(income-id,tax-id\)/);
+
+  context.fetchBudgetFinancialEntries = async () => [{ id: "income-id", status: "pending", description: "Pagamento à Vista" }];
+  await assert.rejects(remove({ id: "budget-1" }), /lançamentos efetivos/);
 });

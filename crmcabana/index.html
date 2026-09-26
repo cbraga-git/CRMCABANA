@@ -904,6 +904,19 @@
       </main>
     </div>
 
+    <dialog id="budgetFinancialDialog">
+      <div class="dialog-card budget-financial-dialog">
+        <header><h2>Financeiro do orçamento</h2><button id="closeBudgetFinancialDialog" type="button" aria-label="Fechar">x</button></header>
+        <p id="budgetFinancialDialogMessage"></p>
+        <div class="budget-financial-dialog-actions">
+          <button class="button secondary" id="budgetSimulateFinancialBtn" type="button">Simular lançamento</button>
+          <button class="button primary" id="budgetPostFinancialBtn" type="button">Lançar</button>
+          <button class="button danger" id="budgetDeleteSimulationBtn" type="button" hidden>Excluir simulado</button>
+          <button class="button primary" id="budgetFinalizeSimulationBtn" type="button" hidden>Efetivar simulado</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="budgetAssistanceDialog">
       <form method="dialog" id="budgetAssistanceForm" class="dialog-card budget-assistance-dialog">
         <header><h2>Assistência</h2><button id="closeBudgetAssistanceDialog" type="button" aria-label="Fechar">x</button></header>
