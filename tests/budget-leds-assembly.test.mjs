@@ -29,7 +29,8 @@ test("montagem usa percentual normalmente e valor livre para LEDS", () => {
   assert.equal(rows[0].assembly, 100);
   assert.equal(rows[1].assembly, 275);
   assert.equal(rows[1].totalCost, 275);
-  assert.equal(rows[1].profit, 225);
+  assert.equal(rows[1].net, 775);
+  assert.equal(rows[1].profit, 500);
 });
 
 test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambientes", () => {
@@ -39,7 +40,7 @@ test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambient
   ], { ...settings, discountRate: 10, freightValue: 100, freightMode: "value" });
   assert.equal(rows[0].net, 900);
   assert.equal(rows[0].freight, 100);
-  assert.equal(rows[1].net, 500);
+  assert.equal(rows[1].net, 650);
   assert.equal(rows[1].freight, 0);
   assert.equal(rows[1].factoryFreight, 100);
 
@@ -49,6 +50,7 @@ test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambient
   ], { ...settings, discountRate: 10, freightValue: 10, freightMode: "percent" });
   assert.equal(percentRows[0].freight, 40);
   assert.equal(percentRows[1].freight, 0);
+  assert.equal(percentRows[1].net, 650);
 });
 
 test("FERRAGENS segue a isencao de LEDS, com montagem livre que aceita zero", () => {
@@ -58,9 +60,20 @@ test("FERRAGENS segue a isencao de LEDS, com montagem livre que aceita zero", ()
   ], { ...settings, discountRate: 10, freightValue: 100, freightMode: "value" });
   assert.equal(rows[0].net, 900);
   assert.equal(rows[0].freight, 100);
-  assert.equal(rows[1].net, 500);
+  assert.equal(rows[1].net, 600);
   assert.equal(rows[1].freight, 0);
   assert.equal(rows[1].assembly, 0);
+});
+
+test("LEDS e FERRAGENS somam fabrica e montagem livre ao valor liquido", () => {
+  const rows = calculate([
+    { name: "LEDS", gross: 1000, factory: 200, hardware: 0, assembly: 150 },
+    { name: "FERRAGENS", gross: 500, factory: 80, hardware: 0, assembly: 20 },
+  ], { ...settings, discountRate: 50, freightValue: 500, freightMode: "value" });
+  assert.equal(rows[0].net, 1350);
+  assert.equal(rows[1].net, 600);
+  assert.equal(rows[0].freight, 0);
+  assert.equal(rows[1].freight, 0);
 });
 
 test("linha LEDS exige montagem manual positiva", () => {
