@@ -137,7 +137,8 @@ test("orçamento exibe contato do cliente ao lado da data da venda", () => {
 test("ambientes aparecem antes da demonstração de pagamentos no orçamento", () => {
   const environments = html.indexOf('class="project-editor budget-environments"');
   const payments = html.indexOf('class="payments-grid"');
-  assert.ok(environments >= 0 && payments > environments);
+  const footer = html.indexOf('class="budget-footer-grid"');
+  assert.ok(environments >= 0 && payments > environments && footer > payments);
 });
 
 test("filtros de status de orcamento exibem contagem discreta por categoria", () => {
@@ -170,4 +171,12 @@ test("actions do deploy usam commits imutaveis", () => {
   const actionRefs = [...workflow.matchAll(/uses:\s+[^@\s]+@([^\s]+)/g)].map((match) => match[1]);
   assert.ok(actionRefs.length >= 3);
   actionRefs.forEach((ref) => assert.match(ref, /^[a-f0-9]{40}$/));
+});
+
+test("deploy valida a versão antes de publicar sem interromper implantação ativa", () => {
+  assert.match(workflow, /cancel-in-progress:\s*false/);
+  assert.match(workflow, /validate:[\s\S]*?npm run check[\s\S]*?npm test/);
+  assert.match(workflow, /deploy:[\s\S]*?needs: validate/);
+  assert.match(workflow, /GITHUB_SHA::7/);
+  assert.match(workflow, /Verify release artifact/);
 });
