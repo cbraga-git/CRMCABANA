@@ -13,7 +13,7 @@ function extract(startMarker, endMarker) {
 }
 
 const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const calculate = runInNewContext(`${extract("function calculateBudgetRows(", "\nfunction normalizeBudgetSettings(")}\ncalculateBudgetRows`, {
+const calculate = runInNewContext(`${extract("function budgetEnvironmentHasSpecialPricing(", "\nfunction normalizeBudgetSettings(")}\ncalculateBudgetRows`, {
   percentToRate: (value) => Number(value || 0) / 100,
   parseMoney: (value) => Number(value || 0),
   normalizedMigrationText: normalize,
@@ -51,6 +51,18 @@ test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambient
   assert.equal(percentRows[1].freight, 0);
 });
 
+test("FERRAGENS segue a isencao de LEDS, com montagem livre que aceita zero", () => {
+  const rows = calculate([
+    { name: "Cozinha", gross: 1000, factory: 400, hardware: 0 },
+    { name: "Ferragens", gross: 500, factory: 100, hardware: 0, assembly: 0 },
+  ], { ...settings, discountRate: 10, freightValue: 100, freightMode: "value" });
+  assert.equal(rows[0].net, 900);
+  assert.equal(rows[0].freight, 100);
+  assert.equal(rows[1].net, 500);
+  assert.equal(rows[1].freight, 0);
+  assert.equal(rows[1].assembly, 0);
+});
+
 test("linha LEDS exige montagem manual positiva", () => {
   const alerts = [];
   const validate = runInNewContext(`${extract("function validateBudgetLedAssembly(", "\nasync function saveBudget(")}\nvalidateBudgetLedAssembly`, {
@@ -63,4 +75,5 @@ test("linha LEDS exige montagem manual positiva", () => {
   assert.equal(validate([{ name: "LEDS", assembly: 0 }]), false);
   assert.match(alerts[0], /Montagem.*LEDS/);
   assert.equal(validate([{ name: "leds", assembly: 120 }]), true);
+  assert.equal(validate([{ name: "Ferragens", assembly: 0 }]), true);
 });

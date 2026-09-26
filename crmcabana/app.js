@@ -3950,6 +3950,10 @@ function renderOrderMaterialRows(materials = [], budgetRows = readBudgetRows()) 
   });
 }
 
+function budgetEnvironmentHasSpecialPricing(name) {
+  return ["leds", "ferragens"].includes(normalizedMigrationText(name));
+}
+
 function calculateBudgetRows(rows, settings) {
   const rates = {
     discount: percentToRate(settings.discountRate),
@@ -3960,7 +3964,7 @@ function calculateBudgetRows(rows, settings) {
     tax: percentToRate(settings.taxRate),
   };
 
-  const freightRows = rows.filter((row) => normalizedMigrationText(row.name) !== "leds");
+  const freightRows = rows.filter((row) => !budgetEnvironmentHasSpecialPricing(row.name));
   const totalFactory = freightRows.reduce((sum, row) => sum + Math.max(0, parseMoney(row.factory)), 0);
   const freightInput = Math.max(0, parseMoney(settings.freightValue));
   const totalFreight = settings.freightMode === "percent" ? totalFactory * percentToRate(freightInput) : freightInput;
@@ -3970,14 +3974,14 @@ function calculateBudgetRows(rows, settings) {
     const gross = parseMoney(row.gross);
     const factory = parseMoney(row.factory);
     const hardware = parseMoney(row.hardware);
-    const isLeds = normalizedMigrationText(row.name) === "leds";
-    const net = isLeds ? gross : gross - gross * rates.discount;
+    const hasSpecialPricing = budgetEnvironmentHasSpecialPricing(row.name);
+    const net = hasSpecialPricing ? gross : gross - gross * rates.discount;
     const hasValues = Boolean(row.name || gross || factory || hardware);
-    const freight = isLeds ? 0 : totalFactory > 0
+    const freight = hasSpecialPricing ? 0 : totalFactory > 0
       ? totalFreight * Math.max(0, factory) / totalFactory
       : hasValues && distributableRows > 0 ? totalFreight / distributableRows : 0;
     const release = net * rates.release;
-    const assembly = isLeds ? Math.max(0, parseMoney(row.assembly)) : net * rates.assembly;
+    const assembly = hasSpecialPricing ? Math.max(0, parseMoney(row.assembly)) : net * rates.assembly;
     const tax = net * rates.tax;
     const profitBeforeProfitRates = net - factory - hardware - freight - release - assembly - tax;
     const profitRateTotal = rates.lela + rates.iris;
@@ -4692,12 +4696,12 @@ function setBudgetTableOrderMode(orderMode) {
 }
 
 function syncBudgetRowAssemblyMode(row) {
-  const isLeds = normalizedMigrationText(row.querySelector('[data-budget-field="name"]')?.value) === "leds";
+  const hasManualAssembly = budgetEnvironmentHasSpecialPricing(row.querySelector('[data-budget-field="name"]')?.value);
   const result = row.querySelector('[data-budget-result="assembly"]');
   const input = row.querySelector('[data-budget-field="assembly"]');
-  if (result) result.hidden = isLeds;
-  if (input) input.hidden = !isLeds;
-  row.classList.toggle("budget-leds-row", isLeds);
+  if (result) result.hidden = hasManualAssembly;
+  if (input) input.hidden = !hasManualAssembly;
+  row.classList.toggle("budget-manual-assembly-row", hasManualAssembly);
 }
 
 function createBudgetRow(rowData = {}) {
@@ -4709,7 +4713,7 @@ function createBudgetRow(rowData = {}) {
     <td data-budget-result="factoryFreight"></td>
     <td><input class="money-input" data-budget-field="hardware" inputmode="decimal" title="Tambem aceita contas, ex: 1.200,00+350,50" /></td>
     <td data-budget-result="release"></td>
-    <td class="budget-row-assembly"><span data-budget-result="assembly"></span><input class="money-input" data-budget-field="assembly" inputmode="decimal" aria-label="Valor de montagem para LEDS" hidden /></td>
+    <td class="budget-row-assembly"><span data-budget-result="assembly"></span><input class="money-input" data-budget-field="assembly" inputmode="decimal" aria-label="Valor livre de montagem" hidden /></td>
     <td data-budget-result="lela"></td>
     <td data-budget-result="iris"></td>
     <td data-budget-result="tax"></td>
@@ -4773,7 +4777,7 @@ function createBudgetRow(rowData = {}) {
     event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
     markBudgetDirty();
     updateBudgetSummary();
-    if (row.classList.contains("budget-leds-row")) {
+    if (row.classList.contains("budget-manual-assembly-row")) {
       row.querySelector('[data-budget-field="assembly"]')?.focus();
       return;
     }
