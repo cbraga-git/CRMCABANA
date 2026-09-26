@@ -5049,7 +5049,7 @@ function renderBudgetList() {
     folderCell.className = "folder-column";
     folderButton.className = "folder-button";
     folderButton.type = "button";
-    const financialStatus = budget.financialSimulationAt ? "simulation" : budget.financialLaunchedAt ? "launched" : "";
+    const financialStatus = !budgetFinancialStatusAllowed(budget.status) ? "" : budget.financialSimulationAt ? "simulation" : budget.financialLaunchedAt ? "launched" : "";
     if (financialStatus) folderButton.dataset.financialStatus = financialStatus;
     const financialStatusLabel = financialStatus === "simulation" ? "Simulado no financeiro" : financialStatus === "launched" ? "Lançado no financeiro" : "";
     folderButton.title = `Abrir ${documentLabel}${financialStatusLabel ? ` — ${financialStatusLabel}` : ""}`;
