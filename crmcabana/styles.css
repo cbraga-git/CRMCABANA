@@ -2155,8 +2155,15 @@ body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard {
 
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard table,
 body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard table {
-  min-width: 1260px;
+  min-width: 1360px;
   table-layout: fixed;
+}
+
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th:nth-child(4),
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard th:nth-child(4),
+body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard td:nth-child(4),
+body[data-view="order"]:not([data-budget-editing="true"]) #budgetListCard td:nth-child(4) {
+  width: 150px;
 }
 
 body[data-view="budget"]:not([data-budget-editing="true"]) #budgetListCard th:nth-child(2),

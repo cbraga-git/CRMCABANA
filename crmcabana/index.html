@@ -274,7 +274,7 @@
             <section class="client-toolbar budget-search-toolbar">
               <label class="search-box">
                 <span>Buscar</span>
-                <input id="budgetSearch" type="search" placeholder="Buscar por cliente, vendedor ou status..." />
+                <input id="budgetSearch" type="search" placeholder="Buscar por cliente, contato, vendedor ou status..." />
               </label>
               <div class="date-filter compact-date-filter" aria-label="Filtro por data do orçamento">
                 <label>
@@ -311,6 +311,7 @@
                   <th class="folder-column">▲</th>
                   <th data-sort="code" tabindex="0">ID Orçamento</th>
                   <th data-sort="client" tabindex="0">Cliente</th>
+                  <th data-sort="contact" tabindex="0">Contato</th>
                   <th data-sort="status" tabindex="0">Status</th>
                   <th data-sort="factoryFreight" tabindex="0">Fábrica + frete</th>
                   <th data-sort="cost" tabindex="0">Custo total</th>
@@ -375,6 +376,9 @@
             <section class="budget-auxiliary-toolbar" aria-label="Datas complementares">
               <label class="budget-sale-field" id="budgetSaleAtField" hidden>Data da Venda
                 <input id="budgetSaleAt" type="datetime-local" />
+              </label>
+              <label class="budget-sale-field" id="budgetContactField" hidden>Contato
+                <input id="budgetContact" type="text" readonly />
               </label>
               <label class="order-only-field">Previsão de Entrega
                 <input id="orderDeliveryForecastAt" type="datetime-local" />

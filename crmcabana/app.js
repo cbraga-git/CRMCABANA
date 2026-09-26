@@ -310,6 +310,8 @@ const elements = {
   budgetDeleteBtn: document.querySelector("#budgetDeleteBtn"),
   budgetSaleAt: document.querySelector("#budgetSaleAt"),
   budgetSaleAtField: document.querySelector("#budgetSaleAtField"),
+  budgetContact: document.querySelector("#budgetContact"),
+  budgetContactField: document.querySelector("#budgetContactField"),
   orderDeliveryForecastAt: document.querySelector("#orderDeliveryForecastAt"),
   clientSearch: document.querySelector("#clientSearch"),
   chart: document.querySelector("#statusChart"),
@@ -2932,6 +2934,7 @@ function budgetSortValue(item, key) {
   const values = {
     code: formatBudgetCodeForList(item.budget.code),
     client: item.client.name || "",
+    contact: item.client.contact || "",
     seller: responsibleSeller(item.client),
     status: item.budget.status || "",
     gross: totals.gross,
@@ -2993,7 +2996,7 @@ function budgetStatusCounts() {
   const budgets = state.clients
     .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
     .filter(({ client, budget }) => {
-      const searchableValues = orderMode ? [client.name] : [budget.code, budget.status, client.name, client.status, responsibleSeller(client), client.id];
+      const searchableValues = orderMode ? [client.name, client.contact] : [budget.code, budget.status, client.name, client.contact, client.status, responsibleSeller(client), client.id];
       const search = state.budgetSearch.toLowerCase();
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
@@ -3561,7 +3564,9 @@ function updateBudgetAssemblyDays() {
 
 function updateBudgetSaleAtFieldVisibility() {
   if (!elements.budgetSaleAtField) return;
-  elements.budgetSaleAtField.hidden = state.view === "order" || budgetInputValue("budgetStatus") !== "Aprovado";
+  const hidden = state.view === "order" || budgetInputValue("budgetStatus") !== "Aprovado";
+  elements.budgetSaleAtField.hidden = hidden;
+  if (elements.budgetContactField) elements.budgetContactField.hidden = hidden;
 }
 
 function handleBudgetStatusDateFields() {
@@ -3800,6 +3805,7 @@ function budgetForEditing(client) {
 function renderBudgetSeller(client) {
   const seller = document.querySelector("#budgetSeller");
   if (seller) seller.value = client ? responsibleSeller(client) || "-" : "-";
+  if (elements.budgetContact) elements.budgetContact.value = client?.contact || "-";
 }
 
 function readBudgetSettings() {
@@ -4904,7 +4910,7 @@ function renderBudgetList() {
   rows.innerHTML = "";
 
   if (!budgets.length) {
-    rows.innerHTML = `<tr><td colspan="9" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="10" class="empty-state">Nenhum ${documentLabel} encontrado</td></tr>`;
     return;
   }
 
@@ -4929,6 +4935,7 @@ function renderBudgetList() {
     [
       combinedCodeValue,
       client.name,
+      client.contact,
       budget.status || "Negociação",
     ].forEach((value) => {
       const cell = document.createElement("td");
@@ -4965,7 +4972,7 @@ function renderBudget() {
   const editing = isBudgetArea && state.budgetEditing;
   document.body.dataset.budgetViewMode = orderMode ? "order" : "budget";
   if (elements.budgetSearch) {
-    elements.budgetSearch.placeholder = orderMode ? "Buscar por nome do cliente..." : "Buscar por cliente, vendedor ou status...";
+    elements.budgetSearch.placeholder = orderMode ? "Buscar por cliente ou contato..." : "Buscar por cliente, contato, vendedor ou status...";
   }
   const dateFilterTitle = document.querySelector(".budget-dashboard-filters .date-filter .filter-title");
   if (dateFilterTitle) dateFilterTitle.textContent = orderMode ? "Data da venda" : "Data do orcamento";
