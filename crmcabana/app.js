@@ -3971,11 +3971,12 @@ function calculateBudgetRows(rows, settings) {
   const distributableRows = freightRows.filter((row) => row.name || row.gross || row.factory || row.hardware).length || freightRows.length;
 
   return rows.map((row) => {
-    const gross = parseMoney(row.gross);
+    const environmentName = normalizedMigrationText(row.name);
+    const hasSpecialPricing = budgetEnvironmentHasSpecialPricing(row.name);
+    const gross = hasSpecialPricing ? 0 : parseMoney(row.gross);
     const factory = parseMoney(row.factory);
     const hardware = parseMoney(row.hardware);
-    const hasSpecialPricing = budgetEnvironmentHasSpecialPricing(row.name);
-    const manualAssembly = hasSpecialPricing ? Math.max(0, parseMoney(row.assembly)) : 0;
+    const manualAssembly = environmentName === "leds" ? Math.max(0, parseMoney(row.assembly)) : 0;
     const net = hasSpecialPricing ? gross + factory + manualAssembly : gross - gross * rates.discount;
     const hasValues = Boolean(row.name || gross || factory || hardware);
     const freight = hasSpecialPricing ? 0 : totalFactory > 0
@@ -4697,11 +4698,22 @@ function setBudgetTableOrderMode(orderMode) {
 }
 
 function syncBudgetRowAssemblyMode(row) {
-  const hasManualAssembly = budgetEnvironmentHasSpecialPricing(row.querySelector('[data-budget-field="name"]')?.value);
+  const environmentName = normalizedMigrationText(row.querySelector('[data-budget-field="name"]')?.value);
+  const hasManualAssembly = ["leds", "ferragens"].includes(environmentName);
+  const locksAssembly = environmentName === "ferragens";
   const result = row.querySelector('[data-budget-result="assembly"]');
   const input = row.querySelector('[data-budget-field="assembly"]');
+  const grossInput = row.querySelector('[data-budget-field="gross"]');
   if (result) result.hidden = hasManualAssembly;
-  if (input) input.hidden = !hasManualAssembly;
+  if (input) {
+    input.hidden = !hasManualAssembly;
+    input.readOnly = locksAssembly;
+    if (locksAssembly) input.value = formatMoneyInput(0);
+  }
+  if (grossInput) {
+    grossInput.readOnly = hasManualAssembly;
+    if (hasManualAssembly) grossInput.value = formatMoneyInput(0);
+  }
   row.classList.toggle("budget-manual-assembly-row", hasManualAssembly);
 }
 
@@ -4724,7 +4736,7 @@ function createBudgetRow(rowData = {}) {
     <td><button class="icon-button danger" type="button" data-budget-remove aria-label="Remover ambiente" title="Remover ambiente">🗑</button></td>
   `;
   const focusBudgetGross = () => {
-    focusBudgetRowField(row, "gross");
+    focusBudgetRowField(row, row.querySelector('[data-budget-field="gross"]')?.readOnly ? "factory" : "gross");
   };
   const environmentPicker = createEnvironmentPicker(rowData.name || "", () => {
     markBudgetDirty();
@@ -4778,8 +4790,9 @@ function createBudgetRow(rowData = {}) {
     event.currentTarget.value = formatMoneyInput(event.currentTarget.value);
     markBudgetDirty();
     updateBudgetSummary();
-    if (row.classList.contains("budget-manual-assembly-row")) {
-      row.querySelector('[data-budget-field="assembly"]')?.focus();
+    const assemblyInput = row.querySelector('[data-budget-field="assembly"]');
+    if (row.classList.contains("budget-manual-assembly-row") && !assemblyInput?.readOnly) {
+      assemblyInput.focus();
       return;
     }
     focusNextBudgetRowFieldOrEnvironment(row, "gross");

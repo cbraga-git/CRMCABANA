@@ -21,7 +21,7 @@ const calculate = runInNewContext(`${extract("function budgetEnvironmentHasSpeci
 
 const settings = { discountRate: 0, releaseRate: 0, assemblyRate: 10, lelaRate: 0, irisRate: 0, taxRate: 0, freightValue: 0, freightMode: "value" };
 
-test("montagem usa percentual normalmente e valor livre para LEDS", () => {
+test("montagem usa percentual normalmente e LEDS soma fabrica e montagem com VITTA zerado", () => {
   const rows = calculate([
     { name: "Cozinha", gross: 1000, factory: 0, hardware: 0 },
     { name: "LEDS", gross: 500, factory: 0, hardware: 0, assembly: 275 },
@@ -29,8 +29,9 @@ test("montagem usa percentual normalmente e valor livre para LEDS", () => {
   assert.equal(rows[0].assembly, 100);
   assert.equal(rows[1].assembly, 275);
   assert.equal(rows[1].totalCost, 275);
-  assert.equal(rows[1].net, 775);
-  assert.equal(rows[1].profit, 500);
+  assert.equal(rows[1].gross, 0);
+  assert.equal(rows[1].net, 275);
+  assert.equal(rows[1].profit, 0);
 });
 
 test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambientes", () => {
@@ -40,7 +41,8 @@ test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambient
   ], { ...settings, discountRate: 10, freightValue: 100, freightMode: "value" });
   assert.equal(rows[0].net, 900);
   assert.equal(rows[0].freight, 100);
-  assert.equal(rows[1].net, 650);
+  assert.equal(rows[1].gross, 0);
+  assert.equal(rows[1].net, 150);
   assert.equal(rows[1].freight, 0);
   assert.equal(rows[1].factoryFreight, 100);
 
@@ -50,7 +52,7 @@ test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambient
   ], { ...settings, discountRate: 10, freightValue: 10, freightMode: "percent" });
   assert.equal(percentRows[0].freight, 40);
   assert.equal(percentRows[1].freight, 0);
-  assert.equal(percentRows[1].net, 650);
+  assert.equal(percentRows[1].net, 150);
 });
 
 test("FERRAGENS segue a isencao de LEDS, com montagem livre que aceita zero", () => {
@@ -60,20 +62,31 @@ test("FERRAGENS segue a isencao de LEDS, com montagem livre que aceita zero", ()
   ], { ...settings, discountRate: 10, freightValue: 100, freightMode: "value" });
   assert.equal(rows[0].net, 900);
   assert.equal(rows[0].freight, 100);
-  assert.equal(rows[1].net, 600);
+  assert.equal(rows[1].gross, 0);
+  assert.equal(rows[1].net, 100);
   assert.equal(rows[1].freight, 0);
   assert.equal(rows[1].assembly, 0);
 });
 
-test("LEDS e FERRAGENS somam fabrica e montagem livre ao valor liquido", () => {
+test("LEDS soma fabrica e montagem; FERRAGENS soma apenas fabrica ao liquido", () => {
   const rows = calculate([
     { name: "LEDS", gross: 1000, factory: 200, hardware: 0, assembly: 150 },
     { name: "FERRAGENS", gross: 500, factory: 80, hardware: 0, assembly: 20 },
   ], { ...settings, discountRate: 50, freightValue: 500, freightMode: "value" });
-  assert.equal(rows[0].net, 1350);
-  assert.equal(rows[1].net, 600);
+  assert.equal(rows[0].gross, 0);
+  assert.equal(rows[1].gross, 0);
+  assert.equal(rows[0].net, 350);
+  assert.equal(rows[1].net, 80);
+  assert.equal(rows[1].assembly, 0);
   assert.equal(rows[0].freight, 0);
   assert.equal(rows[1].freight, 0);
+});
+
+test("interface bloqueia VITTA especial e montagem de FERRAGENS", () => {
+  assert.match(app, /grossInput\.readOnly = hasManualAssembly/);
+  assert.match(app, /input\.readOnly = locksAssembly/);
+  assert.match(app, /if \(locksAssembly\) input\.value = formatMoneyInput\(0\)/);
+  assert.match(app, /if \(hasManualAssembly\) grossInput\.value = formatMoneyInput\(0\)/);
 });
 
 test("linha LEDS exige montagem manual positiva", () => {
