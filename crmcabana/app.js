@@ -1917,6 +1917,15 @@ async function deleteFinancialRecord(table, id, label) {
     const details = await response.json().catch(() => null);
     throw new Error(details?.code === "23503" ? "Este registro está em uso e não pode ser excluído. Inative-o em vez disso." : details?.message || "Não foi possível excluir o registro.");
   }
+  if (table === "crm_financial_entries") {
+    for (const client of state.clients) {
+      for (const budget of clientBudgetHistory(client)) {
+        if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+        const pairs = await budgetFinancialEntryIds(budget);
+        if (pairs.some(([, entryId]) => entryId === id)) await reconcileBudgetFinancialStatus(client.id, budget);
+      }
+    }
+  }
   await loadFinancialRegisters();
   return true;
 }
@@ -4888,6 +4897,14 @@ async function openBudgetEditor(clientId = state.selectedId, options = {}) {
   state.selectedId = state.budgetIsNew && !clientId ? null : clientId || state.selectedId;
   state.budgetSourceId = state.budgetIsNew ? null : state.selectedId;
   state.budgetEditingId = options.budgetId || null;
+  if (!state.budgetIsNew) {
+    try {
+      await reconcileBudgetFinancialStatus(state.budgetSourceId, budgetForEditing(sourceBudgetClient()));
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
   state.budgetEditing = true;
   renderBudget();
 }
@@ -5184,6 +5201,29 @@ async function fetchBudgetFinancialEntries(ids) {
   return response.json();
 }
 
+async function reconcileBudgetFinancialStatus(clientId, budget) {
+  if (!budget || (!budget.financialLaunchedAt && !budget.financialSimulationAt)) return false;
+  if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("Conecte o CRM ao banco para conferir o lançamento financeiro do orçamento.");
+  const pairs = await budgetFinancialEntryIds(budget);
+  const entries = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
+  if (!Array.isArray(entries)) throw new Error("Não foi possível conferir o lançamento financeiro do orçamento.");
+  if (entries.length) return false;
+  const client = state.clients.find((item) => item.id === clientId);
+  if (!client) return false;
+  const clearStatus = (item) => budgetIdentity(item) === budgetIdentity(budget)
+    ? { ...item, financialLaunchedAt: "", financialSimulationAt: "" }
+    : item;
+  state.clients = state.clients.map((item) => item.id === clientId
+    ? { ...item, budget: item.budget ? clearStatus(item.budget) : item.budget, budgets: (item.budgets || []).map(clearStatus) }
+    : item);
+  if (!(await saveClients([clientId]))) {
+    state.clients = state.clients.map((item) => item.id === clientId ? client : item);
+    await saveClients();
+    throw new Error("As transações não existem mais, mas não foi possível confirmar a atualização do orçamento. Reabra o orçamento para conferir novamente.");
+  }
+  return true;
+}
+
 async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = "effective") {
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("O financeiro precisa estar conectado ao banco para lançar o orçamento.");
   const pairs = await budgetFinancialEntryIds(budget);
@@ -5298,6 +5338,14 @@ function validateBudgetLedAssembly(rows) {
 }
 
 async function saveBudget(options = {}) {
+  if (isAdmin() && state.budgetEditingId && !options.financialAction && !options.launchFinancial) {
+    try {
+      await reconcileBudgetFinancialStatus(state.budgetSourceId, budgetForEditing(sourceBudgetClient()));
+    } catch (error) {
+      alert(error.message);
+      return false;
+    }
+  }
   const client = selectedBudgetClient();
   if (!isAdmin()) return;
   if (!client) {
