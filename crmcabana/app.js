@@ -3607,7 +3607,7 @@ function updateBudgetAssistanceButton() {
   const button = document.querySelector("#budgetAssistanceBtn");
   if (!button) return;
   const enabled = normalizedMigrationText(budgetInputValue("budgetStatus")) === "finalizado";
-  button.disabled = !enabled;
+  button.setAttribute("aria-disabled", String(!enabled));
   button.title = enabled ? "Registrar assistência" : "Disponível somente para orçamentos finalizados";
 }
 
@@ -3618,7 +3618,10 @@ function renderBudgetAssistanceRows() {
 }
 
 function openBudgetAssistanceDialog() {
-  if (normalizedMigrationText(budgetInputValue("budgetStatus")) !== "finalizado") return;
+  if (normalizedMigrationText(budgetInputValue("budgetStatus")) !== "finalizado") {
+    alert("A assistência somente pode ser registrada quando o orçamento estiver com o status Finalizado.");
+    return;
+  }
   document.querySelector("#budgetAssistanceAssembler").value = budgetInputValue("budgetAssemblerName").trim();
   document.querySelector("#budgetAssistanceDescription").value = "";
   document.querySelector("#budgetAssistanceAmount").value = "";

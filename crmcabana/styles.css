@@ -2501,6 +2501,7 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-assistance-button { min-height: 34px; align-self: end; white-space: nowrap; }
+.budget-assistance-button[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .budget-assistance-dialog { width: 100%; }
 .budget-assistance-history { display: grid; gap: 8px; margin-top: 16px; }
 .budget-assistance-history h3 { font-size: 14px; }

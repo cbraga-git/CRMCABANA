@@ -22,9 +22,10 @@ test("orçamento preserva múltiplas assistências válidas", () => {
 });
 
 test("botão e formulário de assistência seguem o status Finalizado", () => {
-  assert.match(html, /id="budgetAssistanceBtn"[^>]*disabled/);
+  assert.match(html, /id="budgetAssistanceBtn"[^>]*aria-disabled="true"/);
   assert.match(html, /id="budgetAssistanceDialog"[\s\S]*?id="budgetAssistanceAssembler"[\s\S]*?id="budgetAssistanceAmount"[\s\S]*?id="budgetAssistanceDescription"/);
   assert.match(app, /normalizedMigrationText\(budgetInputValue\("budgetStatus"\)\) === "finalizado"/);
+  assert.match(app, /assistência somente pode ser registrada quando o orçamento estiver com o status Finalizado/);
   assert.match(app, /assistances: normalizeBudgetAssistances\(state\.budgetAssistanceDrafts\)/);
   assert.match(css, /\.budget-assembler-name\s*\{\s*grid-column: span 2;/);
 });
