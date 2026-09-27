@@ -37,6 +37,8 @@ test("taxa mensal informada manualmente substitui a sugestão da matriz", () => 
 test("taxa sugerida escolhida manualmente pode ser usada em qualquer prazo", () => {
   const result = calculate(10000, { ...defaults, months: 3, rate: 3.3, rateAuto: false });
   assert.equal(result.effectiveRate, 3.3);
+  assert.match(html, /id="budgetPaymentRate"/);
+  assert.doesNotMatch(html, /budgetPaymentRateSuggestion/);
 });
 
 test("Price em doze meses confere prestação e juros conhecidos", () => {

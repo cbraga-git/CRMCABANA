@@ -7916,7 +7916,7 @@ document.querySelector("#closeBudgetFinancialDialog")?.addEventListener("click",
 document.querySelector("#budgetSimulateFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("simulate", event.currentTarget));
 document.querySelector("#budgetPostFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("launch", event.currentTarget));
 document.querySelector("#budgetDeleteSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("deleteSimulation", event.currentTarget));
-document.querySelector("#budgetPaymentRate")?.addEventListener("input", (event) => { event.currentTarget.dataset.auto = "false"; });
+document.querySelector("#budgetPaymentRate")?.addEventListener("change", (event) => { event.currentTarget.dataset.auto = String(!event.currentTarget.value); });
 document.querySelector("#budgetFinalizeSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("finalizeSimulation", event.currentTarget));
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
 document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", () => { markBudgetDirty(); updateBudgetSummary(); });
