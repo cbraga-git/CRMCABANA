@@ -3663,6 +3663,7 @@ function currentBudgetDraft() {
     orderMaterials: readOrderMaterialRows(),
     deliveryForecastAt: readOrderDeliveryForecastAt(),
     cashPayments: readCashPaymentRows(),
+    paymentPlan: readBudgetPaymentPlan(),
     assistances: normalizeBudgetAssistances(state.budgetAssistanceDrafts),
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
   };
@@ -3767,6 +3768,7 @@ function clientBudget(client) {
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
     deliveryForecastAt: saved.deliveryForecastAt || "",
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
+    paymentPlan: normalizeBudgetPaymentPlan(saved.paymentPlan),
     assistances: normalizeBudgetAssistances(saved.assistances),
     financialLaunchedAt: saved.financialLaunchedAt || "",
     financialSimulationAt: saved.financialSimulationAt || "",
@@ -3788,6 +3790,7 @@ function blankBudget() {
     orderMaterials: [],
     deliveryForecastAt: "",
     cashPayments: defaultCashPaymentRows(),
+    paymentPlan: normalizeBudgetPaymentPlan(),
     assistances: [],
     financialLaunchedAt: "",
     financialSimulationAt: "",
@@ -3802,6 +3805,123 @@ function defaultCashPaymentRows() {
     dueDate: "",
     method: "",
   }));
+}
+
+const BUDGET_PAYMENT_RATE_MATRIX = {
+  3: [1.3, 1.2, 1.1, 1.0], 4: [1.4, 1.3, 1.2, 1.1], 5: [1.5, 1.4, 1.3, 1.1], 6: [1.7, 1.5, 1.4, 1.2],
+  7: [1.7, 1.5, 1.4, 1.2], 8: [1.8, 1.6, 1.4, 1.3], 9: [2.0, 1.8, 1.6, 1.4], 10: [2.0, 1.8, 1.6, 1.5],
+  11: [2.1, 1.9, 1.7, 1.6], 12: [2.2, 2.0, 1.8, 1.7], 13: [2.4, 2.2, 2.0, 1.8], 14: [2.4, 2.2, 2.0, 1.8],
+  15: [2.5, 2.2, 2.0, 1.9], 16: [2.7, 2.5, 2.2, 2.0], 17: [2.7, 2.5, 2.2, 2.0], 18: [2.7, 2.5, 2.2, 2.1],
+  19: [3.0, 2.8, 2.5, 2.2], 20: [3.0, 2.8, 2.5, 2.2], 21: [3.1, 2.8, 2.5, 2.3], 22: [3.1, 2.8, 2.6, 2.3],
+  23: [3.2, 2.8, 2.6, 2.4], 24: [3.3, 2.8, 2.6, 2.4],
+};
+const BUDGET_PAYMENT_METHODS = ["PIX", "Dinheiro", "Cartão de Credito", "Boleto"];
+
+function budgetPaymentRateFor(netCents, entryCents, months) {
+  if (entryCents >= netCents) return 0;
+  const rates = BUDGET_PAYMENT_RATE_MATRIX[months];
+  if (!rates) throw new Error("O financiamento próprio está disponível de 3 a 24 parcelas.");
+  const entryPercent = entryCents / netCents * 100;
+  if (entryPercent < 20) throw new Error("O financiamento próprio exige entrada mínima de 20%.");
+  return rates[entryPercent >= 50 ? 3 : entryPercent >= 40 ? 2 : entryPercent >= 30 ? 1 : 0];
+}
+
+function normalizeBudgetPaymentPlan(value = {}) {
+  return {
+    enabled: value.enabled === true,
+    entry: Number(value.entry) || 0,
+    months: value.months == null ? 3 : Number(value.months),
+    rate: value.rate == null ? 0 : Number(value.rate),
+    entryMethod: BUDGET_PAYMENT_METHODS.includes(value.entryMethod) ? value.entryMethod : "PIX",
+    method: BUDGET_PAYMENT_METHODS.includes(value.method) ? value.method : "PIX",
+    entryDate: value.entryDate || "",
+    firstDueDate: value.firstDueDate || "",
+    dueDates: Object.fromEntries(Object.entries(value.dueDates || {}).filter(([key, date]) => /^plan-income-([1-9]|1\d|2[0-4])$/.test(key) && typeof date === "string")),
+  };
+}
+
+function budgetPaymentMonthDate(date, offset) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return "";
+  const [year, month, day] = date.split("-").map(Number);
+  const original = new Date(Date.UTC(year, month - 1, day));
+  if (original.toISOString().slice(0, 10) !== date) return "";
+  const lastDay = new Date(Date.UTC(year, month + offset, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month - 1 + offset, Math.min(day, lastDay))).toISOString().slice(0, 10);
+}
+
+function calculateBudgetPaymentPlan(net, value) {
+  const plan = normalizeBudgetPaymentPlan(value);
+  const netCents = Math.round(Number(net) * 100);
+  const entryCents = Math.round(plan.entry * 100);
+  if (!Number.isSafeInteger(netCents) || netCents < 0) throw new Error("O valor líquido deve ser maior ou igual a zero.");
+  if (!Number.isSafeInteger(entryCents) || entryCents < 0 || entryCents > netCents) throw new Error("A entrada deve estar entre zero e o valor líquido do orçamento.");
+  if (!Number.isInteger(plan.months) || plan.months < 3 || plan.months > 24) throw new Error("Escolha de 3 a 24 parcelas.");
+  if (entryCents && entryCents < netCents && budgetPaymentMonthDate(plan.entryDate, 0) && budgetPaymentMonthDate(plan.firstDueDate, 0) && plan.firstDueDate < plan.entryDate) throw new Error("O primeiro vencimento não pode ser anterior à entrada.");
+  const balanceCents = netCents - entryCents;
+  const cashPayment = balanceCents === 0;
+  const effectiveRate = budgetPaymentRateFor(netCents, entryCents, plan.months);
+  const rate = effectiveRate / 100;
+  const rawInstallment = balanceCents ? rate ? balanceCents * rate / (1 - Math.pow(1 + rate, -plan.months)) : balanceCents / plan.months : 0;
+  const installmentCents = Math.round(rawInstallment);
+  const financedTotalCents = Math.round(rawInstallment * plan.months);
+  // Distribute rounding in cents so every payment is nonnegative and totals match.
+  const lowerCents = Math.floor(financedTotalCents / plan.months);
+  const extraCents = financedTotalCents % plan.months;
+  const payments = [];
+  if (entryCents) payments.push({ key: "plan-entry", parcel: "Entrada", amount: entryCents / 100, dueDate: budgetPaymentMonthDate(plan.entryDate, 0), method: plan.entryMethod });
+  if (balanceCents) for (let index = 0; index < plan.months; index++) {
+    const key = `plan-income-${index + 1}`;
+    const dueDate = Object.hasOwn(plan.dueDates, key) ? budgetPaymentMonthDate(plan.dueDates[key], 0) : budgetPaymentMonthDate(plan.firstDueDate, index);
+    payments.push({ key, parcel: `${index + 1}/${plan.months}`, amount: (lowerCents + (index >= plan.months - extraCents ? 1 : 0)) / 100, dueDate, method: plan.method });
+  }
+  return { net: netCents / 100, entry: entryCents / 100, balance: balanceCents / 100, installment: installmentCents / 100, interest: (financedTotalCents - balanceCents) / 100, total: (entryCents + financedTotalCents) / 100, payments, cashPayment, effectiveRate };
+}
+
+function readBudgetPaymentPlan() {
+  return normalizeBudgetPaymentPlan({
+    enabled: document.querySelector("#budgetPaymentEnabled")?.checked,
+    entry: parseMoney(budgetInputValue("budgetPaymentEntry")),
+    months: Number(budgetInputValue("budgetPaymentMonths")),
+    rate: Number(budgetInputValue("budgetPaymentRate")),
+    entryMethod: budgetInputValue("budgetPaymentEntryMethod"), method: budgetInputValue("budgetPaymentMethod"),
+    entryDate: budgetInputValue("budgetPaymentEntryDate"), firstDueDate: budgetInputValue("budgetPaymentFirstDueDate"),
+    dueDates: state.budgetPaymentDueDates || {},
+  });
+}
+
+function fillBudgetPaymentPlan(value) {
+  const plan = normalizeBudgetPaymentPlan(value);
+  state.budgetPaymentDueDates = { ...plan.dueDates };
+  document.querySelector("#budgetPaymentEnabled").checked = plan.enabled;
+  const months = document.querySelector("#budgetPaymentMonths");
+  months.innerHTML = Array.from({ length: 24 }, (_, index) => `<option value="${index + 1}">${index + 1} ${index ? "meses" : "mês"}</option>`).join("");
+  for (const [field, key] of [["Months", "months"], ["Rate", "rate"], ["EntryMethod", "entryMethod"], ["Method", "method"], ["EntryDate", "entryDate"], ["FirstDueDate", "firstDueDate"]]) document.querySelector(`#budgetPayment${field}`).value = String(plan[key]);
+  document.querySelector("#budgetPaymentEntry").value = formatMoneyInput(plan.entry);
+}
+
+function renderBudgetPaymentPlan(net) {
+  const error = document.querySelector("#budgetPaymentError");
+  if (!error) return;
+  const plan = readBudgetPaymentPlan();
+  const hint = document.querySelector("#budgetPaymentHint");
+  hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${plan.rate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} Pode haver ajuste de centavos entre parcelas.`;
+  try {
+    const result = calculateBudgetPaymentPlan(net, plan);
+    const rateInput = document.querySelector("#budgetPaymentRate");
+    rateInput.innerHTML = `<option value="${result.effectiveRate}">${result.effectiveRate ? `${String(result.effectiveRate).replace(".", ",")}% a.m. — matriz Cabana` : "Sem juros"}</option>`;
+    hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${result.cashPayment ? "Pagamento à vista, sem juros. Edite os vencimentos na tabela abaixo." : result.effectiveRate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} Pode haver ajuste de centavos entre parcelas.`;
+    if (result.cashPayment) document.querySelector("#budgetPaymentSchedule").closest("details").open = true;
+    for (const [field, key] of [["Net", "net"], ["Balance", "balance"], ["Installment", "installment"], ["Interest", "interest"], ["Total", "total"]]) document.querySelector(`#budgetPayment${field}`).textContent = BRL.format(result[key]);
+    document.querySelector("#budgetPaymentSchedule").innerHTML = result.payments.map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${BRL.format(payment.amount)}</td><td><input type="date" data-budget-payment-due="${payment.key}" value="${payment.dueDate}" aria-label="Vencimento ${escapeHtml(payment.parcel)}" /></td><td>${escapeHtml(payment.method)}</td></tr>`).join("");
+    error.hidden = true;
+  } catch (failure) {
+    document.querySelector("#budgetPaymentRate").innerHTML = '<option value="0">Informe entrada e prazo</option>';
+    error.textContent = failure.message;
+    error.hidden = false;
+    for (const field of ["Balance", "Installment", "Interest", "Total"]) document.querySelector(`#budgetPayment${field}`).textContent = "—";
+    document.querySelector("#budgetPaymentNet").textContent = BRL.format(net);
+    document.querySelector("#budgetPaymentSchedule").innerHTML = "";
+  }
 }
 
 function renderCashPaymentRows(payments = defaultCashPaymentRows()) {
@@ -4124,6 +4244,7 @@ function updateBudgetSummary() {
   const settings = readBudgetSettings();
   const calculatedRows = calculateBudgetRows(readBudgetRows(), settings);
   const totals = budgetTotals(calculatedRows, settings);
+  renderBudgetPaymentPlan(totals.net);
   if (state.view === "order") {
     renderOrderMaterialRows(readOrderMaterialRows(), calculatedRows);
   }
@@ -4249,6 +4370,9 @@ function printableDocumentStyles() {
     .print-page { background: #fff; break-after: page; page-break-after: always; position: relative; }
     .print-page:last-child { break-after: auto; page-break-after: auto; }
     .print-page > :not(.cabana-watermark) { position: relative; z-index: 1; }
+    .payment-plan-page { break-before: page; page-break-before: always; font-size: 11px; }
+    .payment-plan-page tr { break-inside: avoid; page-break-inside: avoid; }
+    .print-document .payment-plan-page td, .print-document .payment-plan-page th { padding: 4px 6px; }
     .cabana-watermark { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; pointer-events: none; overflow: hidden; mix-blend-mode: multiply; }
     .cabana-watermark img { width: 72%; max-width: 460px; opacity: 0.09; filter: sepia(1) saturate(1.8) hue-rotate(4deg); transform: rotate(-18deg); }
     .order-page { page: order-page; font-size: 8.2px; width: 100%; max-width: 100%; overflow: hidden; padding: 0 6mm 0 3mm; }
@@ -4382,6 +4506,9 @@ function formattedClientAddressParts(client) {
 }
 
 function orderPaymentRows(context) {
+  if (context.budget.paymentPlan?.enabled) return calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan).payments.map((payment) => ({
+    parcel: payment.parcel, value: BRL.format(payment.amount), dueDate: payment.dueDate ? formatPrintDate(payment.dueDate) : "", method: payment.method,
+  }));
   const cashRows = (context.budget.cashPayments || [])
     .filter((payment) => payment.parcel || payment.value || payment.dueDate || payment.method)
     .map((payment) => ({
@@ -4450,6 +4577,7 @@ function buildMaterialRows(rows, materials = [], startIndex = 0) {
 }
 
 function buildPaymentRows(context) {
+  if (context.budget.paymentPlan?.enabled && orderPaymentRows(context).length > 6) return '<tr><td colspan="26">Consulte a entrada e todas as parcelas no Plano de pagamento anexo, que integra este documento.</td></tr>';
   const rows = orderPaymentRows(context).slice(0, 6);
   while (rows.length < 6) rows.push({});
   return [0, 1, 2]
@@ -4471,6 +4599,7 @@ function buildPaymentRows(context) {
 }
 
 function buildOrderPage(context, rows = context.rows, startIndex = 0) {
+  const paymentPlan = context.budget.paymentPlan?.enabled ? calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan) : null;
   const client = context.client;
   const address = formattedClientAddressParts(client);
   const contractCode = context.budget.code || "";
@@ -4508,7 +4637,7 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
         <tr><td colspan="26" class="label">Amb Observacao</td></tr>
         <tr><td colspan="26">${escapeHtml(context.budget.notes || "")}</td></tr>
         <tr><td colspan="5" class="label">Total a vista</td><td colspan="11" class="label">Total a prazo</td><td colspan="5" class="label">Forma de pagamento</td><td colspan="5" class="label">Condicao de pagamento</td></tr>
-        <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(context.totals.financingTotal || context.totals.net)}</td><td colspan="5">Pix</td><td colspan="5">${context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
+        <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal || context.totals.net)}</td><td colspan="5">${paymentPlan ? escapeHtml([...new Set(paymentPlan.payments.map((item) => item.method))].join(" / ")) : "Pix"}</td><td colspan="5">${paymentPlan ? paymentPlan.balance ? "Entrada / Parcelado" : "À vista" : context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
         <tr><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th></tr>
         ${buildPaymentRows(context)}
         <tr><td colspan="13" class="sign">Cabana Moveis Sob Medida</td><td colspan="13" class="sign">Contratante: ${escapeHtml(client.name || "")}</td></tr>
@@ -4552,11 +4681,26 @@ function buildOrderDocument(context) {
   const orderPages = orderPageChunks(context.rows)
     .map((rows, index) => buildOrderPage(context, rows, index * ORDER_ITEMS_PER_PAGE))
     .join("");
-  const body = `${orderPages}${buildContractPage(context)}`;
+  const body = `${orderPages}${buildBudgetPaymentPlanDocument(context)}${buildContractPage(context)}`;
   const title = `Pedido e Contrato ${context.budget.code || ""}`;
   return { title, body, html: printableDocumentShell(title, body) };
 }
+
+function buildBudgetPaymentPlanDocument(context) {
+  if (!context.budget.paymentPlan?.enabled) return "";
+  const plan = calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan);
+  const rate = plan.effectiveRate;
+  return `<section class="print-page payment-plan-page">
+    <h2>Plano de pagamento — ${escapeHtml(context.budget.code || "")}</h2>
+    <p>${escapeHtml(context.client.name || "")}</p>
+    <div class="totals">${printField("Valor líquido", BRL.format(plan.net))}${printField("Entrada à vista", BRL.format(plan.entry))}${printField("Saldo financiado", BRL.format(plan.balance))}${printField("Juros", rate ? `${formatPercent(rate / 100)} a.m. — Tabela Price` : "Sem juros")}${printField("Total de juros", BRL.format(plan.interest))}${printField("Total com entrada", BRL.format(plan.total))}</div>
+    <table><thead><tr><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Forma de pagamento</th></tr></thead><tbody>${orderPaymentRows(context).map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${escapeHtml(payment.value)}</td><td>${escapeHtml(payment.dueDate)}</td><td>${escapeHtml(payment.method)}</td></tr>`).join("")}</tbody></table>
+    <p>Os valores das parcelas incluem eventuais ajustes de centavos.</p>
+  </section>`;
+}
+
 function buildQuoteDocument(context) {
+  const paymentPlan = context.budget.paymentPlan?.enabled ? calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan) : null;
   const rows = context.rows
     .map(
       (row) => `<tr>
@@ -4597,13 +4741,13 @@ function buildQuoteDocument(context) {
         ${printField("Lucro", BRL.format(context.totals.profit))}
         ${printField("Margem", formatPercent(context.totals.margin))}
         ${printField("Total diaria", BRL.format(context.totals.dailyTotal))}
-        ${printField("Base financiada", BRL.format(context.totals.financedBase))}
-        ${printField("Valor parcela", BRL.format(context.totals.installmentValue))}
-        ${printField("Retencao", BRL.format(context.totals.retentionValue))}
-        ${printField("Total financiamento", BRL.format(context.totals.financingTotal))}
+        ${printField("Base financiada", BRL.format(paymentPlan ? paymentPlan.balance : context.totals.financedBase))}
+        ${printField("Valor parcela", BRL.format(paymentPlan ? paymentPlan.installment : context.totals.installmentValue))}
+        ${printField(paymentPlan ? "Total de juros" : "Retencao", BRL.format(paymentPlan ? paymentPlan.interest : context.totals.retentionValue))}
+        ${printField("Total financiamento", BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal))}
       </div>
     </section>
-    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>`;
+    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>${buildBudgetPaymentPlanDocument(context)}`;
   const title = `Orcamento ${context.budget.code || ""}`;
   return { title, body, html: printableDocumentShell(title, body) };
 }
@@ -4834,6 +4978,7 @@ function createBudgetRow(rowData = {}) {
 function fillBudgetForm(client) {
   closeBudgetPrintPreview();
   const budget = state.budgetDraft || (state.budgetIsNew ? blankBudget() : budgetForEditing(client));
+  fillBudgetPaymentPlan(budget.paymentPlan);
   migrateDailyIntoAssemblyRate(budget);
   state.budgetEditingId = budgetIdentity(budget) || state.budgetEditingId;
   const settings = budget.settings;
@@ -5173,12 +5318,19 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   const issueDate = budget.nobiliaDate || budgetFinancialLocalDate(budget.createdAt);
   const base = { status: "pending", account_id: account.id, client_id: client.id, source_type: "sale", issue_date: issueDate, competence_date: postedDate, paid_at: null };
   const financialDescription = (description) => `${options.simulated ? "Simulado - " : ""}${formatFinancialDescription(description)}`;
-  const payments = (budget.cashPayments || []).map((payment, index) => {
+  const planPayments = budget.paymentPlan?.enabled
+    ? calculateBudgetPaymentPlan(budgetTotals(calculated, budget.settings || {}).net, budget.paymentPlan).payments
+    : null;
+  const payments = planPayments ? planPayments.map((payment) => ({
+    key: payment.key, entry_type: "income", description: financialDescription(payment.key === "plan-entry" ? "Entrada à Vista" : `Financiamento - Parcela ${payment.parcel}`),
+    amount: payment.amount, category_id: payment.amount ? categoryFor("Receita Venda de Planejados", "income") : null,
+    due_date: payment.dueDate || null, ...base, paymentMethod: payment.method,
+  })) : (budget.cashPayments || []).map((payment, index) => {
     const amount = budgetFinancialCents(parseMoney(payment.value)) / 100;
     return { key: `income-${index + 1}`, entry_type: "income", description: financialDescription(`Pagamento à Vista - Parcela ${payment.parcel || index + 1}`), amount,
       category_id: amount ? categoryFor("Receita Venda de Planejados", "income") : null, due_date: payment.dueDate || null, ...base };
   });
-  if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento de cada parcela à vista com valor maior que zero.");
+  if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento da entrada e de cada parcela com valor maior que zero.");
   const finalPaymentDate = payments.filter((payment) => payment.amount > 0).map((payment) => payment.due_date).sort().at(-1);
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
     const sourceKey = rule.sourceKey || rule.key;
@@ -5192,17 +5344,29 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
       category_id: amount ? categoryFor(rule.category, "expense") : null,
       due_date: dueDate, ...base };
   });
-  return [...expenses, ...payments].map((item) => ({ ...item, notes: notesWithFinancialTags("", tags) }));
+  return [...expenses, ...payments].map(({ paymentMethod, ...item }) => ({ ...item, notes: notesWithFinancialTags(paymentMethod ? `Forma de pagamento: ${paymentMethod}` : "", tags) }));
 }
 
 async function budgetFinancialEntryIds(budget) {
-  return Promise.all([...BUDGET_FINANCIAL_EXPENSES.map((rule) => rule.key), "income-1", "income-2", "income-3"].map(async (key) => [key, await deterministicMigrationUuid(`crm-budget-financial:${budget.id}:${key}`)]));
+  return Promise.all([...BUDGET_FINANCIAL_EXPENSES.map((rule) => rule.key), "income-1", "income-2", "income-3", "plan-entry", ...Array.from({ length: 24 }, (_, index) => `plan-income-${index + 1}`)].map(async (key) => [key, await deterministicMigrationUuid(`crm-budget-financial:${budget.id}:${key}`)]));
 }
 
 async function fetchBudgetFinancialEntries(ids) {
   const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.join(",")})&select=*`), () => ({ headers: supabaseHeaders() }));
   if (!response.ok) throw new Error("Não foi possível consultar os lançamentos vinculados ao orçamento.");
   return response.json();
+}
+
+async function validateBudgetPaymentTransition(budget, previousBudget) {
+  if (!previousBudget?.financialLaunchedAt && !previousBudget?.financialSimulationAt) return;
+  const pairs = await budgetFinancialEntryIds(budget);
+  const activeKeys = budget.paymentPlan?.enabled
+    ? new Set([...(budget.paymentPlan.entry > 0 ? ["plan-entry"] : []), ...Array.from({ length: budget.paymentPlan.months }, (_, index) => `plan-income-${index + 1}`)])
+    : new Set(["income-1", "income-2", "income-3"]);
+  const removedIds = pairs.filter(([key]) => /^(income-|plan-)/.test(key) && !activeKeys.has(key)).map(([, id]) => id);
+  if (!removedIds.length) return;
+  const entries = await fetchBudgetFinancialEntries(removedIds);
+  if (entries.some((entry) => entry.status === "paid")) throw new Error("Existem parcelas recebidas no plano anterior. Não é possível trocar o modelo ou remover essas parcelas do financiamento.");
 }
 
 async function reconcileBudgetFinancialStatus(clientId, budget) {
@@ -5241,6 +5405,9 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   const postedDate = budgetFinancialLocalDate();
   const plan = budgetFinancialPlan(budget, client, postedDate, account, state.financialCategories, { simulated: mode === "simulation" });
   const current = new Map(existing.map((entry) => [entry.id, entry]));
+  const plannedKeys = new Set(plan.map((item) => item.key));
+  const obsoletePayments = pairs.filter(([key, id]) => /^(income-|plan-)/.test(key) && !plannedKeys.has(key) && current.has(id));
+  if (obsoletePayments.some(([, id]) => current.get(id).status === "paid")) throw new Error("Existem parcelas recebidas no plano anterior. Não é possível trocar o modelo ou remover essas parcelas do financiamento.");
   const originalAssembly = current.get(idByKey.get("assembly"));
   const plannedAssembly = plan.find((item) => item.key === "assembly");
   const legacyPaidAssembly = originalAssembly?.status === "paid"
@@ -5264,12 +5431,21 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     if (!previous) { await postFinancialRows("crm_financial_entries", [{ id, ...payload }]); result.created++; continue; }
     const amountChanged = budgetFinancialCents(previous.amount) !== budgetFinancialCents(item.amount);
     const noteText = amountChanged ? `${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim() : financialEntryNotes(previous);
-    const notes = notesWithFinancialTags(noteText, [...financialEntryTags(previous), ...financialEntryTags(item)]);
+    const paymentNote = String(financialEntryNotes(item) || "");
+    const updatedNoteText = paymentNote.startsWith("Forma de pagamento:")
+      ? [noteText.replace(/^Forma de pagamento:.*(?:\r?\n|$)/gm, "").trim(), paymentNote].filter(Boolean).join("\n") : noteText;
+    const notes = notesWithFinancialTags(updatedNoteText, [...financialEntryTags(previous), ...financialEntryTags(item)]);
     const changes = { amount: item.amount, category_id: item.category_id, description: item.description, notes };
     if (BUDGET_FINANCIAL_EXPENSES.find((rule) => rule.key === item.key)?.syncDueDate) changes.due_date = item.due_date;
+    if (item.key.startsWith("plan-")) changes.due_date = item.due_date;
     if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description && previous.notes === changes.notes && (!Object.hasOwn(changes, "due_date") || previous.due_date === changes.due_date)) continue;
     await saveFinancialRecord("crm_financial_entries", id, changes);
     result.updated++;
+  }
+  for (const [, id] of obsoletePayments) {
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    if (!response.ok) throw new Error("Não foi possível remover uma parcela substituída pelo novo plano.");
+    result.deleted++;
   }
   await loadFinancialRegisters();
   return result;
@@ -5386,10 +5562,17 @@ async function saveBudget(options = {}) {
     cashPayments: readCashPaymentRows(),
     assistances: normalizeBudgetAssistances(state.budgetAssistanceDrafts),
     financialLaunchedAt: effectiveFinancialAction ? previousBudget?.financialLaunchedAt || financialActionAt : deleteSimulationAction || simulationFinancialAction ? "" : previousBudget?.financialLaunchedAt || "",
+    paymentPlan: readBudgetPaymentPlan(),
     financialSimulationAt: simulationFinancialAction ? previousBudget?.financialSimulationAt || financialActionAt : effectiveFinancialAction || deleteSimulationAction ? "" : previousBudget?.financialSimulationAt || "",
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
     updatedAt: new Date().toISOString(),
   };
+  if (budgetPayload.paymentPlan.enabled) {
+    try { calculateBudgetPaymentPlan(budgetTotals(calculateBudgetRows(rows, settings), settings).net, budgetPayload.paymentPlan); }
+    catch (error) { alert(error.message); return false; }
+  }
+  try { await validateBudgetPaymentTransition(budgetPayload, previousBudget); }
+  catch (error) { alert(error.message); return false; }
   if (financialAction && !deleteSimulationAction) {
     if (!budgetFinancialStatusAllowed(budgetStatus)) { alert("O financeiro não pode ser lançado ou simulado para orçamento Novo, Recusado ou Finalizado."); return false; }
     if (!remoteDatabaseEnabled() || !currentUserId()) { alert("Conecte o CRM ao banco antes de lançar ou simular o financeiro."); return false; }
@@ -7728,6 +7911,12 @@ document.querySelector("#budgetPostFinancialBtn")?.addEventListener("click", (ev
 document.querySelector("#budgetDeleteSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("deleteSimulation", event.currentTarget));
 document.querySelector("#budgetFinalizeSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("finalizeSimulation", event.currentTarget));
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
+document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", () => { markBudgetDirty(); updateBudgetSummary(); });
+document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("change", () => { markBudgetDirty(); updateBudgetSummary(); });
+document.querySelector("#budgetPaymentEntry")?.addEventListener("blur", (event) => {
+  event.currentTarget.value = formatMoneyInput(parseMoney(event.currentTarget.value));
+  updateBudgetSummary();
+});
 [
   "#budgetCreatedAt",
   "#budgetSaleAt",

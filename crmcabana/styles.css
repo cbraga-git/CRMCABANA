@@ -2489,6 +2489,15 @@ body[data-view="order"] .budget-table {
   align-self: end;
 }
 
+.budget-payment-plan { margin-bottom: 12px; }
+.budget-payment-enabled { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
+.budget-payment-enabled input { width: auto; }
+.budget-payment-plan .budget-finance-grid > div { display: block !important; }
+.budget-payment-hint { margin: 10px 0; font-size: 12px; color: #66552e; }
+.budget-payment-error { color: #a12622; font-weight: 600; }
+.budget-payment-plan summary { cursor: pointer; margin: 10px 0; }
+.budget-payment-plan .cash-payment-table { width: 100%; }
+
 .budget-assembly-panel {
   display: grid;
   grid-template-rows: auto 1fr;

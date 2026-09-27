@@ -488,6 +488,27 @@
                   </table>
                 </div>
               </section>
+              <section class="budget-panel budget-payment-plan" id="budgetPaymentPlanPanel" aria-label="Novo modelo de pagamentos">
+                <h2>Plano de pagamento</h2>
+                <label class="budget-payment-enabled"><input id="budgetPaymentEnabled" type="checkbox" /> Usar este plano no financeiro e nos documentos</label>
+                <div class="budget-finance-grid">
+                  <div><span>Valor líquido do orçamento</span><strong id="budgetPaymentNet">R$ 0,00</strong></div>
+                  <label>Entrada à vista<input id="budgetPaymentEntry" class="money-input" inputmode="decimal" /></label>
+                  <label>Forma de pagamento da entrada<select id="budgetPaymentEntryMethod"><option>PIX</option><option>Dinheiro</option><option>Cartão de Credito</option><option>Boleto</option></select></label>
+                  <label>Data da entrada<input id="budgetPaymentEntryDate" type="date" /></label>
+                  <label>Quantidade de parcelas<select id="budgetPaymentMonths"></select></label>
+                  <label>Taxa de juros mensal<select id="budgetPaymentRate" disabled><option value="0">Informe entrada e prazo</option></select></label>
+                  <label>Forma de pagamento das parcelas<select id="budgetPaymentMethod"><option>PIX</option><option>Dinheiro</option><option>Cartão de Credito</option><option>Boleto</option></select></label>
+                  <label>Primeiro vencimento<input id="budgetPaymentFirstDueDate" type="date" /></label>
+                  <div><span>Saldo a financiar</span><strong id="budgetPaymentBalance">R$ 0,00</strong></div>
+                  <div><span>Valor da parcela</span><strong id="budgetPaymentInstallment">R$ 0,00</strong></div>
+                  <div><span>Total de juros</span><strong id="budgetPaymentInterest">R$ 0,00</strong></div>
+                  <div><span>Total com entrada</span><strong id="budgetPaymentTotal">R$ 0,00</strong></div>
+                </div>
+                <p id="budgetPaymentHint" class="budget-payment-hint"></p>
+                <p id="budgetPaymentError" class="budget-payment-error" role="alert" hidden></p>
+                <details><summary>Ver parcelas</summary><div class="table-wrap"><table class="cash-payment-table"><thead><tr><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Forma de pagamento</th></tr></thead><tbody id="budgetPaymentSchedule"></tbody></table></div></details>
+              </section>
               <section class="payments-grid" aria-label="Pagamentos">
                 <article class="budget-panel cash-payment-card">
                   <h2>Pagamento a vista</h2>
