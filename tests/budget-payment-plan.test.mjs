@@ -23,6 +23,7 @@ test("matriz comercial aplica 2,2% para 12x com entrada de 20% e fecha centavos"
 });
 
 test("matriz escolhe a coluna pela maior faixa de entrada atingida", () => {
+  assert.equal(calculate(10000, { ...defaults, months: 2 }).effectiveRate, 1.3);
   assert.equal(calculate(10000, { ...defaults, entry: 3000, months: 6 }).effectiveRate, 1.5);
   assert.equal(calculate(10000, { ...defaults, entry: 4000, months: 6 }).effectiveRate, 1.4);
   assert.equal(calculate(10000, { ...defaults, entry: 5000, months: 6 }).effectiveRate, 1.2);
@@ -48,8 +49,8 @@ test("Price em doze meses confere prestação e juros conhecidos", () => {
   assert.equal(result.interest, 1189.59);
 });
 
-test("todos os prazos comerciais de 3 a 24 fecham soma e mantêm parcelas positivas", () => {
-  for (let months = 3; months <= 24; months++) {
+test("todos os prazos comerciais de 2 a 24 fecham soma e mantêm parcelas positivas", () => {
+  for (let months = 2; months <= 24; months++) {
     const result = calculate(131857.74, { ...defaults, entry: 41864, months });
     assert.equal(result.payments.reduce((sum, row) => sum + Math.round(row.amount * 100), 0), Math.round(result.total * 100));
     assert.ok(result.payments.every((row) => row.amount >= 0));
@@ -73,7 +74,7 @@ test("vencimentos preservam dia original e ajustam fevereiro e meses curtos", ()
 });
 
 test("rejeita entrada excedente, negativa, prazos e taxas inválidos", () => {
-  for (const change of [{ entry: -1 }, { entry: 10001 }, { entry: 1999 }, { months: 0 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
+  for (const change of [{ entry: -1 }, { entry: 10001 }, { entry: 1999 }, { months: 0 }, { months: 1 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
   assert.equal(normalize().enabled, false);
 });
 
