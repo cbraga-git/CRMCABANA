@@ -44,7 +44,8 @@ test("LEDS nao recebe desconto nem frete e nao reduz o rateio dos demais ambient
   assert.equal(rows[1].gross, 0);
   assert.equal(rows[1].net, 150);
   assert.equal(rows[1].freight, 0);
-  assert.equal(rows[1].factoryFreight, 100);
+  assert.equal(rows[1].factoryFreight, 0);
+  assert.equal(rows.reduce((sum, row) => sum + row.factoryFreight, 0), 500);
 
   const percentRows = calculate([
     { name: "Cozinha", gross: 1000, factory: 400, hardware: 0 },

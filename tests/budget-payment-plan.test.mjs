@@ -124,6 +124,9 @@ test("financeiro exige vencimentos e simulação identifica as novas receitas", 
   h.budget.paymentPlan.firstDueDate = defaults.firstDueDate;
   const rows = h.budgetFinancialPlan(h.budget, { name: "Cliente" }, "2026-09-26", { id: "account" }, h.categories, { simulated: true });
   assert.ok(rows.every((row) => row.description.startsWith("Simulado - ")));
+  const incomes = rows.filter((row) => row.entry_type === "income");
+  assert.equal(incomes[0].due_date, defaults.entryDate);
+  assert.equal(incomes[1].due_date, defaults.firstDueDate);
 });
 
 test("documentos incluem todas as parcelas e novo quadro antecede quadro preservado", () => {

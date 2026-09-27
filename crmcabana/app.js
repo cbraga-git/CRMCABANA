@@ -3790,7 +3790,7 @@ function blankBudget() {
     orderMaterials: [],
     deliveryForecastAt: "",
     cashPayments: defaultCashPaymentRows(),
-    paymentPlan: normalizeBudgetPaymentPlan(),
+    paymentPlan: normalizeBudgetPaymentPlan({ enabled: true }),
     assistances: [],
     financialLaunchedAt: "",
     financialSimulationAt: "",
@@ -3895,6 +3895,9 @@ function readBudgetPaymentPlan() {
 
 function fillBudgetPaymentPlan(value) {
   const plan = normalizeBudgetPaymentPlan(value);
+  // Planos ainda não ativados eram criados com 3x antes do padrão Cabana mudar para 2x.
+  // Mantemos intactos os planos ativos, pois eles podem já ter movimentação financeira.
+  if (!plan.enabled && plan.months === 3) plan.months = 2;
   state.budgetPaymentDueDates = { ...plan.dueDates };
   document.querySelector("#budgetPaymentEnabled").checked = plan.enabled;
   const months = document.querySelector("#budgetPaymentMonths");
@@ -4140,7 +4143,8 @@ function calculateBudgetRows(rows, settings) {
       gross,
       factory,
       hardware,
-      factoryFreight: factory + freight,
+      // LEDS e Ferragens são lançados individualmente no financeiro e não compõem Fábrica + Frete.
+      factoryFreight: hasSpecialPricing ? 0 : factory + freight,
       freight,
       release,
       assembly,
@@ -4219,7 +4223,7 @@ function budgetTotals(calculatedRows, settings) {
 function updateBudgetTableTotals(calculatedRows, totals) {
   const rowTotals = calculatedRows.reduce(
     (summary, row) => ({
-      factory: summary.factory + row.factory,
+      factory: summary.factory + (budgetEnvironmentHasSpecialPricing(row.name) ? 0 : row.factory),
       factoryFreight: summary.factoryFreight + row.factoryFreight,
       hardware: summary.hardware + row.hardware,
       freight: summary.freight + row.freight,
@@ -5276,6 +5280,8 @@ function renderBudget() {
 
 const BUDGET_FINANCIAL_EXPENSES = [
   { key: "factoryFreight", description: "Fábrica + Frete", category: "Fabrica", days: 5 },
+  { key: "leds", description: "LEDS", category: "Fabrica", days: 5, specialEnvironment: "leds" },
+  { key: "ferragensEnvironment", description: "Ferragens", category: "Fabrica", days: 5, specialEnvironment: "ferragens" },
   { key: "hardware", description: "Ferragens", category: "Insumos", days: 40 },
   { key: "release", description: "Liberação", category: "Operação", days: 40 },
   { key: "assembly", sourceKey: "assembly", description: "Montagem - Início", category: "Montagem", days: 40, splitPart: 1, assemblyDateField: "assemblyStartDate", syncDueDate: true },
@@ -5341,7 +5347,10 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   const finalPaymentDate = payments.filter((payment) => payment.amount > 0).map((payment) => payment.due_date).sort().at(-1);
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
     const sourceKey = rule.sourceKey || rule.key;
-    const totalCents = budgetFinancialCents(calculated.reduce((sum, row) => sum + (Number(row[sourceKey]) || 0), 0));
+    const sourceTotal = rule.specialEnvironment
+      ? calculated.filter((row) => normalizedMigrationText(row.name) === rule.specialEnvironment).reduce((sum, row) => sum + (Number(row.factory) || 0), 0)
+      : calculated.reduce((sum, row) => sum + (Number(row[sourceKey]) || 0), 0);
+    const totalCents = budgetFinancialCents(sourceTotal);
     const amountCents = rule.splitPart === 1 ? Math.floor(totalCents / 2) : rule.splitPart === 2 ? totalCents - Math.floor(totalCents / 2) : totalCents;
     const amount = amountCents / 100;
     const dueDate = rule.assemblyDateField

@@ -53,7 +53,7 @@ test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
     { factoryFreight: 25, hardware: 0, release: 0, assembly: 10, lela: 2, iris: 1, tax: 3 },
   ], [{ parcel: "1", value: "100", dueDate: "2026-09-25" }, { parcel: "2", value: "150", dueDate: "2026-10-25" }, { parcel: "3", value: "0", dueDate: "2026-12-10" }], undefined, "Priscila Almeida", { assemblyStartDate: "2026-11-03", assemblyEndDate: "2026-11-18" });
   const items = plan();
-  assert.equal(items.length, 11);
+  assert.equal(items.length, 13);
   assert.equal(items.find((item) => item.key === "factoryFreight").amount, 125);
   assert.equal(items.find((item) => item.key === "assembly").amount, 25);
   assert.equal(items.find((item) => item.key === "assemblyFinal").amount, 25);
@@ -87,6 +87,18 @@ test("simulacao prefixa todas as descricoes e efetivacao usa as descricoes norma
   assert.equal(plan({ simulated: true }).every((item) => item.description.startsWith("Simulado - ")), true);
   assert.equal(plan().every((item) => !item.description.startsWith("Simulado - ")), true);
   assert.match(app, /crm-budget-financial:\$\{budget\.id\}:\$\{key\}/);
+});
+
+test("LEDS e Ferragens são lançados pelo ambiente, fora de Fábrica + Frete", () => {
+  const { plan } = planFor([
+    { name: "Cozinha", factoryFreight: 100, factory: 100 },
+    { name: "LEDS", factoryFreight: 0, factory: 80 },
+    { name: "Ferragens", factoryFreight: 0, factory: 45 },
+  ], [{ parcel: "1", value: "225", dueDate: "2026-09-25" }], 225);
+  const items = plan();
+  assert.equal(items.find((item) => item.key === "factoryFreight").amount, 100);
+  assert.equal(items.find((item) => item.key === "leds").amount, 80);
+  assert.equal(items.find((item) => item.key === "ferragensEnvironment").amount, 45);
 });
 
 test("contato vazio nao gera tag adicional", () => {
