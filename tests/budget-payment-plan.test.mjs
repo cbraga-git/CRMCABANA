@@ -28,6 +28,12 @@ test("matriz escolhe a coluna pela maior faixa de entrada atingida", () => {
   assert.equal(calculate(10000, { ...defaults, entry: 5000, months: 6 }).effectiveRate, 1.2);
 });
 
+test("taxa mensal informada manualmente substitui a sugestão da matriz", () => {
+  const result = calculate(10000, { ...defaults, months: 12, rate: 1.25, rateAuto: false });
+  assert.equal(result.effectiveRate, 1.25);
+  assert.equal(result.installment, 722.07);
+});
+
 test("Price em doze meses confere prestação e juros conhecidos", () => {
   const result = calculate(10000, defaults);
   assert.equal(result.installment, 765.80);

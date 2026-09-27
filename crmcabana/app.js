@@ -3831,7 +3831,8 @@ function normalizeBudgetPaymentPlan(value = {}) {
     enabled: value.enabled === true,
     entry: Number(value.entry) || 0,
     months: value.months == null ? 3 : Number(value.months),
-    rate: value.rate == null ? 0 : Number(value.rate),
+    rate: value.rate === "" || value.rate == null ? null : Number(value.rate),
+    rateAuto: value.rateAuto === true || value.rate === "" || value.rate == null,
     entryMethod: BUDGET_PAYMENT_METHODS.includes(value.entryMethod) ? value.entryMethod : "PIX",
     method: BUDGET_PAYMENT_METHODS.includes(value.method) ? value.method : "PIX",
     entryDate: value.entryDate || "",
@@ -3859,7 +3860,9 @@ function calculateBudgetPaymentPlan(net, value) {
   if (entryCents && entryCents < netCents && budgetPaymentMonthDate(plan.entryDate, 0) && budgetPaymentMonthDate(plan.firstDueDate, 0) && plan.firstDueDate < plan.entryDate) throw new Error("O primeiro vencimento não pode ser anterior à entrada.");
   const balanceCents = netCents - entryCents;
   const cashPayment = balanceCents === 0;
-  const effectiveRate = budgetPaymentRateFor(netCents, entryCents, plan.months);
+  const suggestedRate = budgetPaymentRateFor(netCents, entryCents, plan.months);
+  if (plan.rate != null && (!Number.isFinite(plan.rate) || plan.rate < 0)) throw new Error("Informe uma taxa de juros mensal válida.");
+  const effectiveRate = cashPayment ? 0 : (plan.rateAuto ? suggestedRate : plan.rate);
   const rate = effectiveRate / 100;
   const rawInstallment = balanceCents ? rate ? balanceCents * rate / (1 - Math.pow(1 + rate, -plan.months)) : balanceCents / plan.months : 0;
   const installmentCents = Math.round(rawInstallment);
@@ -3882,7 +3885,8 @@ function readBudgetPaymentPlan() {
     enabled: document.querySelector("#budgetPaymentEnabled")?.checked,
     entry: parseMoney(budgetInputValue("budgetPaymentEntry")),
     months: Number(budgetInputValue("budgetPaymentMonths")),
-    rate: Number(budgetInputValue("budgetPaymentRate")),
+    rate: budgetInputValue("budgetPaymentRate"),
+    rateAuto: document.querySelector("#budgetPaymentRate")?.dataset.auto === "true",
     entryMethod: budgetInputValue("budgetPaymentEntryMethod"), method: budgetInputValue("budgetPaymentMethod"),
     entryDate: budgetInputValue("budgetPaymentEntryDate"), firstDueDate: budgetInputValue("budgetPaymentFirstDueDate"),
     dueDates: state.budgetPaymentDueDates || {},
@@ -3895,7 +3899,10 @@ function fillBudgetPaymentPlan(value) {
   document.querySelector("#budgetPaymentEnabled").checked = plan.enabled;
   const months = document.querySelector("#budgetPaymentMonths");
   months.innerHTML = Array.from({ length: 24 }, (_, index) => `<option value="${index + 1}">${index + 1} ${index ? "meses" : "mês"}</option>`).join("");
-  for (const [field, key] of [["Months", "months"], ["Rate", "rate"], ["EntryMethod", "entryMethod"], ["Method", "method"], ["EntryDate", "entryDate"], ["FirstDueDate", "firstDueDate"]]) document.querySelector(`#budgetPayment${field}`).value = String(plan[key]);
+  for (const [field, key] of [["Months", "months"], ["EntryMethod", "entryMethod"], ["Method", "method"], ["EntryDate", "entryDate"], ["FirstDueDate", "firstDueDate"]]) document.querySelector(`#budgetPayment${field}`).value = String(plan[key]);
+  const rate = document.querySelector("#budgetPaymentRate");
+  rate.value = plan.rateAuto ? "" : String(plan.rate);
+  rate.dataset.auto = String(plan.rateAuto);
   document.querySelector("#budgetPaymentEntry").value = formatMoneyInput(plan.entry);
 }
 
@@ -3908,14 +3915,14 @@ function renderBudgetPaymentPlan(net) {
   try {
     const result = calculateBudgetPaymentPlan(net, plan);
     const rateInput = document.querySelector("#budgetPaymentRate");
-    rateInput.innerHTML = `<option value="${result.effectiveRate}">${result.effectiveRate ? `${String(result.effectiveRate).replace(".", ",")}% a.m. — matriz Cabana` : "Sem juros"}</option>`;
+    if (plan.rateAuto) rateInput.value = String(result.effectiveRate);
     hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${result.cashPayment ? "Pagamento à vista, sem juros. Edite os vencimentos na tabela abaixo." : result.effectiveRate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} Pode haver ajuste de centavos entre parcelas.`;
     if (result.cashPayment) document.querySelector("#budgetPaymentSchedule").closest("details").open = true;
     for (const [field, key] of [["Net", "net"], ["Balance", "balance"], ["Installment", "installment"], ["Interest", "interest"], ["Total", "total"]]) document.querySelector(`#budgetPayment${field}`).textContent = BRL.format(result[key]);
     document.querySelector("#budgetPaymentSchedule").innerHTML = result.payments.map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${BRL.format(payment.amount)}</td><td><input type="date" data-budget-payment-due="${payment.key}" value="${payment.dueDate}" aria-label="Vencimento ${escapeHtml(payment.parcel)}" /></td><td>${escapeHtml(payment.method)}</td></tr>`).join("");
     error.hidden = true;
   } catch (failure) {
-    document.querySelector("#budgetPaymentRate").innerHTML = '<option value="0">Informe entrada e prazo</option>';
+    if (plan.rateAuto) document.querySelector("#budgetPaymentRate").value = "";
     error.textContent = failure.message;
     error.hidden = false;
     for (const field of ["Balance", "Installment", "Interest", "Total"]) document.querySelector(`#budgetPayment${field}`).textContent = "—";
@@ -7909,6 +7916,7 @@ document.querySelector("#closeBudgetFinancialDialog")?.addEventListener("click",
 document.querySelector("#budgetSimulateFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("simulate", event.currentTarget));
 document.querySelector("#budgetPostFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("launch", event.currentTarget));
 document.querySelector("#budgetDeleteSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("deleteSimulation", event.currentTarget));
+document.querySelector("#budgetPaymentRate")?.addEventListener("input", (event) => { event.currentTarget.dataset.auto = "false"; });
 document.querySelector("#budgetFinalizeSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("finalizeSimulation", event.currentTarget));
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
 document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", () => { markBudgetDirty(); updateBudgetSummary(); });
