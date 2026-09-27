@@ -3901,7 +3901,7 @@ function fillBudgetPaymentPlan(value) {
   state.budgetPaymentDueDates = { ...plan.dueDates };
   document.querySelector("#budgetPaymentEnabled").checked = plan.enabled;
   const months = document.querySelector("#budgetPaymentMonths");
-  months.innerHTML = Array.from({ length: 24 }, (_, index) => `<option value="${index + 1}">${index + 1} ${index ? "meses" : "mês"}</option>`).join("");
+  months.innerHTML = Array.from({ length: 24 }, (_, index) => `<option value="${index + 1}">${index + 1} ${index ? "parcelas" : "parcela"}</option>`).join("");
   for (const [field, key] of [["Months", "months"], ["EntryMethod", "entryMethod"], ["Method", "method"], ["EntryDate", "entryDate"], ["FirstDueDate", "firstDueDate"]]) document.querySelector(`#budgetPayment${field}`).value = String(plan[key]);
   const rate = document.querySelector("#budgetPaymentRate");
   rate.value = plan.rateAuto ? "" : String(plan.rate);
