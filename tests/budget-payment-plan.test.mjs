@@ -42,6 +42,13 @@ test("taxa sugerida escolhida manualmente pode ser usada em qualquer prazo", () 
   assert.doesNotMatch(html, /budgetPaymentRateSuggestion/);
 });
 
+test("sem juros pode ser selecionado no padrão Cabana de duas parcelas", () => {
+  const result = calculate(10000, { ...defaults, months: 2, rate: 0, rateAuto: false });
+  assert.equal(result.effectiveRate, 0);
+  assert.equal(result.installment, 4000);
+  assert.match(html, /<option value="0">Sem juros<\/option>/);
+});
+
 test("Price em doze meses confere prestação e juros conhecidos", () => {
   const result = calculate(10000, defaults);
   assert.equal(result.installment, 765.80);
