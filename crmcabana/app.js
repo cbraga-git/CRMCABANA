@@ -3920,7 +3920,10 @@ function renderBudgetPaymentPlan(net) {
     const rateInput = document.querySelector("#budgetPaymentRate");
     if (plan.rateAuto) rateInput.value = String(result.effectiveRate);
     hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${result.cashPayment ? "Pagamento à vista, sem juros. Edite os vencimentos na tabela abaixo." : result.effectiveRate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} A matriz preenche uma sugestão inicial; escolha qualquer taxa sugerida ou informe uma taxa livre. Pode haver ajuste de centavos entre parcelas.`;
-    if (result.cashPayment) document.querySelector("#budgetPaymentSchedule").closest("details").open = true;
+    const scheduleDetails = document.querySelector("#budgetPaymentSchedule").closest("details");
+    const alwaysExpanded = result.effectiveRate === 0;
+    scheduleDetails.querySelector("summary").hidden = alwaysExpanded;
+    if (alwaysExpanded) scheduleDetails.open = true;
     for (const [field, key] of [["Net", "net"], ["Balance", "balance"], ["Installment", "installment"], ["Interest", "interest"], ["Total", "total"]]) document.querySelector(`#budgetPayment${field}`).textContent = BRL.format(result[key]);
     document.querySelector("#budgetPaymentSchedule").innerHTML = result.payments.map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${BRL.format(payment.amount)}</td><td><input type="date" data-budget-payment-due="${payment.key}" value="${payment.dueDate}" aria-label="Vencimento ${escapeHtml(payment.parcel)}" /></td><td>${escapeHtml(payment.method)}</td></tr>`).join("");
     error.hidden = true;
@@ -7941,7 +7944,12 @@ document.querySelector("#budgetPaymentSchedule")?.addEventListener("change", (ev
 });
 document.querySelector("#budgetFinalizeSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("finalizeSimulation", event.currentTarget));
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
-document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", () => { markBudgetDirty(); updateBudgetSummary(); });
+document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", (event) => {
+  markBudgetDirty();
+  // Preserve the date input until change commits its value to the payment plan.
+  if (event.target.matches("[data-budget-payment-due]")) return;
+  updateBudgetSummary();
+});
 document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("change", () => { markBudgetDirty(); updateBudgetSummary(); });
 document.querySelector("#budgetPaymentEntry")?.addEventListener("blur", (event) => {
   event.currentTarget.value = formatMoneyInput(parseMoney(event.currentTarget.value));
