@@ -7929,6 +7929,16 @@ document.querySelector("#budgetSimulateFinancialBtn")?.addEventListener("click",
 document.querySelector("#budgetPostFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("launch", event.currentTarget));
 document.querySelector("#budgetDeleteSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("deleteSimulation", event.currentTarget));
 document.querySelector("#budgetPaymentRate")?.addEventListener("change", (event) => { event.currentTarget.dataset.auto = String(!event.currentTarget.value); });
+document.querySelector("#budgetPaymentSchedule")?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-budget-payment-due]");
+  if (!input) return;
+  const key = input.dataset.budgetPaymentDue;
+  if (key === "plan-entry") {
+    document.querySelector("#budgetPaymentEntryDate").value = input.value;
+    return;
+  }
+  state.budgetPaymentDueDates = { ...(state.budgetPaymentDueDates || {}), [key]: input.value };
+});
 document.querySelector("#budgetFinalizeSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("finalizeSimulation", event.currentTarget));
 document.querySelector("#budgetStatus")?.addEventListener("change", handleBudgetStatusDateFields);
 document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", () => { markBudgetDirty(); updateBudgetSummary(); });

@@ -55,6 +55,13 @@ test("uma parcela após a entrada aceita pagamento sem juros", () => {
   assert.equal(result.payments[1].amount, 8000);
 });
 
+test("parcelas sem juros preservam vencimentos editados", () => {
+  const result = calculate(10000, { ...defaults, months: 2, rate: 0, rateAuto: false, dueDates: { "plan-income-1": "2026-11-15", "plan-income-2": "2027-01-10" } });
+  assert.equal(result.payments[1].dueDate, "2026-11-15");
+  assert.equal(result.payments[2].dueDate, "2027-01-10");
+  assert.match(app, /data-budget-payment-due/);
+});
+
 test("Price em doze meses confere prestação e juros conhecidos", () => {
   const result = calculate(10000, defaults);
   assert.equal(result.installment, 765.80);
