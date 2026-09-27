@@ -115,6 +115,14 @@ test("Lela e Iris seguem a ultima parcela positiva, mesmo fora de ordem", () => 
   assert.equal(budgetFinancialMonthEnd("2028-02-02"), "2028-02-29");
 });
 
+test("Lela e Iris usam a finalização da montagem acima de duas parcelas", () => {
+  const { plan } = planFor([{ lela: 10, iris: 10 }], [
+    { value: "100", dueDate: "2026-10-05" }, { value: "100", dueDate: "2026-11-05" }, { value: "100", dueDate: "2026-12-05" },
+  ], 300, "", { assemblyEndDate: "2026-11-18" });
+  assert.equal(plan().find((item) => item.key === "lela").due_date, "2026-11-18");
+  assert.equal(plan().find((item) => item.key === "iris").due_date, "2026-11-18");
+});
+
 test("montagem é dividida em duas e usa 40 dias quando as datas não existem", () => {
   const { plan } = planFor([{ assembly: 101.01 }], [{ value: "0", dueDate: "" }], 0);
   const items = plan();

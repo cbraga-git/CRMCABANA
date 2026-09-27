@@ -5345,6 +5345,7 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   });
   if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento da entrada e de cada parcela com valor maior que zero.");
   const finalPaymentDate = payments.filter((payment) => payment.amount > 0).map((payment) => payment.due_date).sort().at(-1);
+  const installmentCount = budget.paymentPlan?.enabled ? Number(budget.paymentPlan.months) || 0 : payments.filter((payment) => payment.amount > 0).length;
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
     const sourceKey = rule.sourceKey || rule.key;
     const sourceTotal = rule.specialEnvironment
@@ -5355,7 +5356,9 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
     const amount = amountCents / 100;
     const dueDate = rule.assemblyDateField
       ? budget.settings?.[rule.assemblyDateField] || budgetFinancialDueDate(postedDate, rule)
-      : rule.finalPaymentMonth ? budgetFinancialMonthEnd(finalPaymentDate) : budgetFinancialDueDate(postedDate, rule);
+      : rule.finalPaymentMonth && installmentCount > 2
+        ? budget.settings?.assemblyEndDate || budgetFinancialDueDate(postedDate, { days: 40 })
+        : rule.finalPaymentMonth ? budgetFinancialMonthEnd(finalPaymentDate) : budgetFinancialDueDate(postedDate, rule);
     return { key: rule.key, entry_type: "expense", description: financialDescription(rule.description), amount,
       category_id: amount ? categoryFor(rule.category, "expense") : null,
       due_date: dueDate, ...base };
