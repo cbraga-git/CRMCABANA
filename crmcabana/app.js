@@ -3819,8 +3819,8 @@ const BUDGET_PAYMENT_METHODS = ["PIX", "Dinheiro", "Cartão de Credito", "Boleto
 
 function budgetPaymentRateFor(netCents, entryCents, months) {
   if (entryCents >= netCents) return 0;
-  const rates = BUDGET_PAYMENT_RATE_MATRIX[months] || (months === 2 ? BUDGET_PAYMENT_RATE_MATRIX[3] : null);
-  if (!rates) throw new Error("O financiamento próprio está disponível de 2 a 24 parcelas.");
+  const rates = BUDGET_PAYMENT_RATE_MATRIX[months] || (months === 1 || months === 2 ? BUDGET_PAYMENT_RATE_MATRIX[3] : null);
+  if (!rates) throw new Error("O financiamento próprio está disponível de 1 a 24 parcelas.");
   const entryPercent = entryCents / netCents * 100;
   if (entryPercent < 20) throw new Error("O financiamento próprio exige entrada mínima de 20%.");
   return rates[entryPercent >= 50 ? 3 : entryPercent >= 40 ? 2 : entryPercent >= 30 ? 1 : 0];
@@ -3856,7 +3856,7 @@ function calculateBudgetPaymentPlan(net, value) {
   const entryCents = Math.round(plan.entry * 100);
   if (!Number.isSafeInteger(netCents) || netCents < 0) throw new Error("O valor líquido deve ser maior ou igual a zero.");
   if (!Number.isSafeInteger(entryCents) || entryCents < 0 || entryCents > netCents) throw new Error("A entrada deve estar entre zero e o valor líquido do orçamento.");
-  if (!Number.isInteger(plan.months) || plan.months < 2 || plan.months > 24) throw new Error("Escolha de 2 a 24 parcelas.");
+  if (!Number.isInteger(plan.months) || plan.months < 1 || plan.months > 24) throw new Error("Escolha de 1 a 24 parcelas.");
   if (entryCents && entryCents < netCents && budgetPaymentMonthDate(plan.entryDate, 0) && budgetPaymentMonthDate(plan.firstDueDate, 0) && plan.firstDueDate < plan.entryDate) throw new Error("O primeiro vencimento não pode ser anterior à entrada.");
   const balanceCents = netCents - entryCents;
   const cashPayment = balanceCents === 0;

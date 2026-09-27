@@ -49,6 +49,12 @@ test("sem juros pode ser selecionado no padrão Cabana de duas parcelas", () => 
   assert.match(html, /<option value="0">Sem juros<\/option>/);
 });
 
+test("uma parcela após a entrada aceita pagamento sem juros", () => {
+  const result = calculate(10000, { ...defaults, months: 1, rate: 0, rateAuto: false });
+  assert.equal(result.payments.length, 2);
+  assert.equal(result.payments[1].amount, 8000);
+});
+
 test("Price em doze meses confere prestação e juros conhecidos", () => {
   const result = calculate(10000, defaults);
   assert.equal(result.installment, 765.80);
@@ -56,8 +62,8 @@ test("Price em doze meses confere prestação e juros conhecidos", () => {
   assert.equal(result.interest, 1189.59);
 });
 
-test("todos os prazos comerciais de 2 a 24 fecham soma e mantêm parcelas positivas", () => {
-  for (let months = 2; months <= 24; months++) {
+test("todos os prazos comerciais de 1 a 24 fecham soma e mantêm parcelas positivas", () => {
+  for (let months = 1; months <= 24; months++) {
     const result = calculate(131857.74, { ...defaults, entry: 41864, months });
     assert.equal(result.payments.reduce((sum, row) => sum + Math.round(row.amount * 100), 0), Math.round(result.total * 100));
     assert.ok(result.payments.every((row) => row.amount >= 0));
@@ -81,7 +87,7 @@ test("vencimentos preservam dia original e ajustam fevereiro e meses curtos", ()
 });
 
 test("rejeita entrada excedente, negativa, prazos e taxas inválidos", () => {
-  for (const change of [{ entry: -1 }, { entry: 10001 }, { entry: 1999 }, { months: 0 }, { months: 1 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
+  for (const change of [{ entry: -1 }, { entry: 10001 }, { entry: 1999 }, { months: 0 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
   assert.equal(normalize().enabled, false);
 });
 
