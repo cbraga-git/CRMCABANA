@@ -15,7 +15,7 @@
   --rose: #f43f68;
   --blue: #2563eb;
   --shadow: 0 2px 10px rgba(5, 5, 5, 0.12);
-  --sidebar-width: clamp(210px, 15vw, 266px);
+  --sidebar-width: clamp(200px, 14vw, 238px);
 }
 
 * {
@@ -42,6 +42,7 @@ body {
   background-position: center;
   background-size: cover;
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
 }
 
 button,
@@ -510,7 +511,7 @@ body[data-sidebar-collapsed="true"] .logout-icon {
   min-width: 0;
   overflow-x: auto;
   overflow-y: auto;
-  padding: clamp(10px, 2vh, 24px) clamp(10px, 2.4vw, 40px) clamp(18px, 3vh, 40px);
+  padding: clamp(10px, 1.6vh, 18px) clamp(10px, 1.8vw, 24px) clamp(16px, 2vh, 24px);
 }
 
 body[data-view="clients"] .content,
@@ -564,8 +565,8 @@ body[data-view="projects"] .content {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 28px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
 h1,
@@ -577,13 +578,13 @@ p {
 
 h1 {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 32px;
+  font-size: 28px;
   line-height: 1.12;
 }
 
 h2 {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .page-header p {
@@ -1925,13 +1926,13 @@ button.financial-entry-tag-chip { cursor: pointer; }
 
 table {
   width: 100%;
-  min-width: 760px;
+  min-width: 680px;
   border-collapse: collapse;
 }
 
 th,
 td {
-  padding: 14px 20px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   white-space: nowrap;
@@ -1940,7 +1941,7 @@ td {
 th {
   color: var(--muted);
   background: rgba(217, 199, 121, 0.22);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .resizable-table {
@@ -1985,7 +1986,7 @@ body.is-resizing-columns {
 }
 
 td {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 tbody tr:last-child td {
