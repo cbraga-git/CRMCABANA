@@ -784,6 +784,10 @@ button:focus-visible {
   max-width: 1440px;
 }
 
+body[data-view="financeTransactions"] .financial-module-view > .page-header {
+  display: none;
+}
+
 .financial-module-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }

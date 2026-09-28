@@ -90,6 +90,7 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /data-financial-account-transactions/);
   assert.match(app, /data-financial-account-expense/);
   assert.match(html, /id="financialEvolutionChartBtn"/);
+  assert.match(html, /id="financialEvolutionYear"/);
   assert.match(html, /id="financialEvolutionTableBtn"/);
   assert.match(html, /id="financialEvolutionRows"/);
   assert.match(html, /id="financialEntriesContext"/);
