@@ -2200,30 +2200,9 @@ function applyFinancialTableSort(table) {
   if (table.classList.contains("financial-entry-table")) renderFinancialEntryPagination(table);
 }
 
-function financialEntryPageBounds(total, page, pageSize) {
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  const current = Math.min(Math.max(1, page), pages);
-  const start = (current - 1) * pageSize;
-  return { current, pages, start, end: Math.min(start + pageSize, total) };
-}
-
 function renderFinancialEntryPagination(table) {
   const rows = Array.from(table?.tBodies[0]?.rows || []).filter((row) => row.dataset.financialEntryId);
-  const bounds = financialEntryPageBounds(rows.length, state.financialEntryPage, state.financialEntryPageSize);
-  state.financialEntryPage = bounds.current;
-  rows.forEach((row, index) => { row.hidden = index < bounds.start || index >= bounds.end; });
-  const pagination = document.querySelector("#financialEntryPagination");
-  const summary = document.querySelector("#financialEntryPaginationSummary");
-  const status = document.querySelector("#financialEntryPaginationStatus");
-  if (pagination) {
-    pagination.hidden = rows.length <= state.financialEntryPageSize;
-    const previous = pagination.querySelector('[data-financial-entry-page="previous"]');
-    const next = pagination.querySelector('[data-financial-entry-page="next"]');
-    if (previous) previous.disabled = bounds.current === 1;
-    if (next) next.disabled = bounds.current === bounds.pages;
-  }
-  if (summary) summary.textContent = rows.length ? `Exibindo ${bounds.start + 1}–${bounds.end} de ${rows.length} transações` : "Nenhuma transação";
-  if (status) status.textContent = `Página ${bounds.current} de ${bounds.pages}`;
+  rows.forEach((row) => { row.hidden = false; });
   renderFinancialDailyBalanceBreaks(table);
 }
 
