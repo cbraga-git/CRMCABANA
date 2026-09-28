@@ -1066,6 +1066,10 @@ function isAdmin() {
   return state.userRole === "admin";
 }
 
+function startsInFinanceTransactions() {
+  return String(state.session?.user?.email || "").trim().toLocaleLowerCase("pt-BR") === "fernandes.braga@gmail.com";
+}
+
 function serializeClientData(client) {
   const { _recordUserId, _remoteUpdatedAt, ...data } = client;
   return data;
@@ -8165,7 +8169,7 @@ async function startApp() {
   }
   refreshEnvironmentCatalog();
   state.selectedId = state.clients[0]?.id || null;
-  const initialView = isAdmin() ? "budget" : "clients";
+  const initialView = startsInFinanceTransactions() ? "financeTransactions" : isAdmin() ? "budget" : "clients";
   state.view = initialView;
   await showView(initialView);
   render();
