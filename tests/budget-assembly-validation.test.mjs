@@ -27,20 +27,14 @@ const complete = {
   assemblyEndDate: "2026-10-05",
 };
 
-test("status Novo permite salvar sem dados da montagem", () => {
+test("qualquer status permite salvar sem dados da montagem", () => {
   const { validate, alerts } = createValidator();
   assert.equal(validate("Novo", {}), true);
+  assert.equal(validate("Aprovado", {}), true);
   assert.equal(alerts.length, 0);
 });
 
-test("status diferente de Novo exige todos os dados da montagem", () => {
-  const { validate, alerts, focused } = createValidator();
-  assert.equal(validate("Aprovado", { ...complete, assemblerName: "", assemblyPixKey: "" }), false);
-  assert.match(alerts[0], /Nome do montador, Chave Pix/);
-  assert.deepEqual(focused, ["#budgetAssemblerName"]);
-});
-
-test("status diferente de Novo aceita dados da montagem completos", () => {
+test("dados da montagem preenchidos continuam aceitos", () => {
   const { validate, alerts } = createValidator();
   assert.equal(validate("Negociação", complete), true);
   assert.equal(alerts.length, 0);

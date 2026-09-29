@@ -5503,20 +5503,8 @@ async function recoverBudgetSaveConflict(clientId, previousBudget, budgetPayload
   return true;
 }
 
-function validateBudgetAssemblyDetails(status, settings) {
-  if (normalizedMigrationText(status) === "novo") return true;
-  const required = [
-    ["assemblerName", "Nome do montador", "#budgetAssemblerName"],
-    ["assemblyBeneficiary", "Favorecido", "#budgetAssemblyBeneficiary"],
-    ["assemblyPixKey", "Chave Pix", "#budgetAssemblyPixKey"],
-    ["assemblyStartDate", "Data inicial", "#budgetAssemblyStartDate"],
-    ["assemblyEndDate", "Data final", "#budgetAssemblyEndDate"],
-  ];
-  const missing = required.filter(([key]) => !String(settings?.[key] || "").trim());
-  if (!missing.length) return true;
-  alert(`Para salvar um orçamento com status ${status}, preencha os dados da montagem: ${missing.map(([, label]) => label).join(", ")}.`);
-  document.querySelector(missing[0][2])?.focus();
-  return false;
+function validateBudgetAssemblyDetails() {
+  return true;
 }
 
 function validateBudgetLedAssembly(rows) {
