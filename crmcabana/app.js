@@ -4117,14 +4117,14 @@ function calculateBudgetRows(rows, settings) {
     const factory = parseMoney(row.factory);
     const hardware = parseMoney(row.hardware);
     const manualAssembly = environmentName === "leds" ? Math.max(0, parseMoney(row.assembly)) : 0;
-    const net = hasSpecialPricing ? gross + factory + manualAssembly : gross - gross * rates.discount;
+    const net = hasSpecialPricing ? 0 : gross - gross * rates.discount;
     const hasValues = Boolean(row.name || gross || factory || hardware);
     const freight = hasSpecialPricing ? 0 : totalFactory > 0
       ? totalFreight * Math.max(0, factory) / totalFactory
       : hasValues && distributableRows > 0 ? totalFreight / distributableRows : 0;
     const release = net * rates.release;
     const assembly = hasSpecialPricing ? manualAssembly : net * rates.assembly;
-    const tax = net * rates.tax;
+    const tax = hasSpecialPricing ? 0 : net * rates.tax;
     const profitBeforeProfitRates = net - factory - hardware - freight - release - assembly - tax;
     const profitRateTotal = rates.lela + rates.iris;
     const profit = profitBeforeProfitRates > 0 ? profitBeforeProfitRates / (1 + profitRateTotal) : profitBeforeProfitRates;
