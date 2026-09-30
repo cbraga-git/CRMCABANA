@@ -2219,6 +2219,20 @@ function renderFinancialDailyBalanceBreaks(table) {
   const allRows = Array.from(body.rows).filter((row) => row.dataset.financialEntryDate);
   const rows = allRows.filter((row) => !row.hidden);
   const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
+  const filteredAccountId = state.financialEntryAccountFilter || filters.accountId;
+  const filteredAccounts = state.financialAccounts.filter((account) => account.active && (!filteredAccountId || (filteredAccountId === FINANCIAL_BANK_ACCOUNTS_FILTER && account.account_type === "bank") || account.id === filteredAccountId));
+  if (state.financialEntryShowDailyBalance) {
+    rows.forEach((row, index) => {
+      const date = row.dataset.financialEntryDate;
+      if (rows[index + 1]?.dataset.financialEntryDate === date) return;
+      const balance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, true), 0);
+      const summary = document.createElement("tr");
+      summary.className = "financial-daily-balance-row";
+      summary.innerHTML = `<td colspan="8"><span>Saldo previsto no final do dia <strong>${BRL.format(balance)}</strong></span></td>`;
+      row.after(summary);
+    });
+    return;
+  }
   if (hasExplicitFilter) {
     const accountId = state.financialEntryAccountFilter || filters.accountId;
     const visibleIds = new Set(allRows.map((row) => row.dataset.financialEntryId));

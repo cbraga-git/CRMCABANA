@@ -68,10 +68,10 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
   render(table);
   const summaries = () => table.tBodies[0].rows.filter((row) => row.className);
   assert.equal(summaries().filter((row) => row.className === "financial-daily-balance-row").length, 2);
-  assert.ok(summaries().some((row) => row.innerHTML.includes("R$ -20")));
-  assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 80")));
-  assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo do filtro até o dia")));
-  assert.ok(summaries().every((row) => !row.innerHTML.includes("R$ 1000")));
+  assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 900")));
+  assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 1000")));
+  assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo previsto no final do dia")));
+  assert.ok(summaries().every((row) => !row.innerHTML.includes("R$ 5000")));
 
   state.financialEntryShowDailyBalance = false;
   render(table);
@@ -104,7 +104,7 @@ test("filtro apenas de data também usa o saldo filtrado; sem filtro mantém sal
     financialEntryDate: (entry) => entry.date,
   });
   render(table);
-  assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ -20"));
+  assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 900"));
   state.financialEntryFilters.startDate = "";
   render(table);
   assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 900"));
@@ -137,5 +137,5 @@ test("contas bancárias por padrão usa saldo bancário; combinado com busca usa
   assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 900"));
   state.financialEntryFilters.search = "pix";
   render(table);
-  assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 100"));
+  assert.ok(table.tBodies[0].rows[1].innerHTML.includes("R$ 900"));
 });
