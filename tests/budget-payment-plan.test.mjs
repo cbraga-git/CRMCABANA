@@ -35,13 +35,49 @@ test("taxa mensal informada manualmente substitui a sugestão da matriz", () => 
   assert.equal(result.installment, 722.07);
 });
 
-test("taxa personalizada positiva é aplicada e exige juros", () => {
-  const result = calculate(10000, { ...defaults, months: 12, rate: 1.25, rateAuto: false, rateCustom: true });
-  assert.equal(result.effectiveRate, 1.25);
-  assert.throws(() => calculate(10000, { ...defaults, rate: 0, rateAuto: false, rateCustom: true }), /taxa personalizada maior que zero/);
-  assert.match(html, /id="budgetPaymentCustomRate"/);
-  assert.match(html, /id="budgetPaymentCustomRate" type="number" min="0\.0001" step="0\.0001"/);
+test("taxa personalizada usa o mesmo c?lculo da matriz e preserva planos salvos", () => {
+  for (let months = 1; months <= 24; months++) {
+    const automatic = calculate(10000, { ...defaults, months });
+    const custom = calculate(10000, { ...defaults, months, rate: automatic.effectiveRate, rateAuto: false, rateCustom: true });
+    assert.deepEqual(custom, automatic);
+  }
+  const saved = normalize({ ...defaults, rate: 1.2345, rateAuto: false, rateCustom: true });
+  assert.equal(saved.rate, 1.2345);
+  assert.equal(calculate(10000, saved).effectiveRate, 1.2345);
+  assert.doesNotMatch(html, /budgetPaymentCustomRate/);
   assert.match(html, /value="custom">Taxa personalizada/);
+});
+
+test("taxa personalizada entra na lista e cancelamento preserva a sele??o", () => {
+  const options = [{ value: "" }, { value: "2.2" }, { value: "custom" }];
+  const rate = {
+    options, value: "custom", dataset: { auto: "true", selectedRate: "2.2" },
+    querySelector: () => options.at(-1),
+    insertBefore: (option) => options.splice(options.length - 1, 0, option),
+  };
+  let answer = "1,2345";
+  const alerts = [];
+  const ui = runInNewContext(`${extract("function selectBudgetPaymentRate(", "\nfunction fillBudgetPaymentPlan(")}\n({ changeBudgetPaymentRate })`, {
+    document: { createElement: () => ({ dataset: {} }) },
+    prompt: () => answer, alert: (message) => alerts.push(message),
+  });
+  ui.changeBudgetPaymentRate(rate);
+  assert.equal(rate.value, "1.2345");
+  assert.equal(rate.dataset.auto, "false");
+  assert.equal(options.filter((option) => option.value === "1.2345").length, 1);
+  rate.value = "custom";
+  answer = null;
+  ui.changeBudgetPaymentRate(rate);
+  assert.equal(rate.value, "1.2345");
+  assert.equal(rate.dataset.auto, "false");
+  rate.value = "custom";
+  answer = "abc";
+  ui.changeBudgetPaymentRate(rate);
+  assert.equal(rate.value, "1.2345");
+  assert.equal(alerts.length, 1);
+  rate.value = "";
+  ui.changeBudgetPaymentRate(rate);
+  assert.equal(rate.dataset.auto, "true");
 });
 
 test("taxa sugerida escolhida manualmente pode ser usada em qualquer prazo", () => {

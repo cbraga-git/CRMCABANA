@@ -3839,7 +3839,6 @@ function normalizeBudgetPaymentPlan(value = {}) {
     months: value.months == null ? 2 : Number(value.months),
     rate: value.rate === "" || value.rate == null ? null : Number(value.rate),
     rateAuto: value.rateAuto === true || value.rate === "" || value.rate == null,
-    rateCustom: value.rateCustom === true,
     entryMethod: BUDGET_PAYMENT_METHODS.includes(value.entryMethod) ? value.entryMethod : "PIX",
     method: BUDGET_PAYMENT_METHODS.includes(value.method) ? value.method : "PIX",
     entryDate: value.entryDate || "",
@@ -3869,7 +3868,6 @@ function calculateBudgetPaymentPlan(net, value) {
   const cashPayment = balanceCents === 0;
   const suggestedRate = budgetPaymentRateFor(netCents, entryCents, plan.months);
   if (plan.rate != null && (!Number.isFinite(plan.rate) || plan.rate < 0)) throw new Error("Informe uma taxa de juros mensal válida.");
-  if (plan.rateCustom && (plan.rate == null || plan.rate <= 0)) throw new Error("Informe uma taxa personalizada maior que zero.");
   const effectiveRate = cashPayment ? 0 : (plan.rateAuto ? suggestedRate : plan.rate);
   const rate = effectiveRate / 100;
   const rawInstallment = balanceCents ? rate ? balanceCents * rate / (1 - Math.pow(1 + rate, -plan.months)) : balanceCents / plan.months : 0;
@@ -3890,28 +3888,45 @@ function calculateBudgetPaymentPlan(net, value) {
 
 function readBudgetPaymentPlan() {
   const rateSelect = document.querySelector("#budgetPaymentRate");
-  const isCustomRate = rateSelect?.value === "custom";
   return normalizeBudgetPaymentPlan({
     enabled: document.querySelector("#budgetPaymentEnabled")?.checked,
     entry: parseMoney(budgetInputValue("budgetPaymentEntry")),
     months: Number(budgetInputValue("budgetPaymentMonths")),
-    rate: isCustomRate ? parseMoney(budgetInputValue("budgetPaymentCustomRate")) : budgetInputValue("budgetPaymentRate"),
-    rateAuto: !isCustomRate && rateSelect?.dataset.auto === "true",
-    rateCustom: isCustomRate,
+    rate: budgetInputValue("budgetPaymentRate"),
+    rateAuto: rateSelect?.dataset.auto === "true",
     entryMethod: budgetInputValue("budgetPaymentEntryMethod"), method: budgetInputValue("budgetPaymentMethod"),
     entryDate: budgetInputValue("budgetPaymentEntryDate"), firstDueDate: budgetInputValue("budgetPaymentFirstDueDate"),
     dueDates: state.budgetPaymentDueDates || {},
   });
 }
 
-function syncBudgetPaymentCustomRate() {
-  const rate = document.querySelector("#budgetPaymentRate");
-  const field = document.querySelector("#budgetPaymentCustomRateField");
-  const input = document.querySelector("#budgetPaymentCustomRate");
-  const isCustomRate = rate?.value === "custom";
-  if (field) field.hidden = !isCustomRate;
-  if (input) input.disabled = !isCustomRate;
-  if (isCustomRate && rate) rate.dataset.auto = "false";
+function selectBudgetPaymentRate(rate, value) {
+  const selectedValue = value == null ? "" : String(value);
+  if (selectedValue && !Array.from(rate.options).some((option) => option.value === selectedValue)) {
+    const option = document.createElement("option");
+    option.value = selectedValue;
+    option.textContent = `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 10 })}% a.m.`;
+    option.dataset.custom = "true";
+    rate.insertBefore(option, rate.querySelector('[value="custom"]'));
+  }
+  rate.value = selectedValue;
+  rate.dataset.selectedRate = selectedValue;
+}
+
+function changeBudgetPaymentRate(rate) {
+  if (rate.value === "custom") {
+    const entered = prompt("Informe a taxa de juros mensal (% a.m.):", rate.dataset.selectedRate || "");
+    const value = entered == null ? NaN : Number(entered.trim().replace(",", "."));
+    if (entered == null || !entered.trim() || !Number.isFinite(value) || value <= 0) {
+      if (entered != null) alert("Informe uma taxa de juros mensal maior que zero.");
+      rate.value = rate.dataset.selectedRate || "";
+      return;
+    }
+    selectBudgetPaymentRate(rate, value);
+  } else {
+    rate.dataset.selectedRate = rate.value;
+  }
+  rate.dataset.auto = String(!rate.value);
 }
 
 function fillBudgetPaymentPlan(value) {
@@ -3925,12 +3940,9 @@ function fillBudgetPaymentPlan(value) {
   months.innerHTML = Array.from({ length: 24 }, (_, index) => `<option value="${index + 1}">${index + 1} ${index ? "parcelas" : "parcela"}</option>`).join("");
   for (const [field, key] of [["Months", "months"], ["EntryMethod", "entryMethod"], ["Method", "method"], ["EntryDate", "entryDate"], ["FirstDueDate", "firstDueDate"]]) document.querySelector(`#budgetPayment${field}`).value = String(plan[key]);
   const rate = document.querySelector("#budgetPaymentRate");
-  const hasNativeRate = Array.from(rate.options).some((option) => option.value === String(plan.rate));
-  const isCustomRate = !plan.rateAuto && plan.rate != null && (plan.rateCustom || !hasNativeRate);
-  rate.value = plan.rateAuto ? "" : isCustomRate ? "custom" : String(plan.rate);
+  rate.querySelectorAll('option[data-custom]').forEach((option) => option.remove());
+  selectBudgetPaymentRate(rate, plan.rateAuto ? null : plan.rate);
   rate.dataset.auto = String(plan.rateAuto);
-  document.querySelector("#budgetPaymentCustomRate").value = isCustomRate ? String(plan.rate) : "";
-  syncBudgetPaymentCustomRate();
   document.querySelector("#budgetPaymentEntry").value = formatMoneyInput(plan.entry);
 }
 
@@ -3943,7 +3955,7 @@ function renderBudgetPaymentPlan(net) {
   try {
     const result = calculateBudgetPaymentPlan(net, plan);
     const rateInput = document.querySelector("#budgetPaymentRate");
-    if (plan.rateAuto) rateInput.value = String(result.effectiveRate);
+    if (plan.rateAuto) selectBudgetPaymentRate(rateInput, result.effectiveRate);
     hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${result.cashPayment ? "Pagamento à vista, sem juros. Edite os vencimentos na tabela abaixo." : result.effectiveRate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} A matriz preenche uma sugestão inicial; escolha qualquer taxa sugerida ou informe uma taxa livre. Pode haver ajuste de centavos entre parcelas.`;
     const scheduleDetails = document.querySelector("#budgetPaymentSchedule").closest("details");
     const alwaysExpanded = result.effectiveRate === 0;
@@ -3953,7 +3965,7 @@ function renderBudgetPaymentPlan(net) {
     document.querySelector("#budgetPaymentSchedule").innerHTML = result.payments.map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${BRL.format(payment.amount)}</td><td><input type="date" data-budget-payment-due="${payment.key}" value="${payment.dueDate}" aria-label="Vencimento ${escapeHtml(payment.parcel)}" /></td><td>${escapeHtml(payment.method)}</td></tr>`).join("");
     error.hidden = true;
   } catch (failure) {
-    if (plan.rateAuto) document.querySelector("#budgetPaymentRate").value = "";
+    if (plan.rateAuto) selectBudgetPaymentRate(document.querySelector("#budgetPaymentRate"), null);
     error.textContent = failure.message;
     error.hidden = false;
     for (const field of ["Balance", "Installment", "Interest", "Total"]) document.querySelector(`#budgetPayment${field}`).textContent = "—";
@@ -7946,9 +7958,7 @@ document.querySelector("#budgetSimulateFinancialBtn")?.addEventListener("click",
 document.querySelector("#budgetPostFinancialBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("launch", event.currentTarget));
 document.querySelector("#budgetDeleteSimulationBtn")?.addEventListener("click", (event) => runBudgetFinancialAction("deleteSimulation", event.currentTarget));
 document.querySelector("#budgetPaymentRate")?.addEventListener("change", (event) => {
-  event.currentTarget.dataset.auto = String(!event.currentTarget.value);
-  syncBudgetPaymentCustomRate();
-  if (event.currentTarget.value === "custom") document.querySelector("#budgetPaymentCustomRate")?.focus();
+  changeBudgetPaymentRate(event.currentTarget);
 });
 document.querySelector("#budgetPaymentSchedule")?.addEventListener("change", (event) => {
   const input = event.target.closest("[data-budget-payment-due]");
@@ -7965,7 +7975,7 @@ document.querySelector("#budgetStatus")?.addEventListener("change", handleBudget
 document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", (event) => {
   markBudgetDirty();
   // Preserve the date input until change commits its value to the payment plan.
-  if (event.target.matches("[data-budget-payment-due]")) return;
+  if (event.target.matches("[data-budget-payment-due], #budgetPaymentRate")) return;
   updateBudgetSummary();
 });
 document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("change", () => { markBudgetDirty(); updateBudgetSummary(); });
