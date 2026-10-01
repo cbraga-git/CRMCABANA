@@ -35,6 +35,14 @@ test("taxa mensal informada manualmente substitui a sugestão da matriz", () => 
   assert.equal(result.installment, 722.07);
 });
 
+test("taxa personalizada positiva é aplicada e exige juros", () => {
+  const result = calculate(10000, { ...defaults, months: 12, rate: 1.25, rateAuto: false, rateCustom: true });
+  assert.equal(result.effectiveRate, 1.25);
+  assert.throws(() => calculate(10000, { ...defaults, rate: 0, rateAuto: false, rateCustom: true }), /taxa personalizada maior que zero/);
+  assert.match(html, /id="budgetPaymentCustomRate"/);
+  assert.match(html, /value="custom">Taxa personalizada/);
+});
+
 test("taxa sugerida escolhida manualmente pode ser usada em qualquer prazo", () => {
   const result = calculate(10000, { ...defaults, months: 3, rate: 3.3, rateAuto: false });
   assert.equal(result.effectiveRate, 3.3);

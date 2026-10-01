@@ -10,4 +10,6 @@ test("tela exibe transações continuamente, sem navegação paginada", () => {
   assert.doesNotMatch(app, /function financialEntryPageBounds\(/);
   assert.match(css, /body\[data-sidebar-collapsed="true"\] \.financial-module-view \{ max-width: none;/);
   assert.match(css, /body\[data-sidebar-collapsed="true"\] \.financial-entry-table \{ min-width: 0; table-layout: fixed;/);
+  assert.match(css, /body\[data-view="financeTransactions"\]:not\(\[data-sidebar-collapsed="true"\]\) \.financial-entry-filters/);
+  assert.match(css, /body\[data-view="financeTransactions"\]:not\(\[data-sidebar-collapsed="true"\]\) \.financial-entry-table \{/);
 });
