@@ -40,6 +40,7 @@ test("taxa personalizada positiva é aplicada e exige juros", () => {
   assert.equal(result.effectiveRate, 1.25);
   assert.throws(() => calculate(10000, { ...defaults, rate: 0, rateAuto: false, rateCustom: true }), /taxa personalizada maior que zero/);
   assert.match(html, /id="budgetPaymentCustomRate"/);
+  assert.match(html, /id="budgetPaymentCustomRate" type="number" min="0\.0001" step="0\.0001"/);
   assert.match(html, /value="custom">Taxa personalizada/);
 });
 

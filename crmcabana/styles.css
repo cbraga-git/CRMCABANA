@@ -1080,6 +1080,7 @@ button.financial-entry-tag-chip { cursor: pointer; }
 @media (max-width: 560px) { .financial-entry-pagination { align-items: stretch; flex-direction: column; } .financial-entry-pagination > div { justify-content: space-between; } }
 .financial-entry-table .financial-daily-balance-row, .financial-entry-table .financial-filter-balance-row { background: transparent; }
 .financial-entry-table .financial-daily-balance-row td, .financial-entry-table .financial-filter-balance-row td { padding: 14px 18px; text-align: center; }
+.financial-daily-balance-values { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .financial-entry-table .financial-daily-balance-row span, .financial-entry-table .financial-filter-balance-row span { display: inline-flex; gap: 5px; padding: 10px 22px; border-radius: 999px; background: #eee8d8; color: var(--muted); font-size: 12px; }
 .financial-entry-table .financial-daily-balance-row strong, .financial-entry-table .financial-filter-balance-row strong { color: var(--text); }
 .selected-row { background: rgba(217, 199, 121, .18); }

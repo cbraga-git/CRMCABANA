@@ -2225,10 +2225,12 @@ function renderFinancialDailyBalanceBreaks(table) {
     rows.forEach((row, index) => {
       const date = row.dataset.financialEntryDate;
       if (rows[index + 1]?.dataset.financialEntryDate === date) return;
-      const balance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, true), 0);
+      const projectedBalance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, true), 0);
+      const realizedBalance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, false), 0);
+      const pendingBalance = projectedBalance - realizedBalance;
       const summary = document.createElement("tr");
       summary.className = "financial-daily-balance-row";
-      summary.innerHTML = `<td colspan="8"><span>Saldo previsto no final do dia <strong>${BRL.format(balance)}</strong></span></td>`;
+      summary.innerHTML = `<td colspan="8"><div class="financial-daily-balance-values"><span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span></div></td>`;
       row.after(summary);
     });
     return;

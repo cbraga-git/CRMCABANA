@@ -61,7 +61,9 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
     state,
     document,
     BRL: { format: (value) => `R$ ${value}` },
-    financialAccountBalance: (account, date) => account.id === "bank" ? (date.endsWith("17") ? 1000 : 900) : 5000,
+    financialAccountBalance: (account, date, projected) => account.id === "bank"
+      ? (projected ? (date.endsWith("17") ? 1000 : 900) : (date.endsWith("17") ? 800 : 700))
+      : 5000,
     financialEntryDate: (entry) => entry.date,
   });
 
@@ -70,7 +72,11 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
   assert.equal(summaries().filter((row) => row.className === "financial-daily-balance-row").length, 2);
   assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 900")));
   assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 1000")));
-  assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo previsto no final do dia")));
+  assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia previsto")));
+  assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia pendente")));
+  assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia realizado")));
+  assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 200")));
+  assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 800")));
   assert.ok(summaries().every((row) => !row.innerHTML.includes("R$ 5000")));
 
   state.financialEntryShowDailyBalance = false;
