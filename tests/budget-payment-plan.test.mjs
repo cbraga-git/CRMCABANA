@@ -23,10 +23,19 @@ test("matriz comercial aplica 2,2% para 12x com entrada de 20% e fecha centavos"
 });
 
 test("matriz escolhe a coluna pela maior faixa de entrada atingida", () => {
-  assert.equal(calculate(10000, { ...defaults, months: 2 }).effectiveRate, 1.3);
+  assert.equal(calculate(10000, { ...defaults, months: 3 }).effectiveRate, 1.3);
   assert.equal(calculate(10000, { ...defaults, entry: 3000, months: 6 }).effectiveRate, 1.5);
   assert.equal(calculate(10000, { ...defaults, entry: 4000, months: 6 }).effectiveRate, 1.4);
   assert.equal(calculate(10000, { ...defaults, entry: 5000, months: 6 }).effectiveRate, 1.2);
+});
+
+test("entrada mais duas parcelas é à vista mesmo com uma taxa antiga salva", () => {
+  const result = calculate(10000, { ...defaults, months: 2, rate: 4, rateAuto: false });
+  assert.equal(result.cashPayment, true);
+  assert.equal(result.effectiveRate, 0);
+  assert.equal(result.interest, 0);
+  assert.equal(result.total, 10000);
+  assert.equal(result.payments.length, 3);
 });
 
 test("taxa mensal informada manualmente substitui a sugestão da matriz", () => {
@@ -193,7 +202,7 @@ test("documentos incluem todas as parcelas e novo quadro antecede quadro preserv
     formatPrintDate: (value) => value, formatPercent: runInNewContext(`${extract("function formatPercent(", "\nfunction budgetInputValue(")}\nformatPercent`),
     printField: (label, value) => `<div>${label}: ${value}</div>`,
   };
-  const functions = runInNewContext(`${extract("function orderPaymentRows(", "\nconst ORDER_ITEMS_PER_PAGE")}\n${extract("function buildBudgetPaymentPlanDocument(", "\nfunction buildQuoteDocument(")}\n({ orderPaymentRows, buildBudgetPaymentPlanDocument })`, ctx);
+  const functions = runInNewContext(`${extract("function documentCompanyHeaderRows(", "\nfunction formatPrintDate(")}\n${extract("function orderPaymentRows(", "\nconst ORDER_ITEMS_PER_PAGE")}\n${extract("function buildBudgetPaymentPlanDocument(", "\nfunction buildQuoteDocument(")}\n({ orderPaymentRows, buildBudgetPaymentPlanDocument })`, ctx);
   const input = { client: { name: "Cliente" }, budget: { code: "002-082026", paymentPlan: { ...defaults, months: 24 } }, totals: { net: 10000 } };
   assert.equal(functions.orderPaymentRows(input).length, 25);
   const printed = functions.buildBudgetPaymentPlanDocument(input);

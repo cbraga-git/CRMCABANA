@@ -3865,8 +3865,8 @@ function calculateBudgetPaymentPlan(net, value) {
   if (!Number.isInteger(plan.months) || plan.months < 1 || plan.months > 24) throw new Error("Escolha de 1 a 24 parcelas.");
   if (entryCents && entryCents < netCents && budgetPaymentMonthDate(plan.entryDate, 0) && budgetPaymentMonthDate(plan.firstDueDate, 0) && plan.firstDueDate < plan.entryDate) throw new Error("O primeiro vencimento não pode ser anterior à entrada.");
   const balanceCents = netCents - entryCents;
-  const cashPayment = balanceCents === 0;
-  const suggestedRate = budgetPaymentRateFor(netCents, entryCents, plan.months);
+  const cashPayment = balanceCents === 0 || (entryCents > 0 && plan.months === 2);
+  const suggestedRate = cashPayment ? 0 : budgetPaymentRateFor(netCents, entryCents, plan.months);
   if (plan.rate != null && (!Number.isFinite(plan.rate) || plan.rate < 0)) throw new Error("Informe uma taxa de juros mensal válida.");
   const effectiveRate = cashPayment ? 0 : (plan.rateAuto ? suggestedRate : plan.rate);
   const rate = effectiveRate / 100;
@@ -3955,7 +3955,8 @@ function renderBudgetPaymentPlan(net) {
   try {
     const result = calculateBudgetPaymentPlan(net, plan);
     const rateInput = document.querySelector("#budgetPaymentRate");
-    if (plan.rateAuto) selectBudgetPaymentRate(rateInput, result.effectiveRate);
+    rateInput.disabled = result.cashPayment;
+    if (plan.rateAuto || result.cashPayment) selectBudgetPaymentRate(rateInput, result.effectiveRate);
     hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${result.cashPayment ? "Pagamento à vista, sem juros. Edite os vencimentos na tabela abaixo." : result.effectiveRate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} A matriz preenche uma sugestão inicial; escolha qualquer taxa sugerida ou informe uma taxa livre. Pode haver ajuste de centavos entre parcelas.`;
     const scheduleDetails = document.querySelector("#budgetPaymentSchedule").closest("details");
     const alwaysExpanded = result.effectiveRate === 0;
@@ -4456,6 +4457,14 @@ function printableDocumentStyles() {
     .excel-order .logo-cell { background: rgba(255, 250, 240, 0.88); text-align: center; }
     .order-logo { display: block; width: 100px; max-height: 42px; object-fit: contain; margin: 0 auto; }
     .order-small { font-size: 7px; line-height: 1.05; }
+    .print-document .document-pages { margin: 0; border: 0; table-layout: fixed; }
+    .print-document .document-pages > thead > tr > td,
+    .print-document .document-pages > tbody > tr > td { border: 0; padding: 0; background: transparent; }
+    .print-document .company-header { margin: 0 0 8px; font-size: 7.9px; }
+    .print-document .company-header td { padding: 3px 2px; height: 18px; }
+    .document-repeat-header { display: table-header-group; break-inside: avoid; page-break-inside: avoid; }
+    .document-pages > tbody > tr { break-inside: auto; page-break-inside: auto; }
+    .document-page-content { overflow-wrap: anywhere; }
     .contract-title { text-align: center; font-weight: 900; font-size: 12px; margin: 0 0 7px; text-transform: uppercase; }
     .contract-number { text-align: center; font-weight: 900; margin: 0 0 6px; }
     .contract-clause { margin: 2px 0; text-align: justify; }
@@ -4466,7 +4475,7 @@ function printableDocumentStyles() {
     @media print {
       body { width: 100%; }
       .print-document { width: 100%; max-width: 100%; }
-      .print-page { width: 100%; max-width: 100%; overflow: hidden; }
+      .print-page { width: 100%; max-width: 100%; overflow: visible; }
       .order-page { font-size: 8.8px; }
       .order-page .excel-order { font-size: 8.4px; }
       .order-page .excel-order td, .order-page .excel-order th { padding: 4px 2px; height: 22px; }
@@ -4525,6 +4534,18 @@ function printableHeader(title, context) {
       <p>${escapeHtml(context.budget.status || "-")}</p>
     </div>
   </header>`;
+}
+
+function documentCompanyHeaderRows(context) {
+  return `<tr><td colspan="4" rowspan="3" class="logo-cell"><img class="order-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" /></td><td colspan="8" class="label">Cabana Moveis Sob Medida Ltda</td><td colspan="2" class="label">CNPJ</td><td colspan="6">47.946.284/0001-77</td><td colspan="6" class="section">Contrato No</td></tr>
+    <tr><td colspan="9" class="order-small">Avenida Vida Nova, 28, Sala 806-B, Jardim Maria Rosa - Taboao da Serra, SP</td><td colspan="2" class="label">Tel.</td><td colspan="5">11 95909-3538</td><td colspan="6" class="center strong">${escapeHtml(context.budget.code || "")}</td></tr>
+    <tr><td colspan="6">cabanamoveissobmedida@gmail.com</td><td class="label">Bco</td><td colspan="3">Itau - 347</td><td class="label">Ag</td><td>0568</td><td class="label">CC</td><td colspan="3">99307-5</td><td colspan="6"></td></tr>`;
+}
+
+function documentWithRepeatingHeader(context, content) {
+  return `<table class="document-pages"><thead class="document-repeat-header"><tr><td>
+    <table class="excel-order company-header" aria-label="Cabeçalho Cabana"><colgroup>${Array.from({ length: 26 }, () => "<col />").join("")}</colgroup><tbody>${documentCompanyHeaderRows(context)}</tbody></table>
+  </td></tr></thead><tbody><tr><td class="document-page-content">${content}</td></tr></tbody></table>`;
 }
 
 function formatPrintDate(value, options = {}) {
@@ -4653,7 +4674,6 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
   const paymentPlan = context.budget.paymentPlan?.enabled ? calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan) : null;
   const client = context.client;
   const address = formattedClientAddressParts(client);
-  const contractCode = context.budget.code || "";
   const createdAt = formatPrintDate(context.budget.createdAt);
   const deliveryForecastAt = formatPrintDateTime(context.budget.deliveryForecastAt);
   const orderRows = buildOrderRows([...rows], startIndex);
@@ -4662,10 +4682,8 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
     <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
     <table class="excel-order" aria-label="Pedido">
       <colgroup>${Array.from({ length: 26 }, () => "<col />").join("")}</colgroup>
+      <thead class="document-repeat-header">${documentCompanyHeaderRows(context)}</thead>
       <tbody>
-        <tr><td colspan="4" rowspan="3" class="logo-cell"><img class="order-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" /></td><td colspan="8" class="label">Cabana Moveis Sob Medida Ltda</td><td colspan="2" class="label">CNPJ</td><td colspan="6">47.946.284/0001-77</td><td colspan="6" class="section">Contrato No</td></tr>
-        <tr><td colspan="9" class="order-small">Avenida Vida Nova, 28, Sala 806-B, Jardim Maria Rosa - Taboao da Serra, SP</td><td colspan="2" class="label">Tel.</td><td colspan="5">11 95909-3538</td><td colspan="6" class="center strong">${escapeHtml(contractCode)}</td></tr>
-        <tr><td colspan="6">cabanamoveissobmedida@gmail.com</td><td class="label">Bco</td><td colspan="3">Itau - 347</td><td class="label">Ag</td><td>0568</td><td class="label">CC</td><td colspan="3">99307-5</td><td colspan="6"></td></tr>
         <tr><td colspan="19" class="label">Responsavel pela venda</td><td colspan="7" class="label">Data do contrato</td></tr>
         <tr><td colspan="19">${escapeHtml(responsibleSeller(client) || "Daniela Moreira")}</td><td colspan="7" class="center">${escapeHtml(createdAt)}</td></tr>
         <tr><td colspan="19" class="label">Cliente</td><td colspan="7" class="label">Banco / Agencia / Conta</td></tr>
@@ -4688,7 +4706,7 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
         <tr><td colspan="26" class="label">Amb Observacao</td></tr>
         <tr><td colspan="26">${escapeHtml(context.budget.notes || "")}</td></tr>
         <tr><td colspan="5" class="label">Total a vista</td><td colspan="11" class="label">Total a prazo</td><td colspan="5" class="label">Forma de pagamento</td><td colspan="5" class="label">Condicao de pagamento</td></tr>
-        <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal || context.totals.net)}</td><td colspan="5">${paymentPlan ? escapeHtml([...new Set(paymentPlan.payments.map((item) => item.method))].join(" / ")) : "Pix"}</td><td colspan="5">${paymentPlan ? paymentPlan.balance ? "Entrada / Parcelado" : "À vista" : context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
+        <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal || context.totals.net)}</td><td colspan="5">${paymentPlan ? escapeHtml([...new Set(paymentPlan.payments.map((item) => item.method))].join(" / ")) : "Pix"}</td><td colspan="5">${paymentPlan ? paymentPlan.cashPayment ? "À vista" : "Entrada / Parcelado" : context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
         <tr><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th></tr>
         ${buildPaymentRows(context)}
         <tr><td colspan="13" class="sign">Cabana Moveis Sob Medida</td><td colspan="13" class="sign">Contratante: ${escapeHtml(client.name || "")}</td></tr>
@@ -4702,8 +4720,7 @@ function buildContractPage(context) {
     const heading = /^\d+\./.test(text);
     return `<p class="contract-clause${heading ? " heading" : ""}">${escapeHtml(text)}</p>`;
   }).join("");
-  return `<section class="print-page contract-page">
-    <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
+  const content = `
     <p class="contract-number">CONTRATO N.o ${escapeHtml(context.budget.code || "")}</p>
     <h1 class="contract-title">Contrato de Compra e Venda de Produtos e de Prestacao de Servicos</h1>
     ${clauses}
@@ -4725,7 +4742,8 @@ function buildContractPage(context) {
       <div class="signature-line"><strong>CONTRATADA:</strong><br />Cabana Moveis Sob Medida Ltda</div>
       <div class="signature-line"><strong>CONTRATANTE:</strong><br />${escapeHtml(context.client.name || "")}</div>
     </div>
-  </section>`;
+  `;
+  return `<section class="print-page contract-page"><div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>${documentWithRepeatingHeader(context, content)}</section>`;
 }
 
 function buildOrderDocument(context) {
@@ -4741,13 +4759,15 @@ function buildBudgetPaymentPlanDocument(context) {
   if (!context.budget.paymentPlan?.enabled) return "";
   const plan = calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan);
   const rate = plan.effectiveRate;
-  return `<section class="print-page payment-plan-page">
+  const content = `
     <h2>Plano de pagamento — ${escapeHtml(context.budget.code || "")}</h2>
+    <p>${plan.cashPayment ? "Pagamento à vista" : "Financiamento"}</p>
     <p>${escapeHtml(context.client.name || "")}</p>
     <div class="totals">${printField("Valor líquido", BRL.format(plan.net))}${printField("Entrada à vista", BRL.format(plan.entry))}${printField("Saldo financiado", BRL.format(plan.balance))}${printField("Juros", rate ? `${formatPercent(rate / 100)} a.m. — Tabela Price` : "Sem juros")}${printField("Total de juros", BRL.format(plan.interest))}${printField("Total com entrada", BRL.format(plan.total))}</div>
     <table><thead><tr><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Forma de pagamento</th></tr></thead><tbody>${orderPaymentRows(context).map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${escapeHtml(payment.value)}</td><td>${escapeHtml(payment.dueDate)}</td><td>${escapeHtml(payment.method)}</td></tr>`).join("")}</tbody></table>
     <p>Os valores das parcelas incluem eventuais ajustes de centavos.</p>
-  </section>`;
+  `;
+  return `<section class="print-page payment-plan-page">${documentWithRepeatingHeader(context, content)}</section>`;
 }
 
 function buildQuoteDocument(context) {
@@ -4771,7 +4791,7 @@ function buildQuoteDocument(context) {
       </tr>`
     )
     .join("");
-  const body = `${printableHeader("Orçamento", context)}
+  const content = `${printableHeader("Orçamento", context)}
     ${printableClientSection(context.client)}
     <section>
       <h2>Ambientes e valores</h2>
@@ -4798,7 +4818,8 @@ function buildQuoteDocument(context) {
         ${printField("Total financiamento", BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal))}
       </div>
     </section>
-    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>${buildBudgetPaymentPlanDocument(context)}`;
+    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>`;
+  const body = `<section class="print-page quote-page">${documentWithRepeatingHeader(context, content)}</section>${buildBudgetPaymentPlanDocument(context)}`;
   const title = `Orcamento ${context.budget.code || ""}`;
   return { title, body, html: printableDocumentShell(title, body) };
 }
@@ -5371,11 +5392,12 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   const issueDate = budget.nobiliaDate || budgetFinancialLocalDate(budget.createdAt);
   const base = { status: "pending", account_id: account.id, client_id: client.id, source_type: "sale", issue_date: issueDate, competence_date: postedDate, paid_at: null };
   const financialDescription = (description) => `${options.simulated ? "Simulado - " : ""}${formatFinancialDescription(description)}`;
-  const planPayments = budget.paymentPlan?.enabled
-    ? calculateBudgetPaymentPlan(budgetTotals(calculated, budget.settings || {}).net, budget.paymentPlan).payments
+  const paymentCalculation = budget.paymentPlan?.enabled
+    ? calculateBudgetPaymentPlan(budgetTotals(calculated, budget.settings || {}).net, budget.paymentPlan)
     : null;
+  const planPayments = paymentCalculation?.payments;
   const payments = planPayments ? planPayments.map((payment) => ({
-    key: payment.key, entry_type: "income", description: financialDescription(payment.key === "plan-entry" ? "Entrada à Vista" : `Financiamento - Parcela ${payment.parcel}`),
+    key: payment.key, entry_type: "income", description: financialDescription(payment.key === "plan-entry" ? "Entrada à Vista" : `${paymentCalculation.cashPayment ? "Pagamento à Vista" : "Financiamento"} - Parcela ${payment.parcel}`),
     amount: payment.amount, category_id: payment.amount ? categoryFor("Receita Venda de Planejados", "income") : null,
     due_date: payment.dueDate || null, ...base, paymentMethod: payment.method,
   })) : (budget.cashPayments || []).map((payment, index) => {
