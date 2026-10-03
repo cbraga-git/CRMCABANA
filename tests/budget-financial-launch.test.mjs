@@ -98,7 +98,20 @@ test("LEDS e Ferragens são lançados pelo ambiente, fora de Fábrica + Frete", 
   const items = plan();
   assert.equal(items.find((item) => item.key === "factoryFreight").amount, 100);
   assert.equal(items.find((item) => item.key === "leds").amount, 80);
+  assert.equal(items.find((item) => item.key === "leds").category_id, "category-1");
+  assert.equal(items.find((item) => item.key === "leds").due_date, items.find((item) => item.key === "assembly").due_date);
   assert.equal(items.find((item) => item.key === "ferragensEnvironment").amount, 45);
+});
+
+test("LED usa Insumos e acompanha a data da primeira parcela da montagem", () => {
+  const { plan } = planFor([
+    { name: "LEDS", factory: 80, assembly: 40 },
+  ], [], 0, "", { assemblyStartDate: "2026-11-03", assemblyEndDate: "2026-11-18" });
+  const items = plan();
+  const led = items.find((item) => item.key === "leds");
+  assert.equal(led.category_id, "category-1");
+  assert.equal(led.due_date, "2026-11-03");
+  assert.equal(led.due_date, items.find((item) => item.key === "assembly").due_date);
 });
 
 test("contato vazio nao gera tag adicional", () => {

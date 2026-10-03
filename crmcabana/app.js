@@ -5343,7 +5343,7 @@ function renderBudget() {
 
 const BUDGET_FINANCIAL_EXPENSES = [
   { key: "factoryFreight", description: "Fábrica + Frete", category: "Fabrica", days: 5 },
-  { key: "leds", description: "LEDS", category: "Fabrica", days: 5, specialEnvironment: "leds" },
+  { key: "leds", description: "LEDS", category: "Insumos", days: 40, specialEnvironment: "leds", assemblyDateField: "assemblyStartDate", syncDueDate: true },
   { key: "ferragensEnvironment", description: "Ferragens", category: "Fabrica", days: 5, specialEnvironment: "ferragens" },
   { key: "hardware", description: "Ferragens", category: "Insumos", days: 40 },
   { key: "release", description: "Liberação", category: "Operação", days: 40 },
