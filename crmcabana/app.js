@@ -8002,7 +8002,11 @@ document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", (ev
   if (event.target.matches("[data-budget-payment-due], #budgetPaymentRate")) return;
   updateBudgetSummary();
 });
-document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("change", () => { markBudgetDirty(); updateBudgetSummary(); });
+document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("change", (event) => {
+  markBudgetDirty();
+  if (event.target.matches("[data-budget-payment-due]")) return;
+  updateBudgetSummary();
+});
 document.querySelector("#budgetPaymentEntry")?.addEventListener("blur", (event) => {
   event.currentTarget.value = formatMoneyInput(parseMoney(event.currentTarget.value));
   updateBudgetSummary();

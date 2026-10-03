@@ -11,6 +11,33 @@ const context = { BRL: new Intl.NumberFormat("pt-BR", { style: "currency", curre
 const { calculateBudgetPaymentPlan: calculate, budgetPaymentMonthDate: monthDate, normalizeBudgetPaymentPlan: normalize } = runInNewContext(`${core}\n({ calculateBudgetPaymentPlan, budgetPaymentMonthDate, normalizeBudgetPaymentPlan })`, context);
 const defaults = { enabled: true, entry: 2000, months: 12, entryDate: "2026-09-26", firstDueDate: "2026-10-31", entryMethod: "PIX", method: "Boleto" };
 
+test("editar vencimentos preserva o campo e salva datas da entrada e das parcelas", () => {
+  const handlers = {};
+  const state = {};
+  const entryDate = { value: "" };
+  let updates = 0;
+  let dirty = 0;
+  const document = { querySelector: (selector) => selector === "#budgetPaymentEntryDate" ? entryDate : {
+    addEventListener: (name, handler) => { handlers[`${selector}:${name}`] = handler; },
+  } };
+  runInNewContext(extract('document.querySelector("#budgetPaymentSchedule")?.addEventListener', '\ndocument.querySelector("#budgetPaymentEntry")?.addEventListener'), {
+    document, state, markBudgetDirty: () => dirty++, updateBudgetSummary: () => updates++,
+    runBudgetFinancialAction() {}, handleBudgetStatusDateFields() {},
+  });
+  for (const [key, date] of [["plan-income-1", "2027-02-15"], ["plan-entry", "2026-10-10"]]) {
+    const input = { value: date, dataset: { budgetPaymentDue: key }, closest() { return this; }, matches: () => true };
+    handlers["#budgetPaymentPlanPanel:input"]({ target: input });
+    handlers["#budgetPaymentSchedule:change"]({ target: input });
+    handlers["#budgetPaymentPlanPanel:change"]({ target: input });
+  }
+  assert.equal(state.budgetPaymentDueDates["plan-income-1"], "2027-02-15");
+  assert.equal(entryDate.value, "2026-10-10");
+  assert.equal(updates, 0);
+  assert.equal(dirty, 4);
+  handlers["#budgetPaymentPlanPanel:change"]({ target: { matches: () => false } });
+  assert.equal(updates, 1);
+});
+
 test("matriz comercial aplica 2,2% para 12x com entrada de 20% e fecha centavos", () => {
   const result = calculate(10000, defaults);
   assert.equal(result.balance, 8000);
