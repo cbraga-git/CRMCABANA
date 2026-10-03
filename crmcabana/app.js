@@ -222,6 +222,8 @@ const state = {
   financialEntryShowDailyBalance: true,
   financialEntryPage: 1,
   financialEntryPageSize: 20,
+  financialSelectedEntryIds: new Set(),
+  financialDeletingEntries: false,
   onlineUsers: [],
 };
 
@@ -1941,6 +1943,58 @@ async function deleteFinancialRecord(table, id, label) {
   return true;
 }
 
+function updateFinancialEntrySelection() {
+  const inputs = Array.from(elements.financialEntryRows?.querySelectorAll("[data-select-financial-entry]") || []);
+  inputs.forEach((input) => {
+    input.checked = state.financialSelectedEntryIds.has(input.dataset.selectFinancialEntry);
+    input.disabled = state.financialDeletingEntries;
+    input.closest("tr")?.classList.toggle("financial-entry-selected", input.checked);
+  });
+  const selectAll = document.querySelector("#selectAllFinancialEntries");
+  if (selectAll) {
+    selectAll.checked = inputs.length > 0 && inputs.every((input) => input.checked);
+    selectAll.indeterminate = inputs.some((input) => input.checked) && !selectAll.checked;
+    selectAll.disabled = !inputs.length || state.financialDeletingEntries;
+    selectAll.hidden = state.view !== "financeTransactions";
+  }
+  const toolbar = document.querySelector("#financialEntrySelectionActions");
+  if (toolbar) toolbar.hidden = state.view !== "financeTransactions" || !state.financialSelectedEntryIds.size;
+  const count = document.querySelector("#financialEntrySelectionCount");
+  if (count) count.textContent = `${state.financialSelectedEntryIds.size} selecionada(s)`;
+  document.querySelectorAll("#financialEntrySelectionActions button").forEach((button) => { button.disabled = state.financialDeletingEntries; });
+}
+
+async function deleteSelectedFinancialEntries() {
+  if (state.financialDeletingEntries || state.view !== "financeTransactions") return;
+  const ids = [...state.financialSelectedEntryIds];
+  if (!ids.length || !confirm(`Excluir ${ids.length} transação(ões) selecionada(s)? Esta ação não poderá ser desfeita.`)) return;
+  state.financialDeletingEntries = true;
+  updateFinancialEntrySelection();
+  try {
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.map(encodeURIComponent).join(",")})`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.message || "Não foi possível excluir as transações selecionadas.");
+    }
+    state.financialSelectedEntryIds.clear();
+    const deletedIds = new Set(ids);
+    state.financialEntries = state.financialEntries.filter((entry) => !deletedIds.has(entry.id));
+    renderFinancialEntries();
+    for (const client of state.clients) {
+      for (const budget of clientBudgetHistory(client)) {
+        if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+        const pairs = await budgetFinancialEntryIds(budget);
+        if (pairs.some(([, id]) => deletedIds.has(id))) await reconcileBudgetFinancialStatus(client.id, budget);
+      }
+    }
+    await loadFinancialRegisters();
+    renderFinancialEntries();
+  } finally {
+    state.financialDeletingEntries = false;
+    updateFinancialEntrySelection();
+  }
+}
+
 function financialEntryViewType(view = state.view) {
   return view === "financePayable" ? "expense" : view === "financeReceivable" ? "income" : null;
 }
@@ -2287,7 +2341,8 @@ function initializeFinancialTableSorting() {
     table.querySelectorAll("thead th[data-sort-type]").forEach((header) => {
       header.tabIndex = 0;
       header.setAttribute("aria-sort", "none");
-      const sort = () => {
+      const sort = (event) => {
+        if (event?.target.closest("input, button")) return;
         const column = header.cellIndex;
         const current = financialTableSorts.get(table);
         const direction = current?.column === column && current.direction === "asc" ? "desc" : "asc";
@@ -2296,7 +2351,7 @@ function initializeFinancialTableSorting() {
         applyFinancialTableSort(table);
       };
       header.addEventListener("click", sort);
-      header.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); sort(); } });
+      header.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { if (event.target.closest("input, button")) return; event.preventDefault(); sort(); } });
     });
   });
 }
@@ -2330,6 +2385,8 @@ function renderFinancialEntries(view = state.view) {
     }
     return true;
   });
+  const eligibleIds = new Set(view === "financeTransactions" ? entries.map((entry) => entry.id) : []);
+  state.financialSelectedEntryIds = new Set([...state.financialSelectedEntryIds].filter((id) => eligibleIds.has(id)));
   const accounts = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
   const categories = new Map(state.financialCategories.map((category) => [category.id, category.name]));
   const accountSelect = document.querySelector("#financialEntryFilterAccount");
@@ -2367,7 +2424,7 @@ function renderFinancialEntries(view = state.view) {
     const notes = financialEntryNotes(entry);
     const tags = financialEntryTags(entry);
     const tagList = tags.length ? `<div class="financial-entry-list-tags">${tags.map((tag) => `<span class="financial-entry-tag-chip"><span>${escapeHtml(tag)}</span></span>`).join("")}</div>` : "";
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td class="financial-entry-notes" data-sort-value="${escapeHtml(notes)}">${notes ? escapeHtml(notes) : "—"}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><div class="financial-entry-status-selection">${view === "financeTransactions" ? `<input type="checkbox" data-select-financial-entry="${entry.id}" aria-label="Selecionar ${escapeHtml(formatFinancialDescription(entry.description))}" />` : ""}<span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></div></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td class="financial-entry-notes" data-sort-value="${escapeHtml(notes)}">${notes ? escapeHtml(notes) : "—"}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
   }).join("") : '<tr><td colspan="8" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   const entryTable = elements.financialEntryRows.closest("table");
   if (!financialTableSorts.has(entryTable)) {
@@ -2375,6 +2432,7 @@ function renderFinancialEntries(view = state.view) {
     entryTable.querySelector("thead th:nth-child(2)")?.setAttribute("aria-sort", "descending");
   }
   applyFinancialTableSort(entryTable);
+  updateFinancialEntrySelection();
 }
 
 function compareFinancialCategoryPriority(first, second) {
@@ -7661,6 +7719,29 @@ function closeFinancialEntryMenus(except = null) {
     menu.closest(".financial-entry-actions")?.querySelector("[data-financial-entry-menu]")?.setAttribute("aria-expanded", "false");
   });
 }
+
+elements.financialEntryRows?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-select-financial-entry]");
+  if (!input || state.financialDeletingEntries) return;
+  if (input.checked) state.financialSelectedEntryIds.add(input.dataset.selectFinancialEntry);
+  else state.financialSelectedEntryIds.delete(input.dataset.selectFinancialEntry);
+  updateFinancialEntrySelection();
+});
+document.querySelector("#selectAllFinancialEntries")?.addEventListener("change", (event) => {
+  if (state.financialDeletingEntries) return;
+  elements.financialEntryRows.querySelectorAll("[data-select-financial-entry]").forEach((input) => {
+    if (event.target.checked) state.financialSelectedEntryIds.add(input.dataset.selectFinancialEntry);
+    else state.financialSelectedEntryIds.delete(input.dataset.selectFinancialEntry);
+  });
+  updateFinancialEntrySelection();
+});
+document.querySelector("#clearFinancialEntrySelection")?.addEventListener("click", () => {
+  state.financialSelectedEntryIds.clear();
+  updateFinancialEntrySelection();
+});
+document.querySelector("#deleteSelectedFinancialEntries")?.addEventListener("click", () => {
+  deleteSelectedFinancialEntries().catch((error) => alert(error.message));
+});
 
 elements.financialEntryRows?.addEventListener("click", (event) => {
   const menuButton = event.target.closest("[data-financial-entry-menu]");

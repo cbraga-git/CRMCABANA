@@ -923,6 +923,13 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 }
 
 .financial-register { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.financial-entry-status-selection { display: flex; align-items: center; gap: 6px; }
+.financial-entry-status-selection input, #selectAllFinancialEntries { width: 15px; height: 15px; margin: 0; padding: 0; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+.financial-entry-selection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--line); }
+.financial-entry-selection-actions[hidden] { display: none; }
+.financial-entry-selection-actions > span { margin-right: auto; font-size: 13px; font-weight: 700; }
+.financial-entry-table tr.financial-entry-selected { background: rgba(217, 199, 121, .2); }
+.financial-entry-table th:first-child:has(#selectAllFinancialEntries:not([hidden])) { min-width: 92px; width: 92px !important; }
 .financial-register > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
 #financialEntriesPanel > header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 #financialEntriesPanel > header > .button { justify-self: end; }
