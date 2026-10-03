@@ -1012,8 +1012,15 @@ body[data-sidebar-collapsed="true"] .financial-entry-notes { min-width: 0; max-w
 
 @media (min-width: 1051px) {
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)) repeat(2, minmax(0, .95fr)) auto;
+    gap: 8px;
+    padding-right: 16px;
+    padding-left: 16px;
   }
+
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters label { min-width: 0; }
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters input,
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters select { padding-right: 6px; padding-left: 6px; }
 
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table {
     min-width: 0;
