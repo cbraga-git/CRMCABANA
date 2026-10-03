@@ -1627,7 +1627,7 @@ button.financial-entry-tag-chip { cursor: pointer; }
 
 .environment-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, 170px) auto;
   align-items: end;
   gap: 10px;
   font-size: 13px;
@@ -1663,11 +1663,11 @@ button.financial-entry-tag-chip { cursor: pointer; }
   width: auto;
 }
 
-.environment-table th:nth-child(2) {
+.environment-table th:nth-child(2), .environment-table th:nth-child(3) {
   width: 130px;
 }
 
-.environment-table input {
+.environment-table input, .environment-table select {
   width: 100%;
   min-height: 30px;
   border: 1px solid var(--line);

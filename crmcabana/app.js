@@ -196,6 +196,7 @@ const state = {
   returnView: "clients",
   clients: [],
   environments: [],
+  environmentTypes: {},
   budgetStatuses: DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status })),
   financialAccounts: [],
   financialCategories: [],
@@ -826,6 +827,7 @@ function hasStoredEnvironmentCatalog() {
 
 function saveEnvironmentCatalog() {
   localStorage.setItem(environmentStorageKey(), JSON.stringify(state.environments));
+  localStorage.setItem(`${environmentStorageKey()}-types`, JSON.stringify(state.environmentTypes));
 }
 
 function clientEnvironmentNames() {
@@ -844,6 +846,18 @@ function renderEnvironmentOptions() {
 }
 
 function refreshEnvironmentCatalog(extraEnvironments = []) {
+  try {
+    const savedTypes = JSON.parse(localStorage.getItem(`${environmentStorageKey()}-types`) || "{}");
+    state.environmentTypes = savedTypes && typeof savedTypes === "object" && !Array.isArray(savedTypes) ? savedTypes : {};
+  } catch { state.environmentTypes = {}; }
+  for (const client of state.clients) {
+    for (const budget of clientBudgetHistory(client)) {
+      for (const row of budget.rows || []) {
+        const name = normalizeEnvironmentName(row.name || "");
+        if (name && !Object.prototype.hasOwnProperty.call(state.environmentTypes, name) && ["factory", "cost"].includes(row.environmentType)) state.environmentTypes[name] = row.environmentType;
+      }
+    }
+  }
   const baseEnvironments = hasStoredEnvironmentCatalog() ? loadStoredEnvironments() : DEFAULT_ENVIRONMENTS;
   const names = [...baseEnvironments, ...clientEnvironmentNames(), ...extraEnvironments]
     .map(normalizeEnvironmentName)
@@ -922,11 +936,12 @@ function persistEnvironmentCatalog() {
   renderEnvironmentManager();
 }
 
-function addEnvironmentToCatalog(name) {
+function addEnvironmentToCatalog(name, type = "factory") {
   const normalized = normalizeEnvironmentName(name);
   if (!normalized) return false;
   if (state.environments.includes(normalized)) return false;
   state.environments = [...state.environments, normalized];
+  state.environmentTypes[normalized] = budgetEnvironmentHasSpecialPricing(normalized, type) ? "cost" : "factory";
   persistEnvironmentCatalog();
   return true;
 }
@@ -945,6 +960,8 @@ function renameEnvironmentInCatalog(previousName, nextName) {
   const next = normalizeEnvironmentName(nextName);
   if (!previous || !next) return previous;
   if (previous === next) return next;
+  state.environmentTypes[next] = state.environmentTypes[previous] || (budgetEnvironmentHasSpecialPricing(previous) ? "cost" : "factory");
+  delete state.environmentTypes[previous];
   state.environments = state.environments.map((environment) => (environment === previous ? next : environment));
   persistEnvironmentCatalog();
   return next;
@@ -954,6 +971,7 @@ function removeEnvironmentFromCatalog(name) {
   const normalized = normalizeEnvironmentName(name);
   if (!normalized) return;
   state.environments = state.environments.filter((environment) => environment !== normalized);
+  delete state.environmentTypes[normalized];
   persistEnvironmentCatalog();
 }
 
@@ -3528,7 +3546,7 @@ function renderEnvironmentManager() {
   }
 
   if (!state.environments.length) {
-    elements.environmentRows.innerHTML = '<tr><td colspan="2" class="empty-state">Nenhum ambiente cadastrado</td></tr>';
+    elements.environmentRows.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhum ambiente cadastrado</td></tr>';
     return;
   }
 
@@ -3559,6 +3577,19 @@ function renderEnvironmentManager() {
     });
     nameCell.appendChild(nameInput);
     row.appendChild(nameCell);
+
+    const typeCell = document.createElement("td");
+    const typeSelect = document.createElement("select");
+    typeSelect.innerHTML = '<option value="factory">Fábrica</option><option value="cost">Custo</option>';
+    typeSelect.value = budgetEnvironmentHasSpecialPricing(environment) ? "cost" : "factory";
+    typeSelect.setAttribute("aria-label", `Classificação de ${environment}`);
+    typeSelect.disabled = ["led", "leds", "ferragens"].includes(normalizedMigrationText(environment));
+    typeSelect.addEventListener("change", () => {
+      state.environmentTypes[environment] = typeSelect.value;
+      saveEnvironmentCatalog();
+    });
+    typeCell.appendChild(typeSelect);
+    row.appendChild(typeCell);
 
     const actionsCell = document.createElement("td");
     const removeButton = document.createElement("button");
@@ -4142,6 +4173,7 @@ function readBudgetRows() {
       if (customInput) customInput.hidden = true;
       return {
         name,
+        environmentType: budgetEnvironmentHasSpecialPricing(name, row.dataset.environmentType) ? "cost" : "factory",
         gross: parseMoney(row.querySelector('[data-budget-field="gross"]')?.value),
         factory: parseMoney(row.querySelector('[data-budget-field="factory"]')?.value),
         hardware: parseMoney(row.querySelector('[data-budget-field="hardware"]')?.value),
@@ -4198,8 +4230,10 @@ function renderOrderMaterialRows(materials = [], budgetRows = readBudgetRows()) 
   });
 }
 
-function budgetEnvironmentHasSpecialPricing(name) {
-  return ["leds", "ferragens"].includes(normalizedMigrationText(name));
+function budgetEnvironmentHasSpecialPricing(name, type) {
+  if (["led", "leds", "ferragens"].includes(normalizedMigrationText(name))) return true;
+  const catalogType = typeof state !== "undefined" ? state.environmentTypes?.[String(name || "").trim().replace(/\s+/g, " ").toUpperCase()] : undefined;
+  return (catalogType || type) === "cost";
 }
 
 function calculateBudgetRows(rows, settings) {
@@ -4212,7 +4246,7 @@ function calculateBudgetRows(rows, settings) {
     tax: percentToRate(settings.taxRate),
   };
 
-  const freightRows = rows.filter((row) => !budgetEnvironmentHasSpecialPricing(row.name));
+  const freightRows = rows.filter((row) => !budgetEnvironmentHasSpecialPricing(row.name, row.environmentType));
   const totalFactory = freightRows.reduce((sum, row) => sum + Math.max(0, parseMoney(row.factory)), 0);
   const freightInput = Math.max(0, parseMoney(settings.freightValue));
   const totalFreight = settings.freightMode === "percent" ? totalFactory * percentToRate(freightInput) : freightInput;
@@ -4220,11 +4254,11 @@ function calculateBudgetRows(rows, settings) {
 
   return rows.map((row) => {
     const environmentName = normalizedMigrationText(row.name);
-    const hasSpecialPricing = budgetEnvironmentHasSpecialPricing(row.name);
+    const hasSpecialPricing = budgetEnvironmentHasSpecialPricing(row.name, row.environmentType);
     const gross = hasSpecialPricing ? 0 : parseMoney(row.gross);
     const factory = parseMoney(row.factory);
     const hardware = parseMoney(row.hardware);
-    const manualAssembly = environmentName === "leds" ? Math.max(0, parseMoney(row.assembly)) : 0;
+    const manualAssembly = hasSpecialPricing && environmentName !== "ferragens" ? Math.max(0, parseMoney(row.assembly)) : 0;
     const net = hasSpecialPricing ? 0 : gross - gross * rates.discount;
     const hasValues = Boolean(row.name || gross || factory || hardware);
     const freight = hasSpecialPricing ? 0 : totalFactory > 0
@@ -4241,6 +4275,8 @@ function calculateBudgetRows(rows, settings) {
     const totalCost = factory + hardware + freight + release + assembly + lela + iris + tax;
     return {
       ...row,
+      environmentType: hasSpecialPricing ? "cost" : "factory",
+      environmentCost: hasSpecialPricing && !["led", "leds", "ferragens"].includes(environmentName) ? factory : 0,
       gross,
       factory,
       hardware,
@@ -4324,7 +4360,7 @@ function budgetTotals(calculatedRows, settings) {
 function updateBudgetTableTotals(calculatedRows, totals) {
   const rowTotals = calculatedRows.reduce(
     (summary, row) => ({
-      factory: summary.factory + (budgetEnvironmentHasSpecialPricing(row.name) ? 0 : row.factory),
+      factory: summary.factory + (budgetEnvironmentHasSpecialPricing(row.name, row.environmentType) ? 0 : row.factory),
       factoryFreight: summary.factoryFreight + row.factoryFreight,
       hardware: summary.hardware + row.hardware,
       freight: summary.freight + row.freight,
@@ -4992,7 +5028,7 @@ function setBudgetTableOrderMode(orderMode) {
 
 function syncBudgetRowAssemblyMode(row) {
   const environmentName = normalizedMigrationText(row.querySelector('[data-budget-field="name"]')?.value);
-  const hasManualAssembly = ["leds", "ferragens"].includes(environmentName);
+  const hasManualAssembly = budgetEnvironmentHasSpecialPricing(row.querySelector('[data-budget-field="name"]')?.value, row.dataset.environmentType);
   const locksAssembly = environmentName === "ferragens";
   const result = row.querySelector('[data-budget-result="assembly"]');
   const input = row.querySelector('[data-budget-field="assembly"]');
@@ -5012,6 +5048,7 @@ function syncBudgetRowAssemblyMode(row) {
 
 function createBudgetRow(rowData = {}) {
   const row = document.createElement("tr");
+  row.dataset.environmentType = rowData.environmentType || "factory";
   row.innerHTML = `
     <td data-budget-environment></td>
     <td data-budget-column="gross"><input class="money-input" data-budget-field="gross" inputmode="decimal" title="Tambem aceita contas, ex: 1.200,00+350,50" /></td>
@@ -5032,6 +5069,7 @@ function createBudgetRow(rowData = {}) {
     focusBudgetRowField(row, row.querySelector('[data-budget-field="gross"]')?.readOnly ? "factory" : "gross");
   };
   const environmentPicker = createEnvironmentPicker(rowData.name || "", () => {
+    row.dataset.environmentType = budgetEnvironmentHasSpecialPricing(environmentPicker.select.value) ? "cost" : "factory";
     markBudgetDirty();
     syncBudgetRowAssemblyMode(row);
     updateBudgetSummary();
@@ -5401,6 +5439,7 @@ function renderBudget() {
 
 const BUDGET_FINANCIAL_EXPENSES = [
   { key: "factoryFreight", description: "Fábrica + Frete", category: "Fabrica", days: 5 },
+  { key: "environmentCost", description: "Custos de ambientes", category: "Insumos", days: 40 },
   { key: "leds", description: "LEDS", category: "Insumos", days: 40, specialEnvironment: "leds", assemblyDateField: "assemblyStartDate", syncDueDate: true },
   { key: "ferragensEnvironment", description: "Ferragens", category: "Fabrica", days: 5, specialEnvironment: "ferragens" },
   { key: "hardware", description: "Ferragens", category: "Insumos", days: 40 },
@@ -5471,7 +5510,7 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
     const sourceKey = rule.sourceKey || rule.key;
     const sourceTotal = rule.specialEnvironment
-      ? calculated.filter((row) => normalizedMigrationText(row.name) === rule.specialEnvironment).reduce((sum, row) => sum + (Number(row.factory) || 0), 0)
+      ? calculated.filter((row) => normalizedMigrationText(row.name) === rule.specialEnvironment || (rule.specialEnvironment === "leds" && normalizedMigrationText(row.name) === "led")).reduce((sum, row) => sum + (Number(row.factory) || 0), 0)
       : calculated.reduce((sum, row) => sum + (Number(row[sourceKey]) || 0), 0);
     const totalCents = budgetFinancialCents(sourceTotal);
     const amountCents = rule.splitPart === 1 ? Math.floor(totalCents / 2) : rule.splitPart === 2 ? totalCents - Math.floor(totalCents / 2) : totalCents;
@@ -5485,7 +5524,7 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
       category_id: amount ? categoryFor(rule.category, "expense") : null,
       due_date: dueDate, ...base };
   });
-  return [...expenses, ...payments].map(({ paymentMethod, ...item }) => ({ ...item, notes: notesWithFinancialTags(paymentMethod ? `Forma de pagamento: ${paymentMethod}` : "", tags) }));
+  return [...expenses, ...payments].filter((item) => item.key !== "environmentCost" || item.amount > 0).map(({ paymentMethod, ...item }) => ({ ...item, notes: notesWithFinancialTags(paymentMethod ? `Forma de pagamento: ${paymentMethod}` : "", tags) }));
 }
 
 async function budgetFinancialEntryIds(budget) {
@@ -7853,7 +7892,7 @@ elements.environmentForm?.addEventListener("submit", (event) => {
   const typedName = elements.environmentNameInput?.value || "";
   const normalizedName = normalizeEnvironmentName(typedName);
   const alreadyExists = state.environments.includes(normalizedName);
-  const added = addEnvironmentToCatalog(typedName);
+  const added = addEnvironmentToCatalog(typedName, document.querySelector("#environmentTypeInput")?.value || "factory");
   if (added && elements.environmentNameInput) {
     elements.environmentNameInput.value = "";
   }

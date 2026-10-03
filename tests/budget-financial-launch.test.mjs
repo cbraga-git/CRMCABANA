@@ -40,6 +40,16 @@ function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + N
   return { plan: (options) => budgetFinancialPlan(budget, client, "2026-09-21", { id: "mercado" }, categories, options), budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed };
 }
 
+test("novos custos de ambientes são lançados em Insumos sem compor fábrica", () => {
+  const { plan } = planFor([{ factoryFreight: 500, environmentCost: 150 }], []);
+  const items = plan();
+  assert.equal(items.find((item) => item.key === "factoryFreight").amount, 500);
+  const cost = items.find((item) => item.key === "environmentCost");
+  assert.equal(cost.amount, 150);
+  assert.equal(cost.due_date, "2026-10-31");
+  assert.equal(cost.category_id, items.find((item) => item.key === "hardware").category_id || categories.find((item) => item.name === "Insumos").id);
+});
+
 test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   assert.match(html, /id="budgetLaunchFinancialBtn"[^>]*>Lançar Financeiro/);
   assert.match(html, /id="budgetSimulateFinancialBtn"[^>]*>Simular lançamento/);
