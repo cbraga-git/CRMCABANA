@@ -2227,7 +2227,9 @@ function renderFinancialDailyBalanceBreaks(table) {
       if (rows[index + 1]?.dataset.financialEntryDate === date) return;
       const projectedBalance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, true), 0);
       const realizedBalance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, false), 0);
-      const pendingBalance = projectedBalance - realizedBalance;
+      const pendingBalance = state.financialEntries
+        .filter((entry) => (entry.status === "pending" || entry.status === "overdue") && financialEntryDate(entry) === date)
+        .reduce((sum, entry) => sum + filteredAccounts.reduce((movement, account) => movement + financialAccountFilterMovement(entry, account.id, bankAccountIds), 0), 0);
       const summary = document.createElement("tr");
       summary.className = "financial-daily-balance-row";
       summary.innerHTML = `<td colspan="8"><div class="financial-daily-balance-values"><span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span></div></td>`;
