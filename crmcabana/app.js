@@ -2304,7 +2304,7 @@ function renderFinancialDailyBalanceBreaks(table) {
         .reduce((sum, entry) => sum + filteredAccounts.reduce((movement, account) => movement + financialAccountFilterMovement(entry, account.id, bankAccountIds), 0), 0);
       const summary = document.createElement("tr");
       summary.className = "financial-daily-balance-row";
-      summary.innerHTML = `<td colspan="7"><div class="financial-daily-balance-values"><span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span></div></td>`;
+      summary.innerHTML = `<td colspan="8"><div class="financial-daily-balance-values"><span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span></div></td>`;
       row.after(summary);
     });
     return;
