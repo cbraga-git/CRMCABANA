@@ -1218,6 +1218,7 @@ async function signOut() {
   state.clients = [];
   state.selectedId = null;
   state.financialScope = "company";
+  document.body.dataset.financialScope = "company";
   state.financialScopeVersion++;
   resetFinancialScopeData();
   document.querySelector("#bragaFinancialNavGroup").hidden = true;
@@ -1812,9 +1813,9 @@ function prepareFinancialCanvas(canvas, height) {
 function renderFinancialDonut(canvasId, legendId, data) {
   const canvas = document.querySelector(`#${canvasId}`); const legend = document.querySelector(`#${legendId}`); if (!canvas || !legend) return;
   const { context, width, height } = prepareFinancialCanvas(canvas, 280); const total = data.reduce((sum, item) => sum + item.value, 0); const radius = Math.min(width, height) * 0.32; const thickness = Math.max(26, radius * .28); const centerX = width / 2; const centerY = height / 2; let angle = -Math.PI / 2;
-  if (!total) { context.strokeStyle = "#e6dcc0"; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, 0, Math.PI * 2); context.stroke(); }
+  if (!total) { context.strokeStyle = state.financialScope === "braga" ? "#404040" : "#e6dcc0"; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, 0, Math.PI * 2); context.stroke(); }
   data.forEach((item, index) => { const next = angle + item.value / total * Math.PI * 2; context.strokeStyle = FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, angle, next); context.stroke(); angle = next; });
-  context.fillStyle = "#1b1606"; context.textAlign = "center"; context.font = "700 18px Arial"; context.fillText(BRL.format(total), centerX, centerY + 2); context.font = "12px Arial"; context.fillStyle = "#6e6135"; context.fillText("Total", centerX, centerY + 23);
+  context.fillStyle = state.financialScope === "braga" ? "#f5f5f5" : "#1b1606"; context.textAlign = "center"; context.font = "700 18px Arial"; context.fillText(BRL.format(total), centerX, centerY + 2); context.font = "12px Arial"; context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.fillText("Total", centerX, centerY + 23);
   legend.innerHTML = data.length ? data.slice(0, 8).map((item, index) => `<span><i style="background:${FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]}"></i>${escapeHtml(item.name)} <strong>${BRL.format(item.value)}</strong></span>`).join("") : "<span>Sem lançamentos no período.</span>";
 }
 
@@ -1831,10 +1832,10 @@ function financialEvolutionAccounts() {
 function renderFinancialBalanceChart(year) {
   const canvas = document.querySelector("#financialBalanceChart"); if (!canvas) return; const { context, width, height } = prepareFinancialCanvas(canvas, 300); const accounts = financialEvolutionAccounts(); const values = Array.from({ length: 12 }, (_, index) => accounts.reduce((sum, account) => sum + financialAccountBalance(account, `${year}-${String(index + 1).padStart(2, "0")}-${String(new Date(year, index + 1, 0).getDate()).padStart(2, "0")}`, true), 0));
   const padding = { top: 25, right: 25, bottom: 45, left: 78 }; const min = Math.min(0, ...values); const max = Math.max(1, ...values); const range = max - min || 1; const chartWidth = width - padding.left - padding.right; const chartHeight = height - padding.top - padding.bottom;
-  context.font = "11px Arial"; context.strokeStyle = "#e0d3aa"; context.fillStyle = "#6e6135"; context.textAlign = "right";
+  context.font = "11px Arial"; context.strokeStyle = state.financialScope === "braga" ? "#404040" : "#e0d3aa"; context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.textAlign = "right";
   for (let tick = 0; tick <= 4; tick += 1) { const value = min + range * tick / 4; const y = height - padding.bottom - chartHeight * tick / 4; context.beginPath(); context.moveTo(padding.left, y); context.lineTo(width - padding.right, y); context.stroke(); context.fillText(BRL.format(value), padding.left - 8, y + 4); }
   const points = values.map((value, index) => ({ x: padding.left + chartWidth * index / 11, y: padding.top + (max - value) / range * chartHeight })); context.strokeStyle = "#aa8e34"; context.lineWidth = 3; context.beginPath(); points.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.stroke();
-  points.forEach((point, index) => { context.fillStyle = "#aa8e34"; context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.fillStyle = "#6e6135"; context.textAlign = "center"; context.fillText(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][index], point.x, height - 18); });
+  points.forEach((point, index) => { context.fillStyle = "#aa8e34"; context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.textAlign = "center"; context.fillText(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][index], point.x, height - 18); });
 }
 
 function renderFinancialEvolutionTable(year) {

@@ -19,6 +19,6 @@ Se a migração ainda não foi aplicada, o módulo apresenta a mensagem de indis
 
 - `npm run check` e `npm test`: sintaxe e regressões, incluindo isolamento, acesso, relatórios e troca de menus.
 - `node tests/financial-braga-database.mjs`: executa as migrações e 112 verificações em um PostgreSQL descartável, usando PGlite como ferramenta de desenvolvimento. Requer `@electric-sql/pglite`, ou `PGLITE_MODULE` apontando para uma instalação externa.
-- `node tests/financial-braga-browser.mjs`: executa 20 verificações de interface com o Supabase simulado. Requer Playwright, ou `PLAYWRIGHT_MODULE` apontando para uma instalação externa; `BROWSER_EXECUTABLE` pode apontar para um Chrome/Edge instalado.
+- `node tests/financial-braga-browser.mjs`: executa 26 verificações de interface com o Supabase simulado. Requer Playwright, ou `PLAYWRIGHT_MODULE` apontando para uma instalação externa; `BROWSER_EXECUTABLE` pode apontar para um Chrome/Edge instalado.
 
 Essas ferramentas de validação não são dependências do CRM. Os testes de banco e navegador usam dados fictícios e não alteram o Supabase real.

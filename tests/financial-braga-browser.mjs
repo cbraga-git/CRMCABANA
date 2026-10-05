@@ -72,6 +72,9 @@ try {
   await owner.page.locator("#bragaFinancialNavToggle").click();
   await owner.page.locator('#bragaFinancialSubmenu [data-view="financeTransactions"]').click();
   await owner.page.locator('body[data-financial-scope="braga"]').waitFor();
+  assert.equal(await owner.page.locator("body").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(0, 0, 0)");
+  assert.equal(await owner.page.locator("#financialEntriesPanel").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(12, 12, 12)");
+  assert.equal(await owner.page.locator("#financialEntryFilterSearch").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(22, 22, 22)");
   assert.match(await owner.page.locator("#financialEntryRows").innerText(), /Personal Entry/);
   assert.doesNotMatch(await owner.page.locator("#financialEntryRows").innerText(), /Company Entry/);
   await owner.page.locator("#financialColumnPicker summary").click();
@@ -79,11 +82,13 @@ try {
   assert.equal(await owner.page.locator("#financialEntryRows .financial-entry-notes").isVisible(), true);
   await owner.page.locator('#financialSubmenu [data-view="financeTransactions"]').click();
   await owner.page.locator('body[data-financial-scope="company"]').waitFor();
+  assert.notEqual(await owner.page.locator("body").evaluate((node) => getComputedStyle(node).backgroundImage), "none");
   assert.match(await owner.page.locator("#financialEntryRows").innerText(), /Company Entry/);
   assert.equal(await owner.page.locator("#financialEntryRows .financial-entry-notes").isVisible(), false);
   await owner.page.locator('#bragaFinancialSubmenu [data-view="financeAccounts"]').click();
   await owner.page.locator('body[data-financial-scope="braga"]').waitFor();
   await owner.page.locator("#newFinancialAccountBtn").click();
+  assert.equal(await owner.page.locator("#financialAccountName").evaluate((node) => getComputedStyle(node).color), "rgb(245, 245, 245)");
   // A scope switch is refused while a financial form is open.
   await owner.page.evaluate(() => showView("financeAccounts", undefined, "company"));
   assert.equal(await owner.page.evaluate(() => state.financialScope), "braga");
@@ -94,10 +99,11 @@ try {
   assert.equal(owner.tables.crm_financial_accounts.length, 1);
   await owner.page.locator('#bragaFinancialSubmenu [data-view="reports"]').click();
   await owner.page.locator('body[data-view="reports"]').waitFor();
+  assert.equal(await owner.page.locator(".reports-panel").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(12, 12, 12)");
   assert.equal(await owner.page.locator("#reportsKind").inputValue(), "transactions");
   assert.equal(await owner.page.locator("#reportsClientField").isVisible(), false);
   assert.equal(await owner.page.locator("#reportsKind").isDisabled(), true);
-  checks += 12;
+  checks += 18;
   await owner.context.close();
 
   const regularOwner = await scenario("fernandes.braga@gmail.com", "user");

@@ -3835,3 +3835,35 @@ dialog::backdrop {
 
 .financial-scope-message { color: #a33723; padding: 12px; background: #fff1eb; border: 1px solid #f0c4b7; border-radius: 8px; }
 body[data-financial-scope="braga"] #bragaFinancialNavToggle { color: var(--accent); }
+
+/* As telas pessoais usam uma base preta para distinguir os dois financeiros. */
+body[data-financial-scope="braga"] {
+  color-scheme: dark;
+  --bg: #000;
+  --card: #0c0c0c;
+  --text: #f5f5f5;
+  --muted: #bcbcbc;
+  --line: #404040;
+  --accent-dark: #d9c779;
+  --surface: #161616;
+  --ink: #f5f5f5;
+  --gold: #d9c779;
+  background: #000;
+}
+
+body[data-financial-scope="braga"] :is(input, select, textarea, dialog) {
+  background: #161616;
+  color: var(--text);
+  border-color: var(--line);
+}
+body[data-financial-scope="braga"] :is(input, textarea)::placeholder { color: #9c9c9c; }
+body[data-financial-scope="braga"] .button.primary { background: var(--accent); color: #111; }
+body[data-financial-scope="braga"] .button.secondary { background: #161616; color: var(--text); border-color: var(--line); }
+body[data-financial-scope="braga"] :is(.button.danger, .link-button.danger, .financial-account-actions-menu button.danger) { color: #ff9eaa; }
+body[data-financial-scope="braga"] :is(.financial-entry-filters, .financial-entry-balance-controls, .financial-entry-pagination, .financial-entries-context, .financial-column-options) { background: #101010; }
+body[data-financial-scope="braga"] .financial-register th { background: #191919; }
+body[data-financial-scope="braga"] :is(.financial-register th, .financial-register td) { border-bottom-color: var(--line); }
+body[data-financial-scope="braga"] :is(.financial-daily-balance-row span, .financial-filter-balance-row span) { background: #202020; }
+body[data-financial-scope="braga"] :is(.financial-positive, .financial-entry-value.income) { color: #67dc94; }
+body[data-financial-scope="braga"] :is(.financial-negative, .financial-entry-value.expense) { color: #ff9085; }
+body[data-financial-scope="braga"] .financial-scope-message { background: #291713; color: #ffb6a7; border-color: #784338; }
