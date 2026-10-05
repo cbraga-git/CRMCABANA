@@ -55,8 +55,8 @@ test("financeiro usa navegacao propria e preserva o painel de orcamentos", () =>
   assert.match(app, /view === "reports"\) renderReportsView\(\)/);
   assert.match(html, /data-view="financial" title="Resultados de orçamentos"/);
   assert.match(app, /isFinanceModuleView\(view\)/);
-  assert.match(app, /supabaseTableEndpoint\("crm_financial_accounts"/);
-  assert.match(app, /supabaseTableEndpoint\("crm_financial_categories"/);
+  assert.match(app, /fetchAll\("crm_financial_accounts"/);
+  assert.match(app, /fetchAll\("crm_financial_categories"/);
   assert.match(app, /function submitFinancialAccount/);
   assert.match(app, /function submitFinancialCategory/);
   assert.match(app, /function submitFinancialEntry/);

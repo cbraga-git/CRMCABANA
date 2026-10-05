@@ -1892,14 +1892,33 @@ async function loadFinancialRegisters(scope = state.financialScope || "company")
   if (!remoteDatabaseEnabled() || !currentUserId() || !canAccessFinancialScope(scope)) return;
   const version = state.financialScopeVersion;
   const userId = currentUserId();
-  const [accountsResponse, categoriesResponse, entriesResponse, importsResponse] = await Promise.all([
-    authorizedFetch(supabaseTableEndpoint("crm_financial_accounts", "?select=*&order=active.desc,name.asc", scope), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_categories", "?select=*&order=active.desc,name.asc", scope), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?select=*&order=competence_date.desc,created_at.desc", scope), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", "?select=*&order=created_at.desc", scope), () => ({ headers: supabaseHeaders() })),
+  async function fetchAll(table) {
+    const rows = [];
+    let cursor = "";
+    while (true) {
+      const query = `?select=*&order=id.asc&limit=1000${cursor ? `&id=gt.${encodeURIComponent(cursor)}` : ""}`;
+      const response = await authorizedFetch(supabaseTableEndpoint(table, query, scope), () => ({ headers: supabaseHeaders() }));
+      if (!response.ok) throw new Error(scope === "braga" ? "Financeiro Braga indisponível. Execute supabase-financeiro-braga.sql no SQL Editor do Supabase." : "Não foi possível carregar os dados financeiros. Confirme se o script do Supabase foi executado.");
+      const page = await response.json();
+      rows.push(...page);
+      if (page.length < 1000) return rows;
+      const nextCursor = page[page.length - 1]?.id;
+      if (!nextCursor || nextCursor === cursor) throw new Error("Não foi possível carregar todo o histórico financeiro. Atualize a página e tente novamente.");
+      cursor = nextCursor;
+    }
+  }
+  const [accounts, categories, entries, imports] = await Promise.all([
+    fetchAll("crm_financial_accounts"),
+    fetchAll("crm_financial_categories"),
+    fetchAll("crm_financial_entries"),
+    fetchAll("crm_financial_statement_imports"),
   ]);
-  if (!accountsResponse.ok || !categoriesResponse.ok || !entriesResponse.ok || !importsResponse.ok) throw new Error(scope === "braga" ? "Financeiro Braga indisponível. Execute supabase-financeiro-braga.sql no SQL Editor do Supabase." : "Não foi possível carregar os dados financeiros. Confirme se o script do Supabase foi executado.");
-  const [accounts, categories, entries, imports] = await Promise.all([accountsResponse.json(), categoriesResponse.json(), entriesResponse.json(), importsResponse.json()]);
+  const byName = (a, b) => Number(b.active) - Number(a.active) || String(a.name || "").localeCompare(String(b.name || ""), "pt-BR");
+  const newest = (field) => (a, b) => String(b[field] || "").localeCompare(String(a[field] || ""));
+  accounts.sort(byName);
+  categories.sort(byName);
+  entries.sort((a, b) => newest("competence_date")(a, b) || newest("created_at")(a, b));
+  imports.sort(newest("created_at"));
   if ((state.financialScope || "company") !== scope || version !== state.financialScopeVersion || userId !== currentUserId()) return;
   state.financialAccounts = accounts;
   state.financialCategories = categories;

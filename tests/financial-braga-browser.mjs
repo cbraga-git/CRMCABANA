@@ -132,6 +132,33 @@ try {
   assert.doesNotMatch(await unavailable.page.locator("#financialEntryRows").innerText(), /Company Entry/);
   checks += 2;
   await unavailable.context.close();
+  if (process.env.MOBILLS_WORKBOOK) {
+    const migration = await scenario("fernandes.braga@gmail.com", "user");
+    await migration.page.locator('body[data-financial-scope="braga"]').waitFor();
+    migration.page.removeAllListeners("dialog");
+    const messages = [];
+    migration.page.on("dialog", async (dialog) => { messages.push(dialog.message()); await dialog.accept(); });
+    await migration.page.locator('#bragaFinancialSubmenu [data-view="financeImport"]').click();
+    await migration.page.locator('body[data-view="financeImport"]').waitFor();
+    await migration.page.locator("#financialMigrationFile").setInputFiles(process.env.MOBILLS_WORKBOOK);
+    const deadline = Date.now() + 30000;
+    while (await migration.page.evaluate(() => state.financialOperations > 0)) {
+      if (Date.now() > deadline) throw new Error("Migration timed out");
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    console.log("Migration result:", await migration.page.locator("#financialImportMessage").innerText());
+    const rows = migration.tables.crm_braga_financial_entries;
+    console.log("Migration validation:", JSON.stringify({
+      records: rows.length - 1, income: rows.filter((row) => row.entry_type === "income").length,
+      expense: rows.filter((row) => row.entry_type === "expense").length - 1,
+      missingAccounts: rows.filter((row) => !row.account_id).length,
+      paid: rows.filter((row) => row.status === "paid").length,
+      accounts: migration.tables.crm_braga_financial_accounts.length,
+      categories: migration.tables.crm_braga_financial_categories.length,
+      alerts: messages.filter((message) => !message.startsWith("Migrar ")),
+    }));
+    await migration.context.close();
+  }
   assert.deepEqual(errors, []);
   console.log(`Financeiro Braga: ${checks} browser checks passed (owner, other admin, isolated CRUD, column preferences and missing migration).`);
 } finally {
