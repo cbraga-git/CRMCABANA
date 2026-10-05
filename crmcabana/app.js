@@ -2276,10 +2276,30 @@ function applyFinancialTableSort(table) {
   if (table.classList.contains("financial-entry-table")) renderFinancialEntryPagination(table);
 }
 
+function financialTransactionColumnVisibility() {
+  const saved = state.appPreferences?.financialTransactionColumns;
+  return Object.fromEntries(["status", "dueDate", "description", "notes", "category", "account", "amount"].map((key) => [key, typeof saved?.[key] === "boolean" ? saved[key] : key !== "notes"]));
+}
+
+function applyFinancialTransactionColumns(table) {
+  if (!table) return;
+  const visibility = financialTransactionColumnVisibility();
+  const keys = Object.keys(visibility);
+  const transactions = state.view === "financeTransactions";
+  const headers = Array.from(table.querySelectorAll("thead th"));
+  headers.forEach((header, index) => { header.hidden = transactions && visibility[keys[index]] === false; });
+  Array.from(table.tBodies[0]?.rows || []).forEach((row) => {
+    if (row.dataset.financialEntryId) Array.from(row.cells).forEach((cell, index) => { cell.hidden = transactions && visibility[keys[index]] === false; });
+    else if (row.cells.length === 1) row.cells[0].colSpan = headers.filter((header) => !header.hidden).length;
+  });
+  document.querySelectorAll("[data-financial-column]").forEach((input) => { input.checked = visibility[input.dataset.financialColumn]; });
+}
+
 function renderFinancialEntryPagination(table) {
   const rows = Array.from(table?.tBodies[0]?.rows || []).filter((row) => row.dataset.financialEntryId);
   rows.forEach((row) => { row.hidden = false; });
   renderFinancialDailyBalanceBreaks(table);
+  applyFinancialTransactionColumns(table);
 }
 
 function renderFinancialDailyBalanceBreaks(table) {
@@ -7648,7 +7668,16 @@ document.querySelector("#financialTagManagerList")?.addEventListener("keydown", 
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; state.financialEntryPage = 1; renderFinancialEntries(); });
-document.querySelector("#financialEntryShowDailyBalance")?.addEventListener("change", (event) => { state.financialEntryShowDailyBalance = event.target.checked; renderFinancialDailyBalanceBreaks(elements.financialEntryRows?.closest("table")); });
+document.querySelector("#financialColumnPicker")?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-financial-column]");
+  if (!input) return;
+  const visibility = financialTransactionColumnVisibility();
+  if (!Object.hasOwn(visibility, input.dataset.financialColumn)) return;
+  visibility[input.dataset.financialColumn] = input.checked;
+  setAppPreference("financialTransactionColumns", visibility);
+  applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table"));
+});
+document.querySelector("#financialEntryShowDailyBalance")?.addEventListener("change", (event) => { state.financialEntryShowDailyBalance = event.target.checked; renderFinancialDailyBalanceBreaks(elements.financialEntryRows?.closest("table")); applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table")); });
 document.querySelectorAll("[data-financial-month-step]").forEach((button) => button.addEventListener("click", () => stepFinancialEntryMonth(Number(button.dataset.financialMonthStep))));
 document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionYear")?.addEventListener("change", (event) => { state.financialEvolutionYear = Number(event.target.value); renderFinancialEvolution(); });

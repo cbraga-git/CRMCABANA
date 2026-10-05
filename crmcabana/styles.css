@@ -992,8 +992,7 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
 .financial-entry-table th:first-child, .financial-entry-table td:first-child { width: 74px; text-align: center; }
 .financial-entry-table th:last-child, .financial-entry-table td:last-child { width: 72px; text-align: center; }
 .financial-entry-table td:nth-child(7) { font-weight: 800; white-space: nowrap; }
-body[data-view="financeTransactions"] .financial-entry-table thead th:nth-child(4),
-body[data-view="financeTransactions"] .financial-entry-table tr[data-financial-entry-id] td:nth-child(4) { display: none; }
+
 .financial-entry-notes { min-width: 180px; max-width: 320px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.45; }
 body[data-sidebar-collapsed="true"] .financial-module-view { max-width: none; }
 body[data-sidebar-collapsed="true"] .financial-entry-table { min-width: 0; table-layout: fixed; }
@@ -3827,3 +3826,9 @@ dialog::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .sidebar { transition: none; }
 }
+
+.financial-entry-balance-controls { flex-wrap: wrap; align-items: center; gap: 16px; }
+.financial-column-picker { position: relative; margin-right: auto; font-size: 12px; }
+.financial-column-picker summary { cursor: pointer; font-weight: 700; padding: 6px; }
+.financial-column-options { position: absolute; left: 0; top: 100%; z-index: 20; min-width: 190px; display: grid; gap: 12px; padding: 16px; background: white; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px #0002; }
+.financial-entry-table th[hidden], .financial-entry-table td[hidden] { display: none !important; }
