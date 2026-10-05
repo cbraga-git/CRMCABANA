@@ -11,6 +11,7 @@ const CLIENT_COLUMNS_WIDTH_KEY = "movelcrm-client-column-widths";
 const BUDGET_COLUMNS_WIDTH_KEY = "movelcrm-budget-column-widths";
 const BUDGET_STATUS_STORAGE_KEY = "movelcrm-budget-statuses";
 const APP_PREFERENCES_KEY = "movelcrm-app-preferences";
+const BRAGA_FINANCE_EMAIL = "fernandes.braga@gmail.com";
 const PRESENCE_SESSION_KEY = "movelcrm-presence-session";
 const DEFAULT_APP_PREFERENCES = {
   budgetCodeSeparator: " - ",
@@ -199,6 +200,11 @@ const state = {
   environmentTypes: {},
   budgetStatuses: DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status })),
   financialAccounts: [],
+  financialScope: "company",
+  financialOperations: 0,
+  financialNavigationPending: false,
+  financialScopeVersion: 0,
+  financialScopeError: "",
   financialCategories: [],
   financialEditingAccountId: null,
   financialEditingCategoryId: null,
@@ -402,8 +408,10 @@ function supabaseProfilesEndpoint(path = "") {
   return `${baseUrl}/rest/v1/${CONFIG.profilesTable || "crm_profiles"}${path}`;
 }
 
-function supabaseTableEndpoint(table, path = "") {
+function supabaseTableEndpoint(table, path = "", scope = state.financialScope || "company") {
   const baseUrl = CONFIG.supabaseUrl.replace(/\/$/, "");
+  if (table.startsWith("crm_financial_") && scope === "braga") table = table.replace("crm_financial_", "crm_braga_financial_");
+  if (table.startsWith("crm_braga_financial_") && !canAccessBragaFinance()) throw new Error("Acesso exclusivo ao Financeiro Braga.");
   return `${baseUrl}/rest/v1/${table}${path}`;
 }
 
@@ -553,6 +561,8 @@ function showAuthenticatedApp() {
   if (elements.financialNavGroup) {
     elements.financialNavGroup.hidden = !isAdmin();
   }
+  const bragaNavGroup = document.querySelector("#bragaFinancialNavGroup");
+  if (bragaNavGroup) bragaNavGroup.hidden = !canAccessBragaFinance();
 }
 
 function currentUserName() {
@@ -1086,6 +1096,41 @@ function isAdmin() {
   return state.userRole === "admin";
 }
 
+function canAccessBragaFinance() {
+  return Boolean(currentUserId()) && String(state.session?.user?.email || "").trim().toLowerCase() === BRAGA_FINANCE_EMAIL;
+}
+
+function canAccessFinancialScope(scope = state.financialScope || "company") {
+  return scope === "braga" ? canAccessBragaFinance() : scope === "company" && isAdmin();
+}
+
+function financialScopeBusy() {
+  return Boolean(state.financialOperations || state.financialDeletingEntries || state.financialTagUpdating || document.querySelector("#reportsExportBtn")?.disabled) ||
+    [elements.financialAccountDialog, elements.financialCategoryDialog, elements.financialEntryDialog, document.querySelector("#financialTagManagerDialog")].some((dialog) => dialog?.open);
+}
+
+function resetFinancialScopeData() {
+  Object.assign(state, {
+    financialAccounts: [], financialCategories: [], financialEntries: [], financialImports: [], financialStatementItems: [],
+    financialEditingAccountId: null, financialEditingCategoryId: null, financialEditingEntryId: null,
+    financialEntryDraftTags: [], financialTagEntries: null, financialTagEditingName: null,
+    financialSelectedImportId: null, financialCategoryTargetItemId: null, financialCategoryTargetEntry: false,
+    financialEntryAccountFilter: "", financialEvolutionAccountId: "", financialSelectedEntryIds: new Set(),
+    financialEntryFilters: { search: "", type: "", accountId: "__bank_accounts__", categoryId: "", status: "", startDate: "", endDate: "" },
+    financialEntryMonthFilter: new Date().toISOString().slice(0, 7), financialEntryPage: 1,
+    financialDashboardMonth: new Date().toISOString().slice(0, 7), financialEvolutionYear: new Date().getFullYear(),
+    financialEvolutionView: "chart", financialEntryShowDailyBalance: true, financialScopeError: "",
+  });
+  document.querySelector("#financialImportAccount").value = "";
+  document.querySelector("#reportsForm")?.reset();
+  const reportMessage = document.querySelector("#reportsStatusMessage");
+  if (reportMessage) reportMessage.textContent = "";
+  document.querySelectorAll("table[data-financial-sortable]").forEach((table) => {
+    financialTableSorts.delete(table);
+    table.querySelectorAll("thead th[data-sort-type]").forEach((header) => header.setAttribute("aria-sort", "none"));
+  });
+}
+
 function startsInFinanceTransactions() {
   return String(state.session?.user?.email || "").trim().toLocaleLowerCase("pt-BR") === "fernandes.braga@gmail.com";
 }
@@ -1148,6 +1193,7 @@ async function signIn(email, password) {
 }
 
 async function signOut() {
+  if (state.financialOperations || state.financialNavigationPending || document.querySelector("#reportsExportBtn")?.disabled) { alert("Aguarde a operação financeira terminar antes de sair."); return; }
   const signingOutUserId = currentUserId();
   await removeCurrentPresence();
   if (state.session?.access_token) {
@@ -1171,6 +1217,11 @@ async function signOut() {
   sessionStorage.removeItem(PRESENCE_SESSION_KEY);
   state.clients = [];
   state.selectedId = null;
+  state.financialScope = "company";
+  state.financialScopeVersion++;
+  resetFinancialScopeData();
+  document.querySelector("#bragaFinancialNavGroup").hidden = true;
+  document.querySelectorAll("#financialModuleView tbody, #financialAccountRows").forEach((node) => node.replaceChildren());
   if (elements.budgetNavItem) elements.budgetNavItem.hidden = true;
   if (elements.orderNavItem) elements.orderNavItem.hidden = true;
   if (elements.financialNavGroup) elements.financialNavGroup.hidden = true;
@@ -1608,8 +1659,15 @@ function markProjectDirty() {
   state.projectDirty = true;
 }
 
-async function showView(view, selectedId) {
-  if ((view === "users" || view === "maintenance" || view === "reports" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial" || isFinanceModuleView(view)) && !isAdmin()) {
+async function showView(view, selectedId, requestedFinancialScope) {
+  if (state.financialNavigationPending) return;
+  const financialView = isFinanceModuleView(view) || view === "reports";
+  const nextScope = requestedFinancialScope || (isFinanceModuleView(view) ? state.financialScope : "company") || "company";
+  if (financialView && !canAccessFinancialScope(nextScope)) {
+    alert(nextScope === "braga" ? "Acesso exclusivo ao Financeiro Braga." : "Acesso restrito a administradores.");
+    return;
+  }
+  if ((view === "users" || view === "maintenance" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial") && !isAdmin()) {
     alert("Acesso restrito a administradores.");
     view = "clients";
   }
@@ -1636,9 +1694,31 @@ async function showView(view, selectedId) {
 
   if (view === "budget" && view !== previousView) state.budgetSelectedStatuses = ["Todos"];
   if (view === "order" && view !== previousView) state.budgetStatus = "Todos";
+  if (nextScope !== state.financialScope) {
+    if (financialScopeBusy()) {
+      alert("Conclua a operação ou feche o formulário financeiro antes de trocar de menu.");
+      return;
+    }
+    state.financialScope = nextScope;
+    state.financialScopeVersion++;
+    resetFinancialScopeData();
+  }
+  if (financialView || (view === "financial" && isAdmin())) {
+    state.financialNavigationPending = true;
+    try {
+      await loadFinancialRegisters();
+      state.financialScopeError = "";
+    } catch (error) {
+      console.warn(error);
+      state.financialScopeError = error.message;
+    } finally {
+      state.financialNavigationPending = false;
+    }
+  }
   state.view = view;
   document.body.dataset.view = view;
   setMobileMenuOpen(false);
+  document.body.dataset.financialScope = state.financialScope;
   state.selectedId = selectedId || state.selectedId;
   if (view === "detail" && previousView !== "detail") {
     state.returnView = previousView;
@@ -1649,11 +1729,14 @@ async function showView(view, selectedId) {
   document.querySelector(`#${viewElementId}`)?.classList.add("active");
 
   elements.navItems.forEach((item) => {
-    item.classList.toggle("active", item.dataset.view === view);
+    item.classList.toggle("active", item.dataset.view === view && (!financialView || (item.dataset.financialScope || "company") === state.financialScope));
   });
-  elements.financialNavGroup?.classList.toggle("active", view === "financial" || isFinanceModuleView(view));
+  elements.financialNavGroup?.classList.toggle("active", state.financialScope === "company" && (view === "financial" || isFinanceModuleView(view)));
+  document.querySelector("#bragaFinancialNavGroup")?.classList.toggle("active", state.financialScope === "braga" && financialView);
   if (isFinanceModuleView(view)) renderFinanceModuleView(view);
   if (view === "reports") renderReportsView();
+  const scopeMessage = document.querySelector("#financialScopeMessage");
+  if (scopeMessage) { scopeMessage.textContent = state.financialScopeError; scopeMessage.hidden = !state.financialScopeError; }
   if (view === "budget" || view === "order") refreshBudgetStatusSelect();
 
   render();
@@ -1666,8 +1749,8 @@ function renderFinanceModuleView(view) {
   const descriptionElement = document.querySelector("#financialModuleDescription");
   const emptyTitleElement = document.querySelector("#financialModuleEmptyTitle");
   const emptyTextElement = document.querySelector("#financialModuleEmptyText");
-  if (titleElement) titleElement.textContent = title;
-  if (descriptionElement) descriptionElement.textContent = description;
+  if (titleElement) titleElement.textContent = state.financialScope === "braga" ? `Financeiro Braga · ${title}` : title;
+  if (descriptionElement) descriptionElement.textContent = state.financialScope === "braga" ? "Controle de contas pessoais de Braga." : description;
   if (emptyTitleElement) emptyTitleElement.textContent = emptyTitle;
   if (emptyTextElement) emptyTextElement.textContent = emptyText;
   const showingAccounts = view === "financeAccounts";
@@ -1689,9 +1772,11 @@ function renderFinanceModuleView(view) {
   if (showingCategories) renderFinancialCategories();
   if (showingEntries) renderFinancialEntries(view);
   if (showingImport) renderFinancialImports();
-  if (elements.financialSubmenu?.hidden) {
-    elements.financialSubmenu.hidden = false;
-    elements.financialNavToggle?.setAttribute("aria-expanded", "true");
+  const submenu = state.financialScope === "braga" ? document.querySelector("#bragaFinancialSubmenu") : elements.financialSubmenu;
+  const toggle = state.financialScope === "braga" ? document.querySelector("#bragaFinancialNavToggle") : elements.financialNavToggle;
+  if (submenu?.hidden) {
+    submenu.hidden = false;
+    toggle?.setAttribute("aria-expanded", "true");
   }
 }
 
@@ -1802,19 +1887,23 @@ function financialAccountReference(name) {
   return `<span class="financial-account-reference">${financialAccountBrand(name)}<span>${escapeHtml(name)}</span></span>`;
 }
 
-async function loadFinancialRegisters() {
-  if (!remoteDatabaseEnabled() || !currentUserId() || !isAdmin()) return;
+async function loadFinancialRegisters(scope = state.financialScope || "company") {
+  if (!remoteDatabaseEnabled() || !currentUserId() || !canAccessFinancialScope(scope)) return;
+  const version = state.financialScopeVersion;
+  const userId = currentUserId();
   const [accountsResponse, categoriesResponse, entriesResponse, importsResponse] = await Promise.all([
-    authorizedFetch(supabaseTableEndpoint("crm_financial_accounts", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_categories", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?select=*&order=competence_date.desc,created_at.desc"), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", "?select=*&order=created_at.desc"), () => ({ headers: supabaseHeaders() })),
+    authorizedFetch(supabaseTableEndpoint("crm_financial_accounts", "?select=*&order=active.desc,name.asc", scope), () => ({ headers: supabaseHeaders() })),
+    authorizedFetch(supabaseTableEndpoint("crm_financial_categories", "?select=*&order=active.desc,name.asc", scope), () => ({ headers: supabaseHeaders() })),
+    authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?select=*&order=competence_date.desc,created_at.desc", scope), () => ({ headers: supabaseHeaders() })),
+    authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", "?select=*&order=created_at.desc", scope), () => ({ headers: supabaseHeaders() })),
   ]);
-  if (!accountsResponse.ok || !categoriesResponse.ok || !entriesResponse.ok || !importsResponse.ok) throw new Error("Não foi possível carregar os dados financeiros. Confirme se o script do Supabase foi executado.");
-  state.financialAccounts = await accountsResponse.json();
-  state.financialCategories = await categoriesResponse.json();
-  state.financialEntries = await entriesResponse.json();
-  state.financialImports = await importsResponse.json();
+  if (!accountsResponse.ok || !categoriesResponse.ok || !entriesResponse.ok || !importsResponse.ok) throw new Error(scope === "braga" ? "Financeiro Braga indisponível. Execute supabase-financeiro-braga.sql no SQL Editor do Supabase." : "Não foi possível carregar os dados financeiros. Confirme se o script do Supabase foi executado.");
+  const [accounts, categories, entries, imports] = await Promise.all([accountsResponse.json(), categoriesResponse.json(), entriesResponse.json(), importsResponse.json()]);
+  if ((state.financialScope || "company") !== scope || version !== state.financialScopeVersion || userId !== currentUserId()) return;
+  state.financialAccounts = accounts;
+  state.financialCategories = categories;
+  state.financialEntries = entries;
+  state.financialImports = imports;
 }
 
 function renderFinancialAccounts() {
@@ -1887,78 +1976,90 @@ function openFinancialCategoryDialog(categoryId = null) {
   elements.financialCategoryDialog.showModal();
 }
 
-async function saveFinancialRecord(table, id, payload) {
+async function saveFinancialRecord(table, id, payload, scope = state.financialScope || "company") {
   const path = id ? `?id=eq.${encodeURIComponent(id)}` : "";
-  const response = await authorizedFetch(supabaseTableEndpoint(table, path), () => ({ method: id ? "PATCH" : "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify(payload) }));
+  const response = await authorizedFetch(supabaseTableEndpoint(table, path, scope), () => ({ method: id ? "PATCH" : "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify(payload) }));
   if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível salvar o registro financeiro."); }
   const saved = await response.json().catch(() => []);
   return saved[0] || null;
 }
 
 async function submitFinancialAccount(event) {
-  event.preventDefault();
-  const type = document.querySelector("#financialAccountType").value;
-  const numberOrNull = (selector) => document.querySelector(selector).value ? Number(document.querySelector(selector).value) : null;
-  const payload = { name: document.querySelector("#financialAccountName").value.trim(), account_type: type, institution: document.querySelector("#financialAccountInstitution").value.trim() || null, initial_balance: Number(document.querySelector("#financialAccountBalance").value), initial_balance_date: document.querySelector("#financialAccountBalanceDate").value, active: document.querySelector("#financialAccountActive").value === "true", closing_day: type === "credit_card" ? numberOrNull("#financialAccountClosingDay") : null, due_day: type === "credit_card" ? numberOrNull("#financialAccountDueDay") : null, credit_limit: type === "credit_card" ? numberOrNull("#financialAccountCreditLimit") : null };
-  try { await saveFinancialRecord("crm_financial_accounts", state.financialEditingAccountId, payload); await loadFinancialRegisters(); renderFinancialAccounts(); elements.financialAccountDialog.close(); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    event.preventDefault();
+    const type = document.querySelector("#financialAccountType").value;
+    const numberOrNull = (selector) => document.querySelector(selector).value ? Number(document.querySelector(selector).value) : null;
+    const payload = { name: document.querySelector("#financialAccountName").value.trim(), account_type: type, institution: document.querySelector("#financialAccountInstitution").value.trim() || null, initial_balance: Number(document.querySelector("#financialAccountBalance").value), initial_balance_date: document.querySelector("#financialAccountBalanceDate").value, active: document.querySelector("#financialAccountActive").value === "true", closing_day: type === "credit_card" ? numberOrNull("#financialAccountClosingDay") : null, due_day: type === "credit_card" ? numberOrNull("#financialAccountDueDay") : null, credit_limit: type === "credit_card" ? numberOrNull("#financialAccountCreditLimit") : null };
+    try { await saveFinancialRecord("crm_financial_accounts", state.financialEditingAccountId, payload); await loadFinancialRegisters(); renderFinancialAccounts(); elements.financialAccountDialog.close(); } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function submitFinancialCategory(event) {
-  event.preventDefault();
-  const payload = { name: document.querySelector("#financialCategoryName").value.trim(), category_type: document.querySelector("#financialCategoryType").value, parent_id: document.querySelector("#financialCategoryParent").value || null, color: document.querySelector("#financialCategoryColor").value, active: document.querySelector("#financialCategoryActive").value === "true" };
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    const saved = await saveFinancialRecord("crm_financial_categories", state.financialEditingCategoryId, payload);
-    await loadFinancialRegisters();
-    renderFinancialCategories();
-    elements.financialCategoryDialog.close();
-    if (state.financialCategoryTargetItemId && !elements.financialImportDetail.hidden) {
-      const targetItemId = state.financialCategoryTargetItemId;
-      const checkedIds = new Set(selectedStatementItems().map((item) => item.id));
-      const selectedCategories = new Map(Array.from(elements.financialStatementItemRows.querySelectorAll("[data-statement-category]")).map((select) => [select.dataset.statementCategory, select.value]));
-      renderFinancialStatementItems();
-      checkedIds.add(targetItemId);
-      checkedIds.forEach((id) => { const checkbox = elements.financialStatementItemRows.querySelector(`[data-statement-select="${id}"]`); if (checkbox) checkbox.checked = true; });
-      selectedCategories.forEach((value, id) => { const select = elements.financialStatementItemRows.querySelector(`[data-statement-category="${id}"]`); if (select && value !== "__new__") select.value = value; });
-      elements.financialStatementItemRows.querySelectorAll("[data-statement-category]").forEach(syncStatementTransferField);
-      const targetSelect = elements.financialStatementItemRows.querySelector(`[data-statement-category="${targetItemId}"]`);
-      if (targetSelect && saved?.id) targetSelect.value = saved.id;
-      state.financialCategoryTargetItemId = null;
-    } else if (state.financialCategoryTargetEntry) {
-      const categorySelect = document.querySelector("#financialEntryCategory");
-      if (categorySelect && saved?.id) {
-        const option = document.createElement("option");
-        option.value = saved.id;
-        option.textContent = saved.name;
-        categorySelect.insertBefore(option, categorySelect.querySelector('option[value="__new__"]'));
-        categorySelect.value = saved.id;
+    event.preventDefault();
+    const payload = { name: document.querySelector("#financialCategoryName").value.trim(), category_type: document.querySelector("#financialCategoryType").value, parent_id: document.querySelector("#financialCategoryParent").value || null, color: document.querySelector("#financialCategoryColor").value, active: document.querySelector("#financialCategoryActive").value === "true" };
+    try {
+      const saved = await saveFinancialRecord("crm_financial_categories", state.financialEditingCategoryId, payload);
+      await loadFinancialRegisters();
+      renderFinancialCategories();
+      elements.financialCategoryDialog.close();
+      if (state.financialCategoryTargetItemId && !elements.financialImportDetail.hidden) {
+        const targetItemId = state.financialCategoryTargetItemId;
+        const checkedIds = new Set(selectedStatementItems().map((item) => item.id));
+        const selectedCategories = new Map(Array.from(elements.financialStatementItemRows.querySelectorAll("[data-statement-category]")).map((select) => [select.dataset.statementCategory, select.value]));
+        renderFinancialStatementItems();
+        checkedIds.add(targetItemId);
+        checkedIds.forEach((id) => { const checkbox = elements.financialStatementItemRows.querySelector(`[data-statement-select="${id}"]`); if (checkbox) checkbox.checked = true; });
+        selectedCategories.forEach((value, id) => { const select = elements.financialStatementItemRows.querySelector(`[data-statement-category="${id}"]`); if (select && value !== "__new__") select.value = value; });
+        elements.financialStatementItemRows.querySelectorAll("[data-statement-category]").forEach(syncStatementTransferField);
+        const targetSelect = elements.financialStatementItemRows.querySelector(`[data-statement-category="${targetItemId}"]`);
+        if (targetSelect && saved?.id) targetSelect.value = saved.id;
+        state.financialCategoryTargetItemId = null;
+      } else if (state.financialCategoryTargetEntry) {
+        const categorySelect = document.querySelector("#financialEntryCategory");
+        if (categorySelect && saved?.id) {
+          const option = document.createElement("option");
+          option.value = saved.id;
+          option.textContent = saved.name;
+          categorySelect.insertBefore(option, categorySelect.querySelector('option[value="__new__"]'));
+          categorySelect.value = saved.id;
+        }
+        state.financialCategoryTargetEntry = false;
       }
-      state.financialCategoryTargetEntry = false;
-    }
-  } catch (error) { alert(error.message); }
+    } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function toggleFinancialRecord(table, id, active, renderFunction) {
-  try { await saveFinancialRecord(table, id, { active }); await loadFinancialRegisters(); renderFunction(); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    try { await saveFinancialRecord(table, id, { active }); await loadFinancialRegisters(); renderFunction(); } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function deleteFinancialRecord(table, id, label) {
-  if (!confirm(`Excluir ${label}? Esta ação não poderá ser desfeita.`)) return false;
-  const response = await authorizedFetch(supabaseTableEndpoint(table, `?id=eq.${encodeURIComponent(id)}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
-  if (!response.ok) {
-    const details = await response.json().catch(() => null);
-    throw new Error(details?.code === "23503" ? "Este registro está em uso e não pode ser excluído. Inative-o em vez disso." : details?.message || "Não foi possível excluir o registro.");
-  }
-  if (table === "crm_financial_entries") {
-    for (const client of state.clients) {
-      for (const budget of clientBudgetHistory(client)) {
-        if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
-        const pairs = await budgetFinancialEntryIds(budget);
-        if (pairs.some(([, entryId]) => entryId === id)) await reconcileBudgetFinancialStatus(client.id, budget);
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    if (!confirm(`Excluir ${label}? Esta ação não poderá ser desfeita.`)) return false;
+    const response = await authorizedFetch(supabaseTableEndpoint(table, `?id=eq.${encodeURIComponent(id)}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.code === "23503" ? "Este registro está em uso e não pode ser excluído. Inative-o em vez disso." : details?.message || "Não foi possível excluir o registro.");
+    }
+    if (table === "crm_financial_entries" && state.financialScope !== "braga") {
+      for (const client of state.clients) {
+        for (const budget of clientBudgetHistory(client)) {
+          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          const pairs = await budgetFinancialEntryIds(budget);
+          if (pairs.some(([, entryId]) => entryId === id)) await reconcileBudgetFinancialStatus(client.id, budget);
+        }
       }
     }
-  }
-  await loadFinancialRegisters();
-  return true;
+    await loadFinancialRegisters();
+    return true;
+  } finally { state.financialOperations--; }
 }
 
 function updateFinancialEntrySelection() {
@@ -1983,34 +2084,37 @@ function updateFinancialEntrySelection() {
 }
 
 async function deleteSelectedFinancialEntries() {
-  if (state.financialDeletingEntries || state.view !== "financeTransactions") return;
-  const ids = [...state.financialSelectedEntryIds];
-  if (!ids.length || !confirm(`Excluir ${ids.length} transação(ões) selecionada(s)? Esta ação não poderá ser desfeita.`)) return;
-  state.financialDeletingEntries = true;
-  updateFinancialEntrySelection();
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.map(encodeURIComponent).join(",")})`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
-    if (!response.ok) {
-      const details = await response.json().catch(() => null);
-      throw new Error(details?.message || "Não foi possível excluir as transações selecionadas.");
-    }
-    state.financialSelectedEntryIds.clear();
-    const deletedIds = new Set(ids);
-    state.financialEntries = state.financialEntries.filter((entry) => !deletedIds.has(entry.id));
-    renderFinancialEntries();
-    for (const client of state.clients) {
-      for (const budget of clientBudgetHistory(client)) {
-        if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
-        const pairs = await budgetFinancialEntryIds(budget);
-        if (pairs.some(([, id]) => deletedIds.has(id))) await reconcileBudgetFinancialStatus(client.id, budget);
-      }
-    }
-    await loadFinancialRegisters();
-    renderFinancialEntries();
-  } finally {
-    state.financialDeletingEntries = false;
+    if (state.financialDeletingEntries || state.view !== "financeTransactions") return;
+    const ids = [...state.financialSelectedEntryIds];
+    if (!ids.length || !confirm(`Excluir ${ids.length} transação(ões) selecionada(s)? Esta ação não poderá ser desfeita.`)) return;
+    state.financialDeletingEntries = true;
     updateFinancialEntrySelection();
-  }
+    try {
+      const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.map(encodeURIComponent).join(",")})`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        throw new Error(details?.message || "Não foi possível excluir as transações selecionadas.");
+      }
+      state.financialSelectedEntryIds.clear();
+      const deletedIds = new Set(ids);
+      state.financialEntries = state.financialEntries.filter((entry) => !deletedIds.has(entry.id));
+      renderFinancialEntries();
+      for (const client of state.financialScope === "braga" ? [] : state.clients) {
+        for (const budget of clientBudgetHistory(client)) {
+          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          const pairs = await budgetFinancialEntryIds(budget);
+          if (pairs.some(([, id]) => deletedIds.has(id))) await reconcileBudgetFinancialStatus(client.id, budget);
+        }
+      }
+      await loadFinancialRegisters();
+      renderFinancialEntries();
+    } finally {
+      state.financialDeletingEntries = false;
+      updateFinancialEntrySelection();
+    }
+  } finally { state.financialOperations--; }
 }
 
 function financialEntryViewType(view = state.view) {
@@ -2115,16 +2219,19 @@ function renderFinancialTagManager() {
 }
 
 async function openFinancialTagManager() {
-  const button = document.querySelector("#manageFinancialTagsBtn");
-  button.disabled = true;
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    state.financialTagEntries = await fetchFinancialTagEntries();
-    state.financialTagEditingName = null;
-    document.querySelector("#financialTagManagerMessage").textContent = "";
-    renderFinancialTagManager();
-    document.querySelector("#financialTagManagerDialog").showModal();
-  } catch (error) { alert(error.message); }
-  finally { button.disabled = false; }
+    const button = document.querySelector("#manageFinancialTagsBtn");
+    button.disabled = true;
+    try {
+      state.financialTagEntries = await fetchFinancialTagEntries();
+      state.financialTagEditingName = null;
+      document.querySelector("#financialTagManagerMessage").textContent = "";
+      renderFinancialTagManager();
+      document.querySelector("#financialTagManagerDialog").showModal();
+    } catch (error) { alert(error.message); }
+    finally { button.disabled = false; }
+  } finally { state.financialOperations--; }
 }
 
 function changedFinancialTagNotes(entry, previousTag, replacementTag) {
@@ -2134,41 +2241,44 @@ function changedFinancialTagNotes(entry, previousTag, replacementTag) {
 }
 
 async function updateFinancialTag(previousTag, replacementTag) {
-  const affected = (state.financialTagEntries || []).filter((entry) => financialEntryTags(entry).includes(previousTag));
-  const action = replacementTag ? `Alterar a tag "${previousTag}" para "${replacementTag}"` : `Excluir a tag "${previousTag}"`;
-  if (!confirm(`${action} em ${affected.length} ${affected.length === 1 ? "lançamento" : "lançamentos"}? Os lançamentos serão preservados.`)) return;
-  const dialog = document.querySelector("#financialTagManagerDialog");
-  const message = document.querySelector("#financialTagManagerMessage");
-  state.financialTagUpdating = true;
-  dialog.querySelectorAll("button").forEach((button) => { button.disabled = true; });
-  let completed = 0;
-  let failure = null;
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    for (const entry of affected) {
-      await saveFinancialRecord("crm_financial_entries", entry.id, { notes: changedFinancialTagNotes(entry, previousTag, replacementTag) });
-      completed += 1;
-      message.textContent = `Atualizando tags: ${completed} de ${affected.length}`;
-    }
-    state.financialEntryDraftTags = Array.from(new Set(state.financialEntryDraftTags.flatMap((tag) => tag === previousTag ? (replacementTag ? [replacementTag] : []) : [tag])));
-    const tagInput = document.querySelector("#financialEntryTagInput");
-    if (normalizeFinancialTag(tagInput?.value) === previousTag) tagInput.value = replacementTag || "";
-    state.financialTagEditingName = null;
-  } catch (error) { failure = error; }
-  try {
-    await loadFinancialRegisters();
-    state.financialTagEntries = await fetchFinancialTagEntries();
-    if (failure && completed && state.financialEditingEntryId) {
-      const editingEntry = state.financialEntries.find((entry) => entry.id === state.financialEditingEntryId);
-      if (editingEntry) state.financialEntryDraftTags = financialEntryTags(editingEntry);
-    }
-    renderFinancialEntries();
-    renderFinancialEntryTagEditor();
-    syncFinancialEntryTagAction();
-    renderFinancialTagManager();
-  } catch (error) { failure ||= error; }
-  dialog.querySelectorAll("button").forEach((button) => { button.disabled = false; });
-  state.financialTagUpdating = false;
-  message.textContent = failure ? `Atualização incompleta (${completed} de ${affected.length}): ${failure.message}` : replacementTag ? "Tag alterada em todos os lançamentos." : "Tag excluída dos lançamentos.";
+    const affected = (state.financialTagEntries || []).filter((entry) => financialEntryTags(entry).includes(previousTag));
+    const action = replacementTag ? `Alterar a tag "${previousTag}" para "${replacementTag}"` : `Excluir a tag "${previousTag}"`;
+    if (!confirm(`${action} em ${affected.length} ${affected.length === 1 ? "lançamento" : "lançamentos"}? Os lançamentos serão preservados.`)) return;
+    const dialog = document.querySelector("#financialTagManagerDialog");
+    const message = document.querySelector("#financialTagManagerMessage");
+    state.financialTagUpdating = true;
+    dialog.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+    let completed = 0;
+    let failure = null;
+    try {
+      for (const entry of affected) {
+        await saveFinancialRecord("crm_financial_entries", entry.id, { notes: changedFinancialTagNotes(entry, previousTag, replacementTag) });
+        completed += 1;
+        message.textContent = `Atualizando tags: ${completed} de ${affected.length}`;
+      }
+      state.financialEntryDraftTags = Array.from(new Set(state.financialEntryDraftTags.flatMap((tag) => tag === previousTag ? (replacementTag ? [replacementTag] : []) : [tag])));
+      const tagInput = document.querySelector("#financialEntryTagInput");
+      if (normalizeFinancialTag(tagInput?.value) === previousTag) tagInput.value = replacementTag || "";
+      state.financialTagEditingName = null;
+    } catch (error) { failure = error; }
+    try {
+      await loadFinancialRegisters();
+      state.financialTagEntries = await fetchFinancialTagEntries();
+      if (failure && completed && state.financialEditingEntryId) {
+        const editingEntry = state.financialEntries.find((entry) => entry.id === state.financialEditingEntryId);
+        if (editingEntry) state.financialEntryDraftTags = financialEntryTags(editingEntry);
+      }
+      renderFinancialEntries();
+      renderFinancialEntryTagEditor();
+      syncFinancialEntryTagAction();
+      renderFinancialTagManager();
+    } catch (error) { failure ||= error; }
+    dialog.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+    state.financialTagUpdating = false;
+    message.textContent = failure ? `Atualização incompleta (${completed} de ${affected.length}): ${failure.message}` : replacementTag ? "Tag alterada em todos os lançamentos." : "Tag excluída dos lançamentos.";
+  } finally { state.financialOperations--; }
 }
 
 function renderFinancialEntryTagEditor() {
@@ -2277,7 +2387,7 @@ function applyFinancialTableSort(table) {
 }
 
 function financialTransactionColumnVisibility() {
-  const saved = state.appPreferences?.financialTransactionColumns;
+  const saved = state.appPreferences?.[state.financialScope === "braga" ? "bragaFinancialTransactionColumns" : "financialTransactionColumns"];
   return Object.fromEntries(["status", "dueDate", "description", "notes", "category", "account", "amount"].map((key) => [key, typeof saved?.[key] === "boolean" ? saved[key] : key !== "notes"]));
 }
 
@@ -2609,21 +2719,24 @@ function openFinancialEntryDialog(entryId = null, duplicate = false) {
 }
 
 async function submitFinancialEntry(event) {
-  event.preventDefault();
-  const amount = resolveFinancialEntryAmount(true);
-  if (amount === null) return;
-  const type = document.querySelector("#financialEntryType").value;
-  const status = document.querySelector("#financialEntryStatus").value;
-  const pendingTag = normalizeFinancialTag(document.querySelector("#financialEntryTagInput").value);
-  const tags = pendingTag ? [...state.financialEntryDraftTags, pendingTag] : state.financialEntryDraftTags;
-  const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount, issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
-  if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
-  const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
-  if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
-  const groupId = installmentCount > 1 ? crypto.randomUUID() : null;
-  const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, competence_date: addMonthsToFinancialDate(payload.competence_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
-  if (installmentCount === 1) ["id", "installment_number", "installment_count", "installment_group_id"].forEach((key) => delete records[0][key]);
-  try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0]); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    event.preventDefault();
+    const amount = resolveFinancialEntryAmount(true);
+    if (amount === null) return;
+    const type = document.querySelector("#financialEntryType").value;
+    const status = document.querySelector("#financialEntryStatus").value;
+    const pendingTag = normalizeFinancialTag(document.querySelector("#financialEntryTagInput").value);
+    const tags = pendingTag ? [...state.financialEntryDraftTags, pendingTag] : state.financialEntryDraftTags;
+    const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount, issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
+    if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
+    const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
+    if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
+    const groupId = installmentCount > 1 ? crypto.randomUUID() : null;
+    const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, competence_date: addMonthsToFinancialDate(payload.competence_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
+    if (installmentCount === 1) ["id", "installment_number", "installment_count", "installment_group_id"].forEach((key) => delete records[0][key]);
+    try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0]); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 function renderFinancialImports() {
@@ -2638,14 +2751,17 @@ function renderFinancialImports() {
 }
 
 async function openFinancialImport(importId) {
-  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items", `?import_id=eq.${encodeURIComponent(importId)}&select=*&order=transaction_date.asc,created_at.asc`), () => ({ headers: supabaseHeaders() }));
-  if (!response.ok) throw new Error("Não foi possível carregar os lançamentos importados.");
-  state.financialSelectedImportId = importId;
-  state.financialStatementItems = await response.json();
-  renderFinancialImports();
-  renderFinancialStatementItems();
-  elements.financialImportDetail.hidden = false;
-  elements.financialImportDetail.scrollIntoView({ behavior: "smooth", block: "start" });
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items", `?import_id=eq.${encodeURIComponent(importId)}&select=*&order=transaction_date.asc,created_at.asc`), () => ({ headers: supabaseHeaders() }));
+    if (!response.ok) throw new Error("Não foi possível carregar os lançamentos importados.");
+    state.financialSelectedImportId = importId;
+    state.financialStatementItems = await response.json();
+    renderFinancialImports();
+    renderFinancialStatementItems();
+    elements.financialImportDetail.hidden = false;
+    elements.financialImportDetail.scrollIntoView({ behavior: "smooth", block: "start" });
+  } finally { state.financialOperations--; }
 }
 
 function statementCategoryOptions(item) {
@@ -2674,35 +2790,41 @@ async function patchStatementItemStatus(ids, status) {
 }
 
 async function ignoreSelectedStatementItems() {
-  const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
-  if (!confirm(`Ignorar ${items.length} lançamento(s) selecionado(s)?`)) return;
-  try { await patchStatementItemStatus(items.map((item) => item.id), "ignored"); await openFinancialImport(state.financialSelectedImportId); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
+    if (!confirm(`Ignorar ${items.length} lançamento(s) selecionado(s)?`)) return;
+    try { await patchStatementItemStatus(items.map((item) => item.id), "ignored"); await openFinancialImport(state.financialSelectedImportId); } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function confirmSelectedStatementItems() {
-  const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
-  const selections = items.map((item) => ({ item, categoryId: elements.financialStatementItemRows.querySelector(`[data-statement-category="${item.id}"]`)?.value || "", transferAccountId: elements.financialStatementItemRows.querySelector(`[data-statement-transfer-account="${item.id}"]`)?.value || "" }));
-  if (selections.some(({ categoryId }) => !categoryId || categoryId === "__new__")) return alert("Selecione a categoria de todos os lançamentos marcados.");
-  if (selections.some(({ categoryId, transferAccountId }) => categoryId === "__transfer__" && !transferAccountId)) return alert("Selecione a outra conta em todas as transferências marcadas.");
-  const entries = selections.map(({ item, categoryId, transferAccountId }) => {
-    const transfer = categoryId === "__transfer__";
-    const incoming = Number(item.amount) >= 0;
-    return { id: createId(), entry_type: transfer ? "transfer" : incoming ? "income" : "expense", status: "paid", account_id: transfer && incoming ? transferAccountId : item.account_id, transfer_account_id: transfer ? (incoming ? item.account_id : transferAccountId) : null, category_id: transfer ? null : categoryId, description: formatFinancialDescription(item.description), amount: Math.abs(Number(item.amount)), issue_date: item.transaction_date, competence_date: item.transaction_date, due_date: item.transaction_date, paid_at: `${item.transaction_date}T12:00:00.000Z`, source_type: "statement" };
-  });
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    const entryResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(entries) }));
-    if (!entryResponse.ok) throw new Error("Não foi possível criar as transações do extrato.");
-    const reconciliations = entries.map((entry, index) => ({ statement_item_id: selections[index].item.id, entry_id: entry.id, amount: entry.amount }));
-    const reconciliationResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_reconciliations"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(reconciliations) }));
-    if (!reconciliationResponse.ok) throw new Error("Não foi possível conciliar as transações do extrato.");
-    await patchStatementItemStatus(items.map((item) => item.id), "reconciled");
-    await loadFinancialRegisters(); await openFinancialImport(state.financialSelectedImportId);
-    alert(`${items.length} lançamento(s) confirmado(s) e enviado(s) para Transações.`);
-  } catch (error) {
-    const ids = entries.map((entry) => entry.id).join(",");
-    await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids})`), () => ({ method: "DELETE", headers: supabaseHeaders() })).catch(() => null);
-    alert(error.message);
-  }
+    const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
+    const selections = items.map((item) => ({ item, categoryId: elements.financialStatementItemRows.querySelector(`[data-statement-category="${item.id}"]`)?.value || "", transferAccountId: elements.financialStatementItemRows.querySelector(`[data-statement-transfer-account="${item.id}"]`)?.value || "" }));
+    if (selections.some(({ categoryId }) => !categoryId || categoryId === "__new__")) return alert("Selecione a categoria de todos os lançamentos marcados.");
+    if (selections.some(({ categoryId, transferAccountId }) => categoryId === "__transfer__" && !transferAccountId)) return alert("Selecione a outra conta em todas as transferências marcadas.");
+    const entries = selections.map(({ item, categoryId, transferAccountId }) => {
+      const transfer = categoryId === "__transfer__";
+      const incoming = Number(item.amount) >= 0;
+      return { id: createId(), entry_type: transfer ? "transfer" : incoming ? "income" : "expense", status: "paid", account_id: transfer && incoming ? transferAccountId : item.account_id, transfer_account_id: transfer ? (incoming ? item.account_id : transferAccountId) : null, category_id: transfer ? null : categoryId, description: formatFinancialDescription(item.description), amount: Math.abs(Number(item.amount)), issue_date: item.transaction_date, competence_date: item.transaction_date, due_date: item.transaction_date, paid_at: `${item.transaction_date}T12:00:00.000Z`, source_type: "statement" };
+    });
+    try {
+      const entryResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(entries) }));
+      if (!entryResponse.ok) throw new Error("Não foi possível criar as transações do extrato.");
+      const reconciliations = entries.map((entry, index) => ({ statement_item_id: selections[index].item.id, entry_id: entry.id, amount: entry.amount }));
+      const reconciliationResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_reconciliations"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(reconciliations) }));
+      if (!reconciliationResponse.ok) throw new Error("Não foi possível conciliar as transações do extrato.");
+      await patchStatementItemStatus(items.map((item) => item.id), "reconciled");
+      await loadFinancialRegisters(); await openFinancialImport(state.financialSelectedImportId);
+      alert(`${items.length} lançamento(s) confirmado(s) e enviado(s) para Transações.`);
+    } catch (error) {
+      const ids = entries.map((entry) => entry.id).join(",");
+      await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids})`), () => ({ method: "DELETE", headers: supabaseHeaders() })).catch(() => null);
+      alert(error.message);
+    }
+  } finally { state.financialOperations--; }
 }
 
 function parseCsvLine(line, delimiter) {
@@ -2743,17 +2865,20 @@ function parseStatementFile(text, extension) {
 async function sha256(value) { const data = value instanceof ArrayBuffer ? new Uint8Array(value) : new TextEncoder().encode(value); const hash = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
 
 async function importFinancialStatement(file) {
-  const accountId = document.querySelector("#financialImportAccount").value;
-  if (!accountId) throw new Error("Selecione a conta antes do arquivo.");
-  const extension = file.name.split(".").pop().toLowerCase(); if (!["ofx", "csv"].includes(extension)) throw new Error("Use um arquivo OFX ou CSV.");
-  const text = await file.text(); const items = parseStatementFile(text, extension); if (!items.length) throw new Error("Nenhum lançamento válido foi encontrado.");
-  const fileHash = await sha256(text); const importResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports"), () => ({ method: "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify({ account_id: accountId, file_name: file.name, file_type: extension, file_hash: fileHash, period_start: items.map((item) => item.date).sort()[0], period_end: items.map((item) => item.date).sort().at(-1), item_count: items.length, status: "completed", completed_at: new Date().toISOString() }) }));
-  if (!importResponse.ok) { const details = await importResponse.json().catch(() => null); throw new Error(details?.code === "23505" ? "Este extrato já foi importado para essa conta." : details?.message || "Não foi possível registrar a importação."); }
-  const importRow = (await importResponse.json())[0];
-  const rows = await Promise.all(items.map(async (item, index) => ({ import_id: importRow.id, account_id: accountId, external_id: item.externalId, transaction_date: item.date, description: formatFinancialDescription(item.description).slice(0, 500), amount: item.amount, balance: Number.isFinite(item.balance) ? item.balance : null, fingerprint: await sha256(`${accountId}|${item.externalId || ""}|${item.date}|${item.amount}|${item.description}|${index}`), raw_data: item })));
-  const itemResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(rows) }));
-  if (!itemResponse.ok) { await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", `?id=eq.${importRow.id}`), () => ({ method: "DELETE", headers: supabaseHeaders() })); throw new Error("Não foi possível salvar os itens do extrato."); }
-  await loadFinancialRegisters(); renderFinancialImports();
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const accountId = document.querySelector("#financialImportAccount").value;
+    if (!accountId) throw new Error("Selecione a conta antes do arquivo.");
+    const extension = file.name.split(".").pop().toLowerCase(); if (!["ofx", "csv"].includes(extension)) throw new Error("Use um arquivo OFX ou CSV.");
+    const text = await file.text(); const items = parseStatementFile(text, extension); if (!items.length) throw new Error("Nenhum lançamento válido foi encontrado.");
+    const fileHash = await sha256(text); const importResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports"), () => ({ method: "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify({ account_id: accountId, file_name: file.name, file_type: extension, file_hash: fileHash, period_start: items.map((item) => item.date).sort()[0], period_end: items.map((item) => item.date).sort().at(-1), item_count: items.length, status: "completed", completed_at: new Date().toISOString() }) }));
+    if (!importResponse.ok) { const details = await importResponse.json().catch(() => null); throw new Error(details?.code === "23505" ? "Este extrato já foi importado para essa conta." : details?.message || "Não foi possível registrar a importação."); }
+    const importRow = (await importResponse.json())[0];
+    const rows = await Promise.all(items.map(async (item, index) => ({ import_id: importRow.id, account_id: accountId, external_id: item.externalId, transaction_date: item.date, description: formatFinancialDescription(item.description).slice(0, 500), amount: item.amount, balance: Number.isFinite(item.balance) ? item.balance : null, fingerprint: await sha256(`${accountId}|${item.externalId || ""}|${item.date}|${item.amount}|${item.description}|${index}`), raw_data: item })));
+    const itemResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(rows) }));
+    if (!itemResponse.ok) { await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", `?id=eq.${importRow.id}`), () => ({ method: "DELETE", headers: supabaseHeaders() })); throw new Error("Não foi possível salvar os itens do extrato."); }
+    await loadFinancialRegisters(); renderFinancialImports();
+  } finally { state.financialOperations--; }
 }
 
 async function unzipXlsxFiles(arrayBuffer) {
@@ -2824,45 +2949,48 @@ async function deterministicMigrationUuid(key) {
   const value = chars.join(""); return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
 }
 
-async function postFinancialRows(table, rows, prefer = "return=representation") {
+async function postFinancialRows(table, rows, prefer = "return=representation", scope = state.financialScope || "company") {
   if (!rows.length) return [];
-  const response = await authorizedFetch(supabaseTableEndpoint(table), () => ({ method: "POST", headers: supabaseHeaders(prefer), body: JSON.stringify(rows) }));
+  const response = await authorizedFetch(supabaseTableEndpoint(table, "", scope), () => ({ method: "POST", headers: supabaseHeaders(prefer), body: JSON.stringify(rows) }));
   if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || `Não foi possível gravar ${table}.`); }
   return prefer.includes("return=representation") ? response.json() : [];
 }
 
 async function migrateMobillsWorkbook(file) {
-  const workbook = await readMobillsWorkbook(file); const normalize = normalizedMigrationText;
-  const findSheet = (prefix) => Array.from(workbook).find(([name]) => normalize(name).startsWith(prefix))?.[1];
-  const regularSheet = findSheet("receitas e despesas"); const transferSheet = findSheet("transfer");
-  if (!regularSheet?.length) throw new Error("A aba Receitas e Despesas não foi encontrada.");
-  const objects = (rows) => { const headers = rows[0].map(normalize); return rows.slice(1).filter((row) => row.some((value) => value !== "" && value != null)).map((row, rowIndex) => ({ rowIndex: rowIndex + 2, values: Object.fromEntries(headers.map((header, index) => [header, row[index]])) })); };
-  const regular = objects(regularSheet); const transfers = transferSheet?.length ? objects(transferSheet) : [];
-  if (!confirm(`Migrar ${regular.length} receitas/despesas e ${transfers.length} transferências do Mobills?`)) return null;
-  await loadFinancialRegisters();
-  const accountMap = new Map(state.financialAccounts.map((account) => [normalize(cleanMobillsAccountName(account.name)), account]));
-  const allAccountNames = new Set([...regular.map(({ values }) => values.conta), ...transfers.flatMap(({ values }) => [values["conta origem"], values["conta destino"]])].map(cleanMobillsAccountName).filter(Boolean));
-  for (const name of allAccountNames) {
-    const key = normalize(name); if (accountMap.has(key)) continue;
-    const [created] = await postFinancialRows("crm_financial_accounts", [{ name, account_type: "bank", initial_balance: 0, initial_balance_date: normalizeStatementDate(regular[0]?.values.data) || new Date().toISOString().slice(0, 10) }]); accountMap.set(key, created);
-  }
-  const categoryMap = new Map(state.financialCategories.map((category) => [`${category.category_type}|${normalize(category.name)}`, category]));
-  async function ensureCategory(name, type, parentId = null) { if (!String(name || "").trim()) return null; const key = `${type}|${normalize(name)}`; if (categoryMap.has(key)) return categoryMap.get(key); const [created] = await postFinancialRows("crm_financial_categories", [{ name: String(name).trim(), category_type: type, parent_id: parentId, active: true }]); categoryMap.set(key, created); return created; }
-  const fileHash = await sha256(await file.arrayBuffer()); const entries = [];
-  for (const { rowIndex, values } of regular) {
-    const amount = Number(values.valor); if (!Number.isFinite(amount) || amount === 0) continue;
-    const type = amount > 0 ? "income" : "expense"; const parent = await ensureCategory(values.categoria, type); const child = await ensureCategory(values.subcategoria, type, parent?.id || null);
-    const date = normalizeStatementDate(values.data); if (!date) continue; const paid = normalize(values.situacao).startsWith("paga");
-    entries.push({ id: await deterministicMigrationUuid(`${fileHash}|regular|${rowIndex}`), entry_type: type, status: paid ? "paid" : "pending", account_id: accountMap.get(normalize(cleanMobillsAccountName(values.conta)))?.id || null, transfer_account_id: null, category_id: child?.id || parent?.id || null, description: formatFinancialDescription(values.descricao || "Migração Mobills").slice(0, 240), notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount: Math.abs(amount), issue_date: date, competence_date: date, due_date: date, paid_at: paid ? `${date}T12:00:00.000Z` : null, source_type: "adjustment" });
-  }
-  for (const { rowIndex, values } of transfers) {
-    const amount = Math.abs(Number(values.valor)); const date = normalizeStatementDate(values.data); if (!amount || !date) continue;
-    entries.push({ id: await deterministicMigrationUuid(`${fileHash}|transfer|${rowIndex}`), entry_type: "transfer", status: "paid", account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta origem"])))?.id || null, transfer_account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta destino"])))?.id || null, category_id: null, description: "Transferência migrada do Mobills", notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount, issue_date: date, competence_date: date, due_date: date, paid_at: `${date}T12:00:00.000Z`, source_type: "adjustment" });
-  }
-  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?on_conflict=id"), () => ({ method: "POST", headers: supabaseHeaders("resolution=ignore-duplicates,return=representation"), body: JSON.stringify(entries) }));
-  if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível gravar as transações migradas."); }
-  const inserted = await response.json(); await loadFinancialRegisters();
-  return { total: entries.length, inserted: inserted.length, accounts: allAccountNames.size, categories: categoryMap.size };
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const workbook = await readMobillsWorkbook(file); const normalize = normalizedMigrationText;
+    const findSheet = (prefix) => Array.from(workbook).find(([name]) => normalize(name).startsWith(prefix))?.[1];
+    const regularSheet = findSheet("receitas e despesas"); const transferSheet = findSheet("transfer");
+    if (!regularSheet?.length) throw new Error("A aba Receitas e Despesas não foi encontrada.");
+    const objects = (rows) => { const headers = rows[0].map(normalize); return rows.slice(1).filter((row) => row.some((value) => value !== "" && value != null)).map((row, rowIndex) => ({ rowIndex: rowIndex + 2, values: Object.fromEntries(headers.map((header, index) => [header, row[index]])) })); };
+    const regular = objects(regularSheet); const transfers = transferSheet?.length ? objects(transferSheet) : [];
+    if (!confirm(`Migrar ${regular.length} receitas/despesas e ${transfers.length} transferências do Mobills?`)) return null;
+    await loadFinancialRegisters();
+    const accountMap = new Map(state.financialAccounts.map((account) => [normalize(cleanMobillsAccountName(account.name)), account]));
+    const allAccountNames = new Set([...regular.map(({ values }) => values.conta), ...transfers.flatMap(({ values }) => [values["conta origem"], values["conta destino"]])].map(cleanMobillsAccountName).filter(Boolean));
+    for (const name of allAccountNames) {
+      const key = normalize(name); if (accountMap.has(key)) continue;
+      const [created] = await postFinancialRows("crm_financial_accounts", [{ name, account_type: "bank", initial_balance: 0, initial_balance_date: normalizeStatementDate(regular[0]?.values.data) || new Date().toISOString().slice(0, 10) }]); accountMap.set(key, created);
+    }
+    const categoryMap = new Map(state.financialCategories.map((category) => [`${category.category_type}|${normalize(category.name)}`, category]));
+    async function ensureCategory(name, type, parentId = null) { if (!String(name || "").trim()) return null; const key = `${type}|${normalize(name)}`; if (categoryMap.has(key)) return categoryMap.get(key); const [created] = await postFinancialRows("crm_financial_categories", [{ name: String(name).trim(), category_type: type, parent_id: parentId, active: true }]); categoryMap.set(key, created); return created; }
+    const fileHash = await sha256(await file.arrayBuffer()); const entries = [];
+    for (const { rowIndex, values } of regular) {
+      const amount = Number(values.valor); if (!Number.isFinite(amount) || amount === 0) continue;
+      const type = amount > 0 ? "income" : "expense"; const parent = await ensureCategory(values.categoria, type); const child = await ensureCategory(values.subcategoria, type, parent?.id || null);
+      const date = normalizeStatementDate(values.data); if (!date) continue; const paid = normalize(values.situacao).startsWith("paga");
+      entries.push({ id: await deterministicMigrationUuid(`${fileHash}|regular|${rowIndex}`), entry_type: type, status: paid ? "paid" : "pending", account_id: accountMap.get(normalize(cleanMobillsAccountName(values.conta)))?.id || null, transfer_account_id: null, category_id: child?.id || parent?.id || null, description: formatFinancialDescription(values.descricao || "Migração Mobills").slice(0, 240), notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount: Math.abs(amount), issue_date: date, competence_date: date, due_date: date, paid_at: paid ? `${date}T12:00:00.000Z` : null, source_type: "adjustment" });
+    }
+    for (const { rowIndex, values } of transfers) {
+      const amount = Math.abs(Number(values.valor)); const date = normalizeStatementDate(values.data); if (!amount || !date) continue;
+      entries.push({ id: await deterministicMigrationUuid(`${fileHash}|transfer|${rowIndex}`), entry_type: "transfer", status: "paid", account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta origem"])))?.id || null, transfer_account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta destino"])))?.id || null, category_id: null, description: "Transferência migrada do Mobills", notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount, issue_date: date, competence_date: date, due_date: date, paid_at: `${date}T12:00:00.000Z`, source_type: "adjustment" });
+    }
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?on_conflict=id"), () => ({ method: "POST", headers: supabaseHeaders("resolution=ignore-duplicates,return=representation"), body: JSON.stringify(entries) }));
+    if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível gravar as transações migradas."); }
+    const inserted = await response.json(); await loadFinancialRegisters();
+    return { total: entries.length, inserted: inserted.length, accounts: allAccountNames.size, categories: categoryMap.size };
+  } finally { state.financialOperations--; }
 }
 
 function nextSelectedStatuses(selected, status, additive) {
@@ -5553,7 +5681,7 @@ async function budgetFinancialEntryIds(budget) {
 }
 
 async function fetchBudgetFinancialEntries(ids) {
-  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.join(",")})&select=*`), () => ({ headers: supabaseHeaders() }));
+  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.join(",")})&select=*`, "company"), () => ({ headers: supabaseHeaders() }));
   if (!response.ok) throw new Error("Não foi possível consultar os lançamentos vinculados ao orçamento.");
   return response.json();
 }
@@ -5600,7 +5728,7 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   const existing = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
   if (!createIfMissing && !existing.length) return { created: 0, updated: 0, deleted: 0, paid: 0, linked: false };
   if (!budgetFinancialStatusAllowed(budget.status)) return { created: 0, updated: 0, deleted: 0, paid: 0, linked: true, excluded: true };
-  await loadFinancialRegisters();
+  await loadFinancialRegisters("company");
   const account = state.financialAccounts.find((item) => item.active && item.account_type === "bank" && normalizedMigrationText(`${item.name} ${item.institution || ""}`).includes("mercado pago"));
   if (!account) throw new Error("Cadastre e ative a conta bancária Mercado Pago antes de lançar no financeiro.");
   const postedDate = budgetFinancialLocalDate();
@@ -5622,14 +5750,14 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     if (previous?.status === "paid") { result.paid++; continue; }
     if (!item.amount) {
       if (previous) {
-        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`, "company"), () => ({ method: "DELETE", headers: supabaseHeaders() }));
         if (!response.ok) throw new Error(`Não foi possível excluir ${item.description} do financeiro.`);
         result.deleted++;
       }
       continue;
     }
     const { key, ...payload } = item;
-    if (!previous) { await postFinancialRows("crm_financial_entries", [{ id, ...payload }]); result.created++; continue; }
+    if (!previous) { await postFinancialRows("crm_financial_entries", [{ id, ...payload }], "return=representation", "company"); result.created++; continue; }
     const amountChanged = budgetFinancialCents(previous.amount) !== budgetFinancialCents(item.amount);
     const noteText = amountChanged ? `${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim() : financialEntryNotes(previous);
     const paymentNote = String(financialEntryNotes(item) || "");
@@ -5640,15 +5768,15 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     if (BUDGET_FINANCIAL_EXPENSES.find((rule) => rule.key === item.key)?.syncDueDate) changes.due_date = item.due_date;
     if (item.key.startsWith("plan-")) changes.due_date = item.due_date;
     if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description && previous.notes === changes.notes && (!Object.hasOwn(changes, "due_date") || previous.due_date === changes.due_date)) continue;
-    await saveFinancialRecord("crm_financial_entries", id, changes);
+    await saveFinancialRecord("crm_financial_entries", id, changes, "company");
     result.updated++;
   }
   for (const [, id] of obsoletePayments) {
-    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`, "company"), () => ({ method: "DELETE", headers: supabaseHeaders() }));
     if (!response.ok) throw new Error("Não foi possível remover uma parcela substituída pelo novo plano.");
     result.deleted++;
   }
-  await loadFinancialRegisters();
+  await loadFinancialRegisters("company");
   return result;
 }
 
@@ -5661,10 +5789,10 @@ async function deleteBudgetFinancialSimulation(budget) {
     throw new Error("Existem lançamentos efetivos vinculados a este orçamento. A exclusão do simulado foi cancelada para proteger o financeiro.");
   }
   if (existing.length) {
-    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${existing.map((entry) => entry.id).join(",")})`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${existing.map((entry) => entry.id).join(",")})`, "company"), () => ({ method: "DELETE", headers: supabaseHeaders() }));
     if (!response.ok) throw new Error("Não foi possível excluir as transações simuladas.");
   }
-  await loadFinancialRegisters();
+  await loadFinancialRegisters("company");
   return { deleted: existing.length };
 }
 
@@ -6515,7 +6643,7 @@ async function fetchSupabaseTableBackup({ name: table, key }) {
   while (true) {
     const query = new URLSearchParams({ select: "*", order: `${key}.asc`, limit: String(pageSize) });
     if (cursor !== null) query.set(key, `gt.${cursor}`);
-    const response = await authorizedFetch(supabaseTableEndpoint(table, `?${query}`), () => ({
+    const response = await authorizedFetch(supabaseTableEndpoint(table, `?${query}`, "company"), () => ({
       headers: supabaseHeaders(expectedCount === null ? "count=exact" : "return=minimal"),
     }));
     if (!response.ok) {
@@ -6535,7 +6663,7 @@ async function fetchSupabaseTableBackup({ name: table, key }) {
   }
 
   const countQuery = new URLSearchParams({ select: key, limit: "1" });
-  const countResponse = await authorizedFetch(supabaseTableEndpoint(table, `?${countQuery}`), () => ({ headers: supabaseHeaders("count=exact") }));
+  const countResponse = await authorizedFetch(supabaseTableEndpoint(table, `?${countQuery}`, "company"), () => ({ headers: supabaseHeaders("count=exact") }));
   if (!countResponse.ok) throw new Error(`Nao foi possivel validar a tabela ${table}.`);
   const finalCount = backupResponseCount(countResponse, table);
   if (rows.length !== expectedCount || rows.length !== finalCount) throw new Error(`A tabela ${table} mudou durante o backup (${rows.length}/${expectedCount}/${finalCount}). Tente novamente.`);
@@ -6706,13 +6834,24 @@ function reportSelectOptions(select, options, fallbackLabel) {
 }
 
 function renderReportsView() {
+  const personal = state.financialScope === "braga";
+  const kindSelect = document.querySelector("#reportsKind");
+  if (personal) kindSelect.value = "transactions";
+  kindSelect.disabled = personal;
+  const reportTitle = document.querySelector("#reportsView h1");
+  if (reportTitle) reportTitle.textContent = personal ? "Financeiro Braga · Relatórios" : "Relatórios";
+  const reportDescription = document.querySelector("#reportsView .page-header p");
+  if (reportDescription) reportDescription.textContent = personal ? "Exporte suas transações pessoais em planilhas XLSX." : "Exporte cadastros, orçamentos e transações em planilhas XLSX.";
+  document.querySelector("#reportsClientField").hidden = personal;
+  if (personal) document.querySelector("#reportsClient").value = "";
+  if (state.financialScopeError) document.querySelector("#reportsStatusMessage").textContent = state.financialScopeError;
   const kind = document.querySelector("#reportsKind")?.value || "clients";
   const dateField = document.querySelector("#reportsDateField");
   if (!dateField) return;
   const previousDate = dateField.value;
   dateField.replaceChildren(...REPORT_DATE_FIELDS[kind].map(([value, label]) => new Option(label, value)));
   dateField.value = REPORT_DATE_FIELDS[kind].some(([value]) => value === previousDate) ? previousDate : REPORT_DATE_FIELDS[kind][0][0];
-  reportSelectOptions(document.querySelector("#reportsClient"), [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")).map((client) => [client.id, client.name || client.id]), "Todos os clientes");
+  reportSelectOptions(document.querySelector("#reportsClient"), (personal ? [] : [...state.clients]).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")).map((client) => [client.id, client.name || client.id]), "Todos os clientes");
   const statuses = kind === "clients" ? STATUS.filter((status) => status !== "Todos") : kind === "budgets" ? BUDGET_STATUS : ["pending", "paid", "overdue", "cancelled"];
   reportSelectOptions(document.querySelector("#reportsStatus"), [...new Set(statuses.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")).map((value) => [value, kind === "transactions" ? ({ pending: "Pendente", paid: "Pago", overdue: "Vencido", cancelled: "Cancelado" }[value] || value) : value]), "Todos os status");
   reportSelectOptions(document.querySelector("#reportsAccount"), state.financialAccounts.map((account) => [account.id, account.name]), "Todas as contas");
@@ -6822,10 +6961,12 @@ function reportTransactionRows(entries, accounts, categories, clients, filters) 
 
 async function exportReport(event) {
   event.preventDefault();
-  if (!isAdmin()) return alert("Acesso restrito a administradores.");
+  if (!canAccessFinancialScope()) return alert("Acesso não autorizado ao relatório financeiro.");
+  const personal = state.financialScope === "braga";
   const filters = reportFilters();
+  if (personal) { filters.kind = "transactions"; filters.clientId = ""; }
   if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) return alert("A data inicial deve ser anterior ou igual à data final.");
-  const fileName = `crm-${filters.kind}-${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`;
+  const fileName = `crm-${personal ? "braga-" : ""}${filters.kind}-${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`;
   const button = document.querySelector("#reportsExportBtn");
   const message = document.querySelector("#reportsStatusMessage");
   button.disabled = true;
@@ -6835,9 +6976,10 @@ async function exportReport(event) {
     let rows;
     if (filters.kind === "transactions") {
       message.textContent = "Consultando transações...";
+      const prefix = personal ? "crm_braga_financial_" : "crm_financial_";
       const [entries, accounts, categories, clients] = await Promise.all([
-        fetchSupabaseTableBackup({ name: "crm_financial_entries", key: "id" }), fetchSupabaseTableBackup({ name: "crm_financial_accounts", key: "id" }),
-        fetchSupabaseTableBackup({ name: "crm_financial_categories", key: "id" }), reportClientsFromDatabase(),
+        fetchSupabaseTableBackup({ name: `${prefix}entries`, key: "id" }), fetchSupabaseTableBackup({ name: `${prefix}accounts`, key: "id" }),
+        fetchSupabaseTableBackup({ name: `${prefix}categories`, key: "id" }), personal ? Promise.resolve([]) : reportClientsFromDatabase(),
       ]);
       rows = reportTransactionRows(entries.rows, accounts.rows, categories.rows, clients, filters);
     } else {
@@ -7417,7 +7559,7 @@ async function syncLiveData() {
         clientsChanged = true;
       }
     }
-    if (isAdmin() && !liveFinancialRefreshBlocked()) {
+    if (canAccessFinancialScope() && !liveFinancialRefreshBlocked() && !state.financialNavigationPending && !state.financialOperations) {
       const previousSignature = liveFinancialSignature();
       await loadFinancialRegisters();
       financialChanged = liveFinancialSignature() !== previousSignature;
@@ -7598,6 +7740,14 @@ elements.financialNavToggle?.addEventListener("click", () => {
   elements.financialSubmenu.hidden = expanded;
 });
 
+document.querySelector("#bragaFinancialNavToggle")?.addEventListener("click", () => {
+  if (!canAccessBragaFinance()) return;
+  const toggle = document.querySelector("#bragaFinancialNavToggle");
+  const expanded = toggle.getAttribute("aria-expanded") === "true";
+  toggle.setAttribute("aria-expanded", String(!expanded));
+  document.querySelector("#bragaFinancialSubmenu").hidden = expanded;
+});
+
 elements.navItems.forEach((item) => {
   item.addEventListener("click", async () => {
     if (item.dataset.view === "financeTransactions") {
@@ -7611,24 +7761,7 @@ elements.navItems.forEach((item) => {
         alert(error.message || "Nao foi possivel carregar os usuarios.");
       }
     }
-    if (isFinanceModuleView(item.dataset.view) && isAdmin()) {
-      try {
-        await loadFinancialRegisters();
-      } catch (error) {
-        console.warn(error);
-        alert(error.message);
-      }
-    }
-    if (item.dataset.view === "reports" && isAdmin()) {
-      try {
-        state.clients = await loadClients();
-        await loadFinancialRegisters();
-      } catch (error) {
-        console.warn(error);
-        alert(error.message || "Não foi possível atualizar os filtros dos relatórios.");
-      }
-    }
-    await showView(item.dataset.view);
+    await showView(item.dataset.view, undefined, item.dataset.financialScope || "company");
   });
 });
 
@@ -7675,7 +7808,7 @@ document.querySelector("#financialColumnPicker")?.addEventListener("change", (ev
   const visibility = financialTransactionColumnVisibility();
   if (!Object.hasOwn(visibility, input.dataset.financialColumn)) return;
   visibility[input.dataset.financialColumn] = input.checked;
-  setAppPreference("financialTransactionColumns", visibility);
+  setAppPreference(state.financialScope === "braga" ? "bragaFinancialTransactionColumns" : "financialTransactionColumns", visibility);
   applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table"));
 });
 document.querySelector("#financialEntryShowDailyBalance")?.addEventListener("change", (event) => { state.financialEntryShowDailyBalance = event.target.checked; renderFinancialDailyBalanceBreaks(elements.financialEntryRows?.closest("table")); applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table")); });
@@ -8386,7 +8519,7 @@ async function startApp() {
   state.selectedId = state.clients[0]?.id || null;
   const initialView = startsInFinanceTransactions() ? "financeTransactions" : isAdmin() ? "budget" : "clients";
   state.view = initialView;
-  await showView(initialView);
+  await showView(initialView, undefined, canAccessBragaFinance() && !isAdmin() ? "braga" : "company");
   render();
   startLiveSync();
   return true;
