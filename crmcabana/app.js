@@ -1934,6 +1934,13 @@ function renderFinancialAccounts() {
   const priority = ["mercado pago", "itau", "santander"];
   const normalizedName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
   const accounts = [...state.financialAccounts].sort((first, second) => {
+    if (state.financialScope === "braga") {
+      const prefix = (account) => {
+        const digits = String(account.name || "").match(/^\d{2}/);
+        return digits ? Number(digits[0]) : Infinity;
+      };
+      return (prefix(first) - prefix(second)) || financialSortCollator.compare(first.name, second.name);
+    }
     const rank = (account) => { const index = priority.findIndex((name) => normalizedName(`${account.name} ${account.institution}`).includes(name)); return index < 0 ? priority.length : index; };
     return Number(second.active) - Number(first.active) || rank(first) - rank(second) || financialSortCollator.compare(first.name, second.name);
   });
