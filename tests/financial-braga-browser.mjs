@@ -159,6 +159,42 @@ try {
     }));
     await migration.context.close();
   }
+  const documentBank = await scenario("other@example.com", "admin");
+  for (let attempt = 0; await documentBank.page.evaluate(() => liveSyncTimer === null); attempt++) {
+    if (attempt > 200) throw new Error("App initialization timed out");
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  await documentBank.page.evaluate(async () => {
+    state.clients = [{ ...defaultClients()[0], id: "bank-client", name: "Cliente teste", status: WON_STATUS, active: "SIM", budgets: [] }];
+    state.selectedId = "bank-client";
+    // Persistence is mocked; the app's form, registry and document rendering run normally.
+    saveClients = async (ids) => { window.savedBankClientIds = ids; return true; };
+    await showView("budget");
+    await openBudgetEditor("bank-client", { blank: true });
+    document.querySelector("#budgetClientSelect").value = "bank-client";
+  });
+  assert.equal(await documentBank.page.locator("#budgetBankCode").inputValue(), "341");
+  await documentBank.page.locator("#budgetBankAccountSelect").selectOption("");
+  await documentBank.page.locator("#budgetBankLabel").fill("Cabana Santander");
+  await documentBank.page.locator("#budgetBankName").fill("Santander");
+  await documentBank.page.locator("#budgetBankCode").fill("033");
+  await documentBank.page.locator("#budgetBankAgency").fill("1234");
+  await documentBank.page.locator("#budgetBankNumber").fill("98765-0");
+  await documentBank.page.locator("#budgetBankPix").fill("financeiro@example.test");
+  await documentBank.page.locator("#budgetBankRegister").click();
+  assert.match(await documentBank.page.locator("#budgetBankMessage").innerText(), /Conta cadastrada/);
+  assert.deepEqual(await documentBank.page.evaluate(() => window.savedBankClientIds), ["bank-client"]);
+  const chosen = await documentBank.page.evaluate(() => readBudgetPaymentPlan().bankAccount);
+  assert.equal(chosen.code, "033");
+  const header = await documentBank.page.evaluate(() => documentCompanyHeaderRows({ budget: currentBudgetDraft() }));
+  assert.match(header, /Santander - 033/);
+  assert.match(header, /98765-0/);
+  await documentBank.page.locator("#budgetBankAccountSelect").selectOption("cabana-itau");
+  assert.equal(await documentBank.page.locator("#budgetBankCode").inputValue(), "341");
+  await documentBank.page.evaluate((account) => fillBudgetPaymentPlan({ enabled: false, bankAccount: account }), chosen);
+  assert.equal(await documentBank.page.locator("#budgetBankNumber").inputValue(), "98765-0");
+  checks += 8;
+  await documentBank.context.close();
   assert.deepEqual(errors, []);
   console.log(`Financeiro Braga: ${checks} browser checks passed (owner, other admin, isolated CRUD, column preferences and missing migration).`);
 } finally {

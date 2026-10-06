@@ -528,6 +528,22 @@
               <section class="budget-panel budget-payment-plan" id="budgetPaymentPlanPanel" aria-label="Novo modelo de pagamentos">
                 <h2>Plano de pagamento</h2>
                 <label class="budget-payment-enabled"><input id="budgetPaymentEnabled" type="checkbox" /> Usar este plano no financeiro e nos documentos</label>
+                <details open class="budget-bank-details">
+                  <summary>Dados bancários da Cabana para os documentos</summary>
+                  <div class="budget-finance-grid">
+                    <label>Conta cadastrada<select id="budgetBankAccountSelect"></select></label>
+                    <label>Nome para identificar a conta<input id="budgetBankLabel" maxlength="120" /></label>
+                    <label>Banco<input id="budgetBankName" maxlength="80" /></label>
+                    <label>Código do banco<input id="budgetBankCode" inputmode="numeric" maxlength="3" placeholder="341" /></label>
+                    <label>Agência<input id="budgetBankAgency" maxlength="30" /></label>
+                    <label>Conta com dígito<input id="budgetBankNumber" maxlength="40" /></label>
+                    <label>Titular<input id="budgetBankHolder" maxlength="160" /></label>
+                    <label>CPF/CNPJ do titular<input id="budgetBankDocument" maxlength="30" /></label>
+                    <label>Chave PIX<input id="budgetBankPix" maxlength="160" /></label>
+                  </div>
+                  <button id="budgetBankRegister" type="button" class="secondary-button">Cadastrar / atualizar conta</button>
+                  <p id="budgetBankMessage" class="budget-payment-hint" role="status">Os dados preenchidos serão usados no orçamento, pedido e contrato ao salvar o documento.</p>
+                </details>
                 <div class="budget-finance-grid">
                   <div><span>Valor líquido do orçamento</span><strong id="budgetPaymentNet">R$ 0,00</strong></div>
                   <label>Entrada à vista<input id="budgetPaymentEntry" class="money-input" inputmode="decimal" /></label>
@@ -1222,6 +1238,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=171"></script>
+    <script src="app.js?v=172"></script>
   </body>
 </html>

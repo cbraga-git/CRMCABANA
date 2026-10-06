@@ -4089,6 +4089,73 @@ const BUDGET_PAYMENT_RATE_MATRIX = {
 };
 const BUDGET_PAYMENT_METHODS = ["PIX", "Dinheiro", "Cartão de Credito", "Boleto"];
 
+function normalizeDocumentBankAccount(value = {}) {
+  const limits = { id: 80, label: 120, bank: 80, code: 3, agency: 30, number: 40, holder: 160, document: 30, pix: 160, updatedAt: 40 };
+  return Object.fromEntries(Object.entries(limits).map(([key, limit]) => [key, String(value[key] || "").trim().slice(0, limit)]));
+}
+
+function documentBankAccounts() {
+  const fallback = normalizeDocumentBankAccount({ id: "cabana-itau", label: "Cabana - Itaú", bank: "Itau", code: "341", agency: "0568", number: "99307-5", holder: "Cabana Moveis Sob Medida Ltda", document: "47.946.284/0001-77" });
+  const accounts = new Map([[fallback.id, fallback]]);
+  const saved = (state.clients || []).flatMap((client) => [client.budget, ...(client.budgets || [])]).map((budget) => budget?.paymentPlan?.bankAccount).filter(Boolean);
+  saved.map(normalizeDocumentBankAccount).forEach((account) => {
+    if (account.id && account.bank) accounts.set(account.id, account);
+  });
+  const registered = (state.clients || []).flatMap((client) => client.documentBankAccounts || []);
+  registered.map(normalizeDocumentBankAccount).sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)).forEach((account) => {
+    if (account.id && account.bank) accounts.set(account.id, account);
+  });
+  return [...accounts.values()];
+}
+
+function readDocumentBankAccount() {
+  if (!document.querySelector("#budgetBankName")) return null;
+  const values = { id: document.querySelector("#budgetBankAccountSelect")?.value || "" };
+  for (const [field, key] of [["Label", "label"], ["Name", "bank"], ["Code", "code"], ["Agency", "agency"], ["Number", "number"], ["Holder", "holder"], ["Document", "document"], ["Pix", "pix"]]) values[key] = document.querySelector(`#budgetBank${field}`)?.value || "";
+  return normalizeDocumentBankAccount(values);
+}
+
+function writeDocumentBankAccount(account) {
+  const select = document.querySelector("#budgetBankAccountSelect");
+  if (!select) return;
+  const selected = normalizeDocumentBankAccount(account);
+  const accounts = documentBankAccounts();
+  if (selected.id && !accounts.some((item) => item.id === selected.id)) accounts.push(selected);
+  select.innerHTML = accounts.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label || `${item.bank} - ${item.number || item.pix}`)}</option>`).join("") + '<option value="">Nova conta / preenchimento livre</option>';
+  select.value = selected.id;
+  for (const [field, key] of [["Label", "label"], ["Name", "bank"], ["Code", "code"], ["Agency", "agency"], ["Number", "number"], ["Holder", "holder"], ["Document", "document"], ["Pix", "pix"]]) document.querySelector(`#budgetBank${field}`).value = selected[key];
+  const message = document.querySelector("#budgetBankMessage");
+  if (message) message.textContent = "Os dados preenchidos serão usados no orçamento, pedido e contrato ao salvar o documento.";
+}
+
+async function registerDocumentBankAccount() {
+  if (!isAdmin()) return;
+  const client = selectedBudgetClient();
+  const account = readDocumentBankAccount();
+  const message = document.querySelector("#budgetBankMessage");
+  if (!client) { message.textContent = "Selecione um cliente antes de cadastrar a conta."; return; }
+  if (!account?.bank || !account.label || (!account.pix && (!account.agency || !account.number))) {
+    message.textContent = "Informe o nome da conta, o banco e a agência/conta ou chave PIX.";
+    return;
+  }
+  if (account.code && !/^\d{3}$/.test(account.code)) { message.textContent = "O código do banco deve conter três números."; return; }
+  const button = document.querySelector("#budgetBankRegister");
+  const userId = currentUserId();
+  const editingId = state.budgetEditingId;
+  button.disabled = true;
+  try {
+    account.id ||= createId();
+    account.updatedAt = new Date().toISOString();
+    client.documentBankAccounts = [...(client.documentBankAccounts || []).filter((item) => item.id !== account.id), account];
+    writeDocumentBankAccount(account);
+    markBudgetDirty();
+    const saved = await saveClients([client.id]);
+    if (currentUserId() !== userId || state.budgetEditingId !== editingId || selectedBudgetClient()?.id !== client.id) return;
+    message.textContent = saved ? "Conta cadastrada. Salve o orçamento para confirmar a conta escolhida neste documento." : "Conta salva neste navegador; a sincronização com o banco não foi concluída. Salve o orçamento após resolver a sincronização.";
+  } catch (error) { message.textContent = error.message; }
+  finally { button.disabled = false; }
+}
+
 function budgetPaymentRateFor(netCents, entryCents, months) {
   if (entryCents >= netCents) return 0;
   const rates = BUDGET_PAYMENT_RATE_MATRIX[months] || (months === 1 || months === 2 ? BUDGET_PAYMENT_RATE_MATRIX[3] : null);
@@ -4110,6 +4177,7 @@ function normalizeBudgetPaymentPlan(value = {}) {
     entryDate: value.entryDate || "",
     firstDueDate: value.firstDueDate || "",
     dueDates: Object.fromEntries(Object.entries(value.dueDates || {}).filter(([key, date]) => /^plan-income-([1-9]|1\d|2[0-4])$/.test(key) && typeof date === "string")),
+    bankAccount: value.bankAccount ? normalizeDocumentBankAccount(value.bankAccount) : null,
   };
 }
 
@@ -4163,6 +4231,7 @@ function readBudgetPaymentPlan() {
     entryMethod: budgetInputValue("budgetPaymentEntryMethod"), method: budgetInputValue("budgetPaymentMethod"),
     entryDate: budgetInputValue("budgetPaymentEntryDate"), firstDueDate: budgetInputValue("budgetPaymentFirstDueDate"),
     dueDates: state.budgetPaymentDueDates || {},
+    bankAccount: readDocumentBankAccount(),
   });
 }
 
@@ -4210,6 +4279,7 @@ function fillBudgetPaymentPlan(value) {
   selectBudgetPaymentRate(rate, plan.rateAuto ? null : plan.rate);
   rate.dataset.auto = String(plan.rateAuto);
   document.querySelector("#budgetPaymentEntry").value = formatMoneyInput(plan.entry);
+  writeDocumentBankAccount(plan.bankAccount || documentBankAccounts()[0]);
 }
 
 function renderBudgetPaymentPlan(net) {
@@ -4808,9 +4878,11 @@ function printableHeader(title, context) {
 }
 
 function documentCompanyHeaderRows(context) {
+  const bank = context.budget.paymentPlan?.bankAccount || { bank: "Itau", code: "341", agency: "0568", number: "99307-5" };
+  const bankDetails = [bank.holder, bank.document, bank.pix ? `PIX: ${bank.pix}` : ""].filter(Boolean).map(escapeHtml).join("<br />");
   return `<tr><td colspan="4" rowspan="3" class="logo-cell"><img class="order-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" /></td><td colspan="8" class="label">Cabana Moveis Sob Medida Ltda</td><td colspan="2" class="label">CNPJ</td><td colspan="6">47.946.284/0001-77</td><td colspan="6" class="section">Contrato No</td></tr>
     <tr><td colspan="9" class="order-small">Avenida Vida Nova, 28, Sala 806-B, Jardim Maria Rosa - Taboao da Serra, SP</td><td colspan="2" class="label">Tel.</td><td colspan="5">11 95909-3538</td><td colspan="6" class="center strong">${escapeHtml(context.budget.code || "")}</td></tr>
-    <tr><td colspan="6">cabanamoveissobmedida@gmail.com</td><td class="label">Bco</td><td colspan="3">Itau - 341</td><td class="label">Ag</td><td>0568</td><td class="label">CC</td><td colspan="3">99307-5</td><td colspan="6"></td></tr>`;
+    <tr><td colspan="6">cabanamoveissobmedida@gmail.com</td><td class="label">Bco</td><td colspan="3">${escapeHtml([bank.bank, bank.code].filter(Boolean).join(" - "))}</td><td class="label">Ag</td><td>${escapeHtml(bank.agency || "—")}</td><td class="label">CC</td><td colspan="3">${escapeHtml(bank.number || "—")}</td><td colspan="6" class="order-small">${bankDetails}</td></tr>`;
 }
 
 function documentWithRepeatingHeader(context, content) {
@@ -8321,6 +8393,12 @@ document.querySelector("#budgetPaymentEntry")?.addEventListener("blur", (event) 
   event.currentTarget.value = formatMoneyInput(parseMoney(event.currentTarget.value));
   updateBudgetSummary();
 });
+document.querySelector("#budgetBankAccountSelect")?.addEventListener("change", (event) => {
+  const account = documentBankAccounts().find((item) => item.id === event.target.value);
+  writeDocumentBankAccount(account || {});
+  markBudgetDirty();
+});
+document.querySelector("#budgetBankRegister")?.addEventListener("click", registerDocumentBankAccount);
 [
   "#budgetCreatedAt",
   "#budgetSaleAt",

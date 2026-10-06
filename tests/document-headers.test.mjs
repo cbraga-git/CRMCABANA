@@ -56,3 +56,16 @@ test("identificação do contrato é escapada no cabeçalho compartilhado", () =
   assert.doesNotMatch(header, /<script>/);
   assert.match(header, /&lt;script>/);
 });
+
+test("conta escolhida aparece em todas as páginas do pedido, contrato e orçamento", () => {
+  const custom = { ...input, budget: { ...input.budget, paymentPlan: { ...input.budget.paymentPlan,
+    bankAccount: { bank: "Santander", code: "033", agency: "1234", number: "98765-0", holder: "Cabana", pix: "financeiro@example.test" } } } };
+  for (const build of [api.buildOrderDocument, api.buildQuoteDocument]) {
+    for (const page of build(custom).body.split('<section class="print-page ').slice(1)) {
+      assert.match(page, /Santander - 033/);
+      assert.match(page, /98765-0/);
+      assert.match(page, /financeiro@example.test/);
+      assert.doesNotMatch(page, /99307-5/);
+    }
+  }
+});
