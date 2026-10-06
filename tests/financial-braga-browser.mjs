@@ -68,6 +68,11 @@ async function scenario(email, role, missingPersonal = false) {
 try {
   const owner = await scenario("fernandes.braga@gmail.com", "admin");
   await owner.page.locator('body[data-view="financeTransactions"]').waitFor();
+  assert.equal(await owner.page.locator("#financialSubmenu").isVisible(), false);
+  assert.equal(await owner.page.locator("#financialNavToggle").getAttribute("aria-expanded"), "false");
+  await owner.page.evaluate(() => renderFinanceModuleView("financeTransactions"));
+  assert.equal(await owner.page.locator("#financialSubmenu").isVisible(), false);
+  checks += 3;
   assert.equal(await owner.page.locator("#bragaFinancialNavGroup").isVisible(), true);
   await owner.page.locator("#bragaFinancialNavToggle").click();
   await owner.page.locator('#bragaFinancialSubmenu [data-view="financeTransactions"]').click();
@@ -80,6 +85,7 @@ try {
   await owner.page.locator("#financialColumnPicker summary").click();
   await owner.page.locator('[data-financial-column="notes"]').check();
   assert.equal(await owner.page.locator("#financialEntryRows .financial-entry-notes").isVisible(), true);
+  await owner.page.locator("#financialNavToggle").click();
   await owner.page.locator('#financialSubmenu [data-view="financeTransactions"]').click();
   await owner.page.locator('body[data-financial-scope="company"]').waitFor();
   assert.notEqual(await owner.page.locator("body").evaluate((node) => getComputedStyle(node).backgroundImage), "none");
@@ -108,6 +114,9 @@ try {
 
   const regularOwner = await scenario("fernandes.braga@gmail.com", "user");
   await regularOwner.page.locator('body[data-financial-scope="braga"]').waitFor();
+  assert.equal(await regularOwner.page.locator("#bragaFinancialSubmenu").isVisible(), false);
+  assert.equal(await regularOwner.page.locator("#bragaFinancialNavToggle").getAttribute("aria-expanded"), "false");
+  checks += 2;
   assert.equal(await regularOwner.page.locator("#bragaFinancialNavGroup").isVisible(), true);
   assert.equal(await regularOwner.page.locator("#financialNavGroup").isVisible(), false);
   assert.ok(regularOwner.requests.filter((request) => request.table.includes("financial_")).every((request) => request.table.startsWith("crm_braga_financial_")));
@@ -151,6 +160,7 @@ try {
     migration.page.removeAllListeners("dialog");
     const messages = [];
     migration.page.on("dialog", async (dialog) => { messages.push(dialog.message()); await dialog.accept(); });
+    await migration.page.locator("#bragaFinancialNavToggle").click();
     await migration.page.locator('#bragaFinancialSubmenu [data-view="financeImport"]').click();
     await migration.page.locator('body[data-view="financeImport"]').waitFor();
     await migration.page.locator("#financialMigrationFile").setInputFiles(process.env.MOBILLS_WORKBOOK);

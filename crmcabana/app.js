@@ -1781,7 +1781,7 @@ function renderFinanceModuleView(view) {
   if (showingImport) renderFinancialImports();
   const submenu = state.financialScope === "braga" ? document.querySelector("#bragaFinancialSubmenu") : elements.financialSubmenu;
   const toggle = state.financialScope === "braga" ? document.querySelector("#bragaFinancialNavToggle") : elements.financialNavToggle;
-  if (submenu?.hidden) {
+  if (submenu?.hidden && !startsInFinanceTransactions()) {
     submenu.hidden = false;
     toggle?.setAttribute("aria-expanded", "true");
   }
@@ -8640,6 +8640,12 @@ async function startApp() {
   refreshEnvironmentCatalog();
   state.selectedId = state.clients[0]?.id || null;
   const initialView = startsInFinanceTransactions() ? "financeTransactions" : isAdmin() ? "budget" : "clients";
+  if (startsInFinanceTransactions()) {
+    for (const [toggleId, submenuId] of [["financialNavToggle", "financialSubmenu"], ["bragaFinancialNavToggle", "bragaFinancialSubmenu"]]) {
+      document.querySelector(`#${toggleId}`).setAttribute("aria-expanded", "false");
+      document.querySelector(`#${submenuId}`).hidden = true;
+    }
+  }
   state.view = initialView;
   await showView(initialView, undefined, canAccessBragaFinance() && !isAdmin() ? "braga" : "company");
   render();
