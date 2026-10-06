@@ -171,7 +171,7 @@ test("nao lanca status excluidos e aceita receitas diferentes do liquido", () =>
 });
 
 test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao duplica", async () => {
-  const syncStart = app.indexOf("async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = \"effective\") {");
+  const syncStart = app.indexOf("async function syncBudgetFinancialEntries(budget, client,");
   const syncEnd = app.indexOf("\nasync function saveBudget(options = {})", syncStart);
   assert.ok(syncStart >= 0 && syncEnd > syncStart);
   const writes = [];

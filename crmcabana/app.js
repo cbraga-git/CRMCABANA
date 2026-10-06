@@ -5795,9 +5795,16 @@ async function fetchBudgetFinancialEntries(ids) {
   return response.json();
 }
 
-async function validateBudgetPaymentTransition(budget, previousBudget) {
+async function validateBudgetPaymentTransition(budget, previousBudget, options = {}) {
   if (!previousBudget?.financialLaunchedAt && !previousBudget?.financialSimulationAt) return;
   const pairs = await budgetFinancialEntryIds(budget);
+  const simulation = options.simulation ?? Boolean(previousBudget.financialSimulationAt && !previousBudget.financialLaunchedAt);
+  if (simulation) {
+    const paid = (await fetchBudgetFinancialEntries(pairs.map(([, id]) => id))).filter((entry) => entry.status === "paid");
+    if (paid.some((entry) => !/^simulado\s*-\s*/i.test(String(entry.description || "")))) throw new Error("Existem transações pagas de lançamento final. O ajuste da simulação foi cancelado para proteger o financeiro.");
+    if (paid.length && !confirm(`Esta simulação possui ${paid.length} transação(ões) paga(s) ou recebida(s). O ajuste poderá alterar valores e vencimentos ou excluir parcelas substituídas, afetando os saldos. Deseja continuar?`)) throw new Error("Ajuste da simulação cancelado. Nenhuma alteração foi salva.");
+    return paid.map((entry) => entry.id);
+  }
   const activeKeys = budget.paymentPlan?.enabled
     ? new Set([...(budget.paymentPlan.entry > 0 ? ["plan-entry"] : []), ...Array.from({ length: budget.paymentPlan.months }, (_, index) => `plan-income-${index + 1}`)])
     : new Set(["income-1", "income-2", "income-3"]);
@@ -5830,7 +5837,7 @@ async function reconcileBudgetFinancialStatus(clientId, budget) {
   return true;
 }
 
-async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = "effective") {
+async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = "effective", options = {}) {
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("O financeiro precisa estar conectado ao banco para lançar o orçamento.");
   const pairs = await budgetFinancialEntryIds(budget);
   const idByKey = new Map(pairs);
@@ -5845,10 +5852,14 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   const current = new Map(existing.map((entry) => [entry.id, entry]));
   const plannedKeys = new Set(plan.map((item) => item.key));
   const obsoletePayments = pairs.filter(([key, id]) => /^(income-|plan-)/.test(key) && !plannedKeys.has(key) && current.has(id));
-  if (obsoletePayments.some(([, id]) => current.get(id).status === "paid")) throw new Error("Existem parcelas recebidas no plano anterior. Não é possível trocar o modelo ou remover essas parcelas do financiamento.");
+  const canAdjustPaid = (entry) => mode === "simulation" && !budget.financialLaunchedAt && /^simulado\s*-\s*/i.test(String(entry?.description || ""));
+  if (obsoletePayments.some(([, id]) => current.get(id).status === "paid" && !canAdjustPaid(current.get(id)))) throw new Error("Existem parcelas recebidas no plano anterior. Não é possível trocar o modelo ou remover essas parcelas do financiamento.");
+  const approvedPaidIds = new Set(options.approvedPaidIds || []);
+  const unapprovedPaid = existing.filter((entry) => entry.status === "paid" && canAdjustPaid(entry) && !approvedPaidIds.has(entry.id));
+  if (unapprovedPaid.length && !confirm(`Esta simulação possui ${unapprovedPaid.length} transação(ões) paga(s) ou recebida(s). O ajuste poderá alterar valores e vencimentos ou excluir parcelas substituídas, afetando os saldos. Deseja continuar?`)) throw new Error("Ajuste da simulação cancelado.");
   const originalAssembly = current.get(idByKey.get("assembly"));
   const plannedAssembly = plan.find((item) => item.key === "assembly");
-  const legacyPaidAssembly = originalAssembly?.status === "paid"
+  const legacyPaidAssembly = !canAdjustPaid(originalAssembly) && originalAssembly?.status === "paid"
     && !current.has(idByKey.get("assemblyFinal"))
     && budgetFinancialCents(originalAssembly.amount) !== budgetFinancialCents(plannedAssembly?.amount);
   const result = { created: 0, updated: 0, deleted: 0, paid: 0, linked: true };
@@ -5856,7 +5867,7 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     if (item.key === "assemblyFinal" && legacyPaidAssembly) continue;
     const id = idByKey.get(item.key);
     const previous = current.get(id);
-    if (previous?.status === "paid") { result.paid++; continue; }
+    if (previous?.status === "paid" && !canAdjustPaid(previous)) { result.paid++; continue; }
     if (!item.amount) {
       if (previous) {
         const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`, "company"), () => ({ method: "DELETE", headers: supabaseHeaders() }));
@@ -5997,7 +6008,8 @@ async function saveBudget(options = {}) {
     try { calculateBudgetPaymentPlan(budgetTotals(calculateBudgetRows(rows, settings), settings).net, budgetPayload.paymentPlan); }
     catch (error) { alert(error.message); return false; }
   }
-  try { await validateBudgetPaymentTransition(budgetPayload, previousBudget); }
+  let approvedPaidIds = [];
+  try { approvedPaidIds = await validateBudgetPaymentTransition(budgetPayload, previousBudget, { simulation: !effectiveFinancialAction && !deleteSimulationAction && !previousBudget?.financialLaunchedAt && Boolean(simulationFinancialAction || previousBudget?.financialSimulationAt) }) || []; }
   catch (error) { alert(error.message); return false; }
   if (financialAction && !deleteSimulationAction) {
     if (!budgetFinancialStatusAllowed(budgetStatus)) { alert("O financeiro não pode ser lançado ou simulado para orçamento Novo, Recusado ou Finalizado."); return false; }
@@ -6053,7 +6065,7 @@ async function saveBudget(options = {}) {
   let financialError = null;
   try {
     if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "effective");
-    else if (budgetPayload.financialSimulationAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "simulation");
+    else if (budgetPayload.financialSimulationAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "simulation", { approvedPaidIds });
   }
   catch (error) { financialError = error; }
   refreshEnvironmentCatalog(rows.map((row) => row.name));
