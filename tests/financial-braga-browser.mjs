@@ -174,6 +174,11 @@ try {
     document.querySelector("#budgetClientSelect").value = "bank-client";
   });
   assert.equal(await documentBank.page.locator("#budgetBankCode").inputValue(), "341");
+  assert.equal(await documentBank.page.locator("#budgetLegacyPayments").isVisible(), false);
+  await documentBank.page.locator("#budgetPaymentEnabled").uncheck();
+  assert.equal(await documentBank.page.locator("#budgetLegacyPayments").isVisible(), true);
+  await documentBank.page.locator("#budgetPaymentEnabled").check();
+  assert.equal(await documentBank.page.locator("#budgetLegacyPayments").isVisible(), false);
   await documentBank.page.locator("#budgetBankAccountSelect").selectOption("");
   await documentBank.page.locator("#budgetBankLabel").fill("Cabana Santander");
   await documentBank.page.locator("#budgetBankName").fill("Santander");
@@ -193,7 +198,16 @@ try {
   assert.equal(await documentBank.page.locator("#budgetBankCode").inputValue(), "341");
   await documentBank.page.evaluate((account) => fillBudgetPaymentPlan({ enabled: false, bankAccount: account }), chosen);
   assert.equal(await documentBank.page.locator("#budgetBankNumber").inputValue(), "98765-0");
-  checks += 8;
+  assert.equal(await documentBank.page.locator("#budgetLegacyPayments").isVisible(), true);
+  await documentBank.page.evaluate(async () => {
+    state.budgetDirty = false;
+    await showView("order");
+    await openBudgetEditor("bank-client", { blank: true });
+  });
+  assert.equal(await documentBank.page.locator("#budgetLegacyPayments").isVisible(), false);
+  await documentBank.page.locator("#budgetPaymentEnabled").uncheck();
+  assert.equal(await documentBank.page.locator("#budgetLegacyPayments").isVisible(), true);
+  checks += 14;
   await documentBank.context.close();
   assert.deepEqual(errors, []);
   console.log(`Financeiro Braga: ${checks} browser checks passed (owner, other admin, isolated CRUD, column preferences and missing migration).`);

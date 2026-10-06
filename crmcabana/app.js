@@ -4271,6 +4271,8 @@ function fillBudgetPaymentPlan(value) {
   if (!plan.enabled && plan.months === 3) plan.months = 2;
   state.budgetPaymentDueDates = { ...plan.dueDates };
   document.querySelector("#budgetPaymentEnabled").checked = plan.enabled;
+  const legacyPayments = document.querySelector("#budgetLegacyPayments");
+  if (legacyPayments) legacyPayments.hidden = plan.enabled;
   const months = document.querySelector("#budgetPaymentMonths");
   months.innerHTML = Array.from({ length: 24 }, (_, index) => `<option value="${index + 1}">${index + 1} ${index ? "parcelas" : "parcela"}</option>`).join("");
   for (const [field, key] of [["Months", "months"], ["EntryMethod", "entryMethod"], ["Method", "method"], ["EntryDate", "entryDate"], ["FirstDueDate", "firstDueDate"]]) document.querySelector(`#budgetPayment${field}`).value = String(plan[key]);
@@ -4286,6 +4288,8 @@ function renderBudgetPaymentPlan(net) {
   const error = document.querySelector("#budgetPaymentError");
   if (!error) return;
   const plan = readBudgetPaymentPlan();
+  const legacyPayments = document.querySelector("#budgetLegacyPayments");
+  if (legacyPayments) legacyPayments.hidden = plan.enabled;
   const hint = document.querySelector("#budgetPaymentHint");
   hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${plan.rate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} Pode haver ajuste de centavos entre parcelas.`;
   try {

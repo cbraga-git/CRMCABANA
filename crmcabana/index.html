@@ -562,7 +562,7 @@
                 <p id="budgetPaymentError" class="budget-payment-error" role="alert" hidden></p>
                 <details><summary>Ver parcelas</summary><div class="table-wrap"><table class="cash-payment-table"><thead><tr><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Forma de pagamento</th></tr></thead><tbody id="budgetPaymentSchedule"></tbody></table></div></details>
               </section>
-              <section class="payments-grid" aria-label="Pagamentos">
+              <section class="payments-grid" id="budgetLegacyPayments" aria-label="Pagamentos">
                 <article class="budget-panel cash-payment-card">
                   <h2>Pagamento a vista</h2>
                   <table class="cash-payment-table">
@@ -1238,6 +1238,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=172"></script>
+    <script src="app.js?v=173"></script>
   </body>
 </html>
