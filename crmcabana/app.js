@@ -1734,6 +1734,12 @@ async function showView(view, selectedId, requestedFinancialScope) {
   });
   elements.financialNavGroup?.classList.toggle("active", state.financialScope === "company" && (view === "financial" || isFinanceModuleView(view)));
   document.querySelector("#bragaFinancialNavGroup")?.classList.toggle("active", state.financialScope === "braga" && financialView);
+  const configActive = ["users", "environments", "budgetStatuses", "maintenance"].includes(view);
+  document.querySelector("#configNavGroup")?.classList.toggle("active", configActive);
+  if (configActive) {
+    document.querySelector("#configNavToggle").setAttribute("aria-expanded", "true");
+    document.querySelector("#configSubmenu").hidden = false;
+  }
   if (isFinanceModuleView(view)) renderFinanceModuleView(view);
   if (view === "reports") renderReportsView();
   const scopeMessage = document.querySelector("#financialScopeMessage");
@@ -7837,6 +7843,13 @@ elements.logoutBtn.addEventListener("click", async () => {
   signOut();
 });
 elements.sidebarToggle?.addEventListener("click", toggleSidebar);
+document.querySelector("#configNavToggle")?.addEventListener("click", () => {
+  const toggle = document.querySelector("#configNavToggle");
+  const expanded = toggle.getAttribute("aria-expanded") === "true";
+  toggle.setAttribute("aria-expanded", String(!expanded));
+  document.querySelector("#configSubmenu").hidden = expanded;
+});
+
 elements.financialNavToggle?.addEventListener("click", () => {
   const expanded = elements.financialNavToggle.getAttribute("aria-expanded") === "true";
   elements.financialNavToggle.setAttribute("aria-expanded", String(!expanded));

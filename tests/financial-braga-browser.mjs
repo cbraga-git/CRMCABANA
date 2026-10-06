@@ -112,6 +112,10 @@ try {
   assert.equal(await regularOwner.page.locator("#financialNavGroup").isVisible(), false);
   assert.ok(regularOwner.requests.filter((request) => request.table.includes("financial_")).every((request) => request.table.startsWith("crm_braga_financial_")));
   checks += 3;
+  await regularOwner.page.locator("#configNavToggle").click();
+  assert.equal(await regularOwner.page.locator('#configSubmenu [data-view="environments"]').isVisible(), true);
+  for (const id of ["usersNavItem", "budgetStatusesNavItem", "maintenanceNavItem"]) assert.equal(await regularOwner.page.locator(`#${id}`).isVisible(), false);
+  checks += 4;
   await regularOwner.context.close();
 
   const otherAdmin = await scenario("other@example.com", "admin");
@@ -121,6 +125,15 @@ try {
   assert.equal(await otherAdmin.page.evaluate(() => state.financialScope), "company");
   assert.ok(!otherAdmin.requests.some((request) => request.table.startsWith("crm_braga_financial_")));
   checks += 3;
+  await otherAdmin.page.locator("#configNavToggle").click();
+  for (const view of ["users", "environments", "budgetStatuses", "maintenance"]) {
+    await otherAdmin.page.locator(`#configSubmenu [data-view="${view}"]`).click();
+    await otherAdmin.page.locator(`body[data-view="${view}"]`).waitFor();
+    assert.equal(await otherAdmin.page.locator("#configNavGroup").evaluate((node) => node.classList.contains("active")), true);
+  }
+  await otherAdmin.page.locator("#configNavToggle").click();
+  assert.equal(await otherAdmin.page.locator("#configSubmenu").isVisible(), false);
+  checks += 5;
   await otherAdmin.context.close();
 
   const unavailable = await scenario("fernandes.braga@gmail.com", "admin", true);
