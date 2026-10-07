@@ -5815,16 +5815,21 @@ async function validateBudgetPaymentTransition(budget, previousBudget, options =
 }
 
 async function reconcileBudgetFinancialStatus(clientId, budget) {
-  if (!budget || (!budget.financialLaunchedAt && !budget.financialSimulationAt)) return false;
+  if (!budget?.id) return false;
+  const hasFinancialStatus = Boolean(budget.financialLaunchedAt || budget.financialSimulationAt);
+  if (!hasFinancialStatus && (!remoteDatabaseEnabled() || !currentUserId())) return false;
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("Conecte o CRM ao banco para conferir o lançamento financeiro do orçamento.");
   const pairs = await budgetFinancialEntryIds(budget);
   const entries = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
   if (!Array.isArray(entries)) throw new Error("Não foi possível conferir o lançamento financeiro do orçamento.");
-  if (entries.length) return false;
+  if (entries.length && hasFinancialStatus) return false;
+  if (!entries.length && !hasFinancialStatus) return false;
+  const simulated = entries.length > 0 && entries.every((entry) => /^simulado\s*-\s*/i.test(String(entry.description || "")));
+  const restoredAt = entries.length ? new Date().toISOString() : "";
   const client = state.clients.find((item) => item.id === clientId);
   if (!client) return false;
   const clearStatus = (item) => budgetIdentity(item) === budgetIdentity(budget)
-    ? { ...item, financialLaunchedAt: "", financialSimulationAt: "" }
+    ? { ...item, financialLaunchedAt: simulated ? "" : restoredAt, financialSimulationAt: simulated ? restoredAt : "" }
     : item;
   state.clients = state.clients.map((item) => item.id === clientId
     ? { ...item, budget: item.budget ? clearStatus(item.budget) : item.budget, budgets: (item.budgets || []).map(clearStatus) }
@@ -5832,7 +5837,7 @@ async function reconcileBudgetFinancialStatus(clientId, budget) {
   if (!(await saveClients([clientId]))) {
     state.clients = state.clients.map((item) => item.id === clientId ? client : item);
     await saveClients();
-    throw new Error("As transações não existem mais, mas não foi possível confirmar a atualização do orçamento. Reabra o orçamento para conferir novamente.");
+    throw new Error("Não foi possível confirmar a atualização da referência financeira do orçamento. Reabra o orçamento para conferir novamente.");
   }
   return true;
 }
