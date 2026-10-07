@@ -2550,6 +2550,7 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-payment-plan { margin-bottom: 12px; }
+.budget-payment-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 8px; }
 .budget-payment-enabled { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
 .budget-payment-enabled input { width: auto; }
 .budget-payment-plan .budget-finance-grid > div { display: block !important; }

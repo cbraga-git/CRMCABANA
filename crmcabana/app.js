@@ -4223,7 +4223,7 @@ function calculateBudgetPaymentPlan(net, value) {
     const dueDate = Object.hasOwn(plan.dueDates, key) ? budgetPaymentMonthDate(plan.dueDates[key], 0) : budgetPaymentMonthDate(plan.firstDueDate, index);
     payments.push({ key, parcel: `${index + 1}/${plan.months}`, amount: (lowerCents + (index >= plan.months - extraCents ? 1 : 0)) / 100, dueDate, method: plan.method });
   }
-  return { net: netCents / 100, entry: entryCents / 100, balance: balanceCents / 100, installment: installmentCents / 100, interest: (financedTotalCents - balanceCents) / 100, total: (entryCents + financedTotalCents) / 100, payments, cashPayment, effectiveRate };
+  return { net: netCents / 100, entry: entryCents / 100, balance: balanceCents / 100, installment: installmentCents / 100, interest: (financedTotalCents - balanceCents) / 100, financedTotal: financedTotalCents / 100, total: (entryCents + financedTotalCents) / 100, payments, cashPayment, effectiveRate };
 }
 
 function readBudgetPaymentPlan() {
@@ -4271,6 +4271,8 @@ function changeBudgetPaymentRate(rate) {
 }
 
 function fillBudgetPaymentPlan(value) {
+  const bankDetails = document.querySelector(".budget-bank-details");
+  if (bankDetails) bankDetails.open = false;
   const plan = normalizeBudgetPaymentPlan(value);
   // Planos ainda não ativados eram criados com 3x antes do padrão Cabana mudar para 2x.
   // Mantemos intactos os planos ativos, pois eles podem já ter movimentação financeira.
@@ -4308,14 +4310,14 @@ function renderBudgetPaymentPlan(net) {
     const alwaysExpanded = result.effectiveRate === 0;
     scheduleDetails.querySelector("summary").hidden = alwaysExpanded;
     if (alwaysExpanded) scheduleDetails.open = true;
-    for (const [field, key] of [["Net", "net"], ["Balance", "balance"], ["Installment", "installment"], ["Interest", "interest"], ["Total", "total"]]) document.querySelector(`#budgetPayment${field}`).textContent = BRL.format(result[key]);
+    for (const [field, key] of [["Net", "net"], ["Balance", "balance"], ["Installment", "installment"], ["Interest", "interest"], ["FinancedTotal", "financedTotal"], ["Total", "total"]]) document.querySelector(`#budgetPayment${field}`).textContent = BRL.format(result[key]);
     document.querySelector("#budgetPaymentSchedule").innerHTML = result.payments.map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${BRL.format(payment.amount)}</td><td><input type="date" data-budget-payment-due="${payment.key}" value="${payment.dueDate}" aria-label="Vencimento ${escapeHtml(payment.parcel)}" /></td><td>${escapeHtml(payment.method)}</td></tr>`).join("");
     error.hidden = true;
   } catch (failure) {
     if (plan.rateAuto) selectBudgetPaymentRate(document.querySelector("#budgetPaymentRate"), null);
     error.textContent = failure.message;
     error.hidden = false;
-    for (const field of ["Balance", "Installment", "Interest", "Total"]) document.querySelector(`#budgetPayment${field}`).textContent = "—";
+    for (const field of ["Balance", "Installment", "Interest", "FinancedTotal", "Total"]) document.querySelector(`#budgetPayment${field}`).textContent = "—";
     document.querySelector("#budgetPaymentNet").textContent = BRL.format(net);
     document.querySelector("#budgetPaymentSchedule").innerHTML = "";
   }
