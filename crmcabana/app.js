@@ -4046,7 +4046,7 @@ function clientBudget(client) {
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
     deliveryForecastAt: saved.deliveryForecastAt || "",
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
-    paymentPlan: normalizeBudgetPaymentPlan(saved.paymentPlan),
+    paymentPlan: normalizeBudgetPaymentPlan(saved.paymentPlan || { enabled: !saved.id && !saved.code && !saved.updatedAt }),
     assistances: normalizeBudgetAssistances(saved.assistances),
     financialLaunchedAt: saved.financialLaunchedAt || "",
     financialSimulationAt: saved.financialSimulationAt || "",
