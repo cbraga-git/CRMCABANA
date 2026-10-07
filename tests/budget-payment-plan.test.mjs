@@ -175,8 +175,20 @@ test("vencimentos preservam dia original e ajustam fevereiro e meses curtos", ()
 });
 
 test("rejeita entrada excedente, negativa, prazos e taxas inválidos", () => {
-  for (const change of [{ entry: -1 }, { entry: 10001 }, { entry: 1999 }, { months: 0 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
+  for (const change of [{ entry: -1 }, { entry: 10001 }, { months: 0 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
   assert.equal(normalize().enabled, false);
+});
+
+test("entrada inferior a 20% ou zero aceita taxa automática, manual e sem juros", () => {
+  for (const entry of [0, 1000, 1999]) {
+    for (const rate of [null, 0, 1.25]) {
+      const result = calculate(10000, { ...defaults, entry, rate, rateAuto: rate === null });
+      assert.equal(result.balance, 10000 - entry);
+      assert.equal(result.effectiveRate, rate === null ? 2.2 : rate);
+      assert.equal(result.payments.reduce((sum, row) => sum + Math.round(row.amount * 100), 0), Math.round(result.total * 100));
+      if (rate === 0) assert.equal(result.total, 10000);
+    }
+  }
 });
 
 function financialHarness() {

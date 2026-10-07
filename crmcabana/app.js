@@ -4167,7 +4167,6 @@ function budgetPaymentRateFor(netCents, entryCents, months) {
   const rates = BUDGET_PAYMENT_RATE_MATRIX[months] || (months === 1 || months === 2 ? BUDGET_PAYMENT_RATE_MATRIX[3] : null);
   if (!rates) throw new Error("O financiamento próprio está disponível de 1 a 24 parcelas.");
   const entryPercent = entryCents / netCents * 100;
-  if (entryPercent < 20) throw new Error("O financiamento próprio exige entrada mínima de 20%.");
   return rates[entryPercent >= 50 ? 3 : entryPercent >= 40 ? 2 : entryPercent >= 30 ? 1 : 0];
 }
 
