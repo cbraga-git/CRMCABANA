@@ -83,6 +83,36 @@ test("valor do crédito persiste e outras formas de pagamento usam a taxa", () =
   for (const creditAmount of [-1, 0, NaN, Infinity]) assert.throws(() => calculate(10000, { ...saved, creditAmount }), /valor do crédito/);
 });
 
+test("campo de crédito preenche valor inicial e preserva edição durante o recálculo", () => {
+  const nodes = new Map();
+  const node = (selector) => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: "", dataset: {}, querySelector: () => ({}), closest: () => ({ querySelector: () => ({}) }) });
+    return nodes.get(selector);
+  };
+  const input = node("#budgetPaymentCreditAmount");
+  const document = { querySelector: node, activeElement: null };
+  let plan = { ...defaults, method: "Cartão de Credito", creditAmount: null };
+  const render = runInNewContext(`${extract("function renderBudgetPaymentPlan(", "\nfunction renderCashPaymentRows(")}\nrenderBudgetPaymentPlan`, {
+    document, readBudgetPaymentPlan: () => plan, calculateBudgetPaymentPlan: calculate,
+    BRL: context.BRL, formatMoneyInput: (value) => value.toFixed(2).replace(".", ","),
+    selectBudgetPaymentRate: () => {}, escapeHtml: String,
+  });
+  render(10000);
+  assert.equal(input.value, "8000,00");
+  assert.equal(node("#budgetPaymentRateField").hidden, true);
+  assert.equal(node("#budgetPaymentCreditField").hidden, false);
+  document.activeElement = input;
+  input.value = "9000,";
+  plan.creditAmount = 9000;
+  render(10000);
+  assert.equal(input.value, "9000,");
+  assert.equal(node("#budgetPaymentTotal").textContent, context.BRL.format(11000));
+  input.value = "";
+  plan.creditAmount = null;
+  render(10000);
+  assert.equal(input.value, "");
+});
+
 test("entrada mais duas parcelas é à vista mesmo com uma taxa antiga salva", () => {
   const result = calculate(10000, { ...defaults, months: 2, rate: 4, rateAuto: false });
   assert.equal(result.cashPayment, true);

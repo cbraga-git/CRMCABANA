@@ -4310,7 +4310,8 @@ function renderBudgetPaymentPlan(net) {
   hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${plan.rate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} Pode haver ajuste de centavos entre parcelas.`;
   try {
     const result = calculateBudgetPaymentPlan(net, plan);
-    document.querySelector("#budgetPaymentCreditAmount").placeholder = formatMoneyInput(result.balance);
+    const creditInput = document.querySelector("#budgetPaymentCreditAmount");
+    if (creditCard && plan.creditAmount == null && document.activeElement !== creditInput) creditInput.value = formatMoneyInput(result.financedTotal);
     const rateInput = document.querySelector("#budgetPaymentRate");
     rateInput.disabled = result.cashPayment;
     if (!creditCard && (plan.rateAuto || result.cashPayment)) selectBudgetPaymentRate(rateInput, result.effectiveRate);
@@ -8442,6 +8443,13 @@ document.querySelector("#budgetPaymentEntry")?.addEventListener("blur", (event) 
 document.querySelector("#budgetPaymentCreditAmount")?.addEventListener("blur", (event) => {
   if (event.currentTarget.value.trim()) event.currentTarget.value = formatMoneyInput(parseMoney(event.currentTarget.value));
   updateBudgetSummary();
+});
+document.querySelector("#budgetPaymentMethod")?.addEventListener("change", (event) => {
+  if (event.currentTarget.value !== "Cartão de Credito") return;
+  updateBudgetSummary();
+  const creditInput = document.querySelector("#budgetPaymentCreditAmount");
+  creditInput.focus();
+  creditInput.select();
 });
 document.querySelector("#budgetBankAccountSelect")?.addEventListener("change", (event) => {
   const account = documentBankAccounts().find((item) => item.id === event.target.value);
