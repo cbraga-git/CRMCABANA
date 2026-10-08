@@ -56,6 +56,33 @@ test("matriz escolhe a coluna pela maior faixa de entrada atingida", () => {
   assert.equal(calculate(10000, { ...defaults, entry: 5000, months: 6 }).effectiveRate, 1.2);
 });
 
+test("cartão divide o valor do crédito informado e ignora taxa mensal", () => {
+  for (const months of [2, 10, 24]) {
+    const result = calculate(10000, { ...defaults, method: "Cartão de Credito", creditAmount: 9000.01, months, rate: 3.3, rateAuto: false });
+    assert.equal(result.creditCard, true);
+    assert.equal(result.cashPayment, false);
+    assert.equal(result.effectiveRate, 0);
+    assert.equal(result.financedTotal, 9000.01);
+    assert.equal(result.total, 11000.01);
+    const installments = result.payments.filter((item) => item.key !== "plan-entry");
+    assert.equal(installments.length, months);
+    assert.equal(installments.reduce((sum, item) => sum + Math.round(item.amount * 100), 0), 900001);
+    assert.ok(installments.every((item) => item.method === "Cartão de Credito"));
+  }
+});
+
+test("valor do crédito persiste e outras formas de pagamento usam a taxa", () => {
+  const saved = normalize({ ...defaults, method: "Cartão de Credito", creditAmount: 9000 });
+  assert.equal(saved.creditAmount, 9000);
+  assert.equal(calculate(10000, saved).financedTotal, 9000);
+  const boleto = calculate(10000, { ...saved, method: "Boleto" });
+  assert.equal(boleto.total, 11189.59);
+  assert.equal(boleto.effectiveRate, 2.2);
+  const noAmount = calculate(10000, { ...defaults, method: "Cartão de Credito" });
+  assert.equal(noAmount.financedTotal, 8000);
+  for (const creditAmount of [-1, 0, NaN, Infinity]) assert.throws(() => calculate(10000, { ...saved, creditAmount }), /valor do crédito/);
+});
+
 test("entrada mais duas parcelas é à vista mesmo com uma taxa antiga salva", () => {
   const result = calculate(10000, { ...defaults, months: 2, rate: 4, rateAuto: false });
   assert.equal(result.cashPayment, true);
@@ -235,6 +262,16 @@ test("financeiro exige vencimentos e simulação identifica as novas receitas", 
   assert.equal(incomes[1].due_date, defaults.firstDueDate);
 });
 
+test("lançamentos do cartão somam crédito informado mais entrada", () => {
+  const h = financialHarness();
+  h.budget.paymentPlan = { ...defaults, months: 10, method: "Cartão de Credito", creditAmount: 9000 };
+  const incomes = h.budgetFinancialPlan(h.budget, { name: "Cliente" }, "2026-09-26", { id: "account" }, h.categories).filter((row) => row.entry_type === "income");
+  assert.equal(incomes.length, 11);
+  assert.equal(incomes[0].amount, 2000);
+  assert.ok(incomes.slice(1).every((row) => row.amount === 900));
+  assert.equal(incomes.reduce((sum, row) => sum + row.amount, 0), 11000);
+});
+
 test("documentos incluem todas as parcelas e novo quadro antecede quadro preservado", () => {
   const ctx = {
     ...context, calculateBudgetPaymentPlan: calculate, escapeHtml: String,
@@ -251,6 +288,12 @@ test("documentos incluem todas as parcelas e novo quadro antecede quadro preserv
   input.budget.paymentPlan.months = 24;
   assert.match(functions.buildBudgetPaymentPlanDocument(input), /3,3% a.m./);
   assert.ok(html.indexOf('id="budgetPaymentPlanPanel"') < html.indexOf('id="cashPaymentRows"'));
+  input.budget.paymentPlan = { ...defaults, months: 10, method: "Cartão de Credito", creditAmount: 9000 };
+  const cardDocument = functions.buildBudgetPaymentPlanDocument(input);
+  assert.ok(cardDocument.includes(`Valor do crédito: ${context.BRL.format(9000)}`));
+  assert.ok(cardDocument.includes(`Total com entrada: ${context.BRL.format(11000)}`));
+  assert.doesNotMatch(cardDocument, /Tabela Price/);
+  assert.equal(functions.orderPaymentRows(input)[1].value, context.BRL.format(900));
 });
 
 test("sincronização substitui receitas antigas, atualiza vencimentos e não duplica", async () => {
