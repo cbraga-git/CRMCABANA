@@ -5129,7 +5129,7 @@ function buildBudgetPaymentPlanDocument(context) {
     <h2>Plano de pagamento — ${escapeHtml(context.budget.code || "")}</h2>
     <p>${plan.cashPayment ? "Pagamento à vista" : "Financiamento"}</p>
     <p>${escapeHtml(context.client.name || "")}</p>
-    <div class="totals">${printField("Valor líquido", BRL.format(plan.net))}${printField("Entrada à vista", BRL.format(plan.entry))}${printField("Saldo financiado", BRL.format(plan.balance))}${plan.creditCard ? printField("Valor do crédito", BRL.format(plan.financedTotal)) : `${printField("Juros", rate ? `${formatPercent(rate / 100)} a.m. — Tabela Price` : "Sem juros")}${printField("Total de juros", BRL.format(plan.interest))}`}${printField("Total com entrada", BRL.format(plan.total))}</div>
+    <div class="totals">${printField("Valor líquido", BRL.format(plan.net))}${printField("Entrada à vista", BRL.format(plan.entry))}${printField("Saldo financiado", BRL.format(plan.balance))}${plan.creditCard ? printField("Valor do crédito", BRL.format(plan.financedTotal)) : ""}${printField("Juros", plan.creditCard ? "" : rate ? `${formatPercent(rate / 100)} a.m. — Tabela Price` : "Sem juros")}${printField("Total de juros", plan.creditCard ? "" : BRL.format(plan.interest))}${printField("Total com entrada", BRL.format(plan.total))}</div>
     <table><thead><tr><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Forma de pagamento</th></tr></thead><tbody>${orderPaymentRows(context).map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${escapeHtml(payment.value)}</td><td>${escapeHtml(payment.dueDate)}</td><td>${escapeHtml(payment.method)}</td></tr>`).join("")}</tbody></table>
     <p>Os valores das parcelas incluem eventuais ajustes de centavos.</p>
   `;
@@ -5180,7 +5180,7 @@ function buildQuoteDocument(context) {
         ${printField("Total diaria", BRL.format(context.totals.dailyTotal))}
         ${printField("Base financiada", BRL.format(paymentPlan ? paymentPlan.balance : context.totals.financedBase))}
         ${printField("Valor parcela", BRL.format(paymentPlan ? paymentPlan.installment : context.totals.installmentValue))}
-        ${printField(paymentPlan ? "Total de juros" : "Retencao", BRL.format(paymentPlan ? paymentPlan.interest : context.totals.retentionValue))}
+        ${printField(paymentPlan ? "Total de juros" : "Retencao", paymentPlan?.creditCard ? "" : BRL.format(paymentPlan ? paymentPlan.interest : context.totals.retentionValue))}
         ${printField("Total financiamento", BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal))}
       </div>
     </section>

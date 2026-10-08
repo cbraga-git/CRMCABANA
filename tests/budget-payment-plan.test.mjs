@@ -293,7 +293,26 @@ test("documentos incluem todas as parcelas e novo quadro antecede quadro preserv
   assert.ok(cardDocument.includes(`Valor do crédito: ${context.BRL.format(9000)}`));
   assert.ok(cardDocument.includes(`Total com entrada: ${context.BRL.format(11000)}`));
   assert.doesNotMatch(cardDocument, /Tabela Price/);
+  assert.ok(cardDocument.includes("<div>Juros: </div>"));
+  assert.ok(cardDocument.includes("<div>Total de juros: </div>"));
   assert.equal(functions.orderPaymentRows(input)[1].value, context.BRL.format(900));
+});
+
+test("orçamento impresso deixa juros em branco para cartão e mantém juros de boleto", () => {
+  const buildQuote = runInNewContext(`${extract("function buildQuoteDocument(", "\nfunction openPrintableHtml(")}\nbuildQuoteDocument`, {
+    ...context, calculateBudgetPaymentPlan: calculate, escapeHtml: String,
+    printField: (label, value) => `<div>${label}: ${value}</div>`,
+    printableHeader: () => "", printableClientSection: () => "", formatPercent: String,
+    documentWithRepeatingHeader: (_, content) => content,
+    buildBudgetPaymentPlanDocument: () => "", printableDocumentShell: (_, body) => body,
+  });
+  const input = { rows: [], client: {}, budget: { paymentPlan: { ...defaults, method: "Cartão de Credito", creditAmount: 9000 } }, totals: { net: 10000 } };
+  const card = buildQuote(input).body;
+  assert.ok(card.includes("<div>Total de juros: </div>"));
+  assert.ok(card.includes(`Valor parcela: ${context.BRL.format(750)}`));
+  assert.ok(card.includes(`Total financiamento: ${context.BRL.format(11000)}`));
+  input.budget.paymentPlan.method = "Boleto";
+  assert.ok(buildQuote(input).body.includes(`Total de juros: ${context.BRL.format(1189.59)}`));
 });
 
 test("sincronização substitui receitas antigas, atualiza vencimentos e não duplica", async () => {
