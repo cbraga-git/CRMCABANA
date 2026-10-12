@@ -200,6 +200,7 @@ const state = {
   environmentTypes: {},
   budgetStatuses: DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status })),
   financialAccounts: [],
+  financialAccountTypeFilter: "all",
   financialScope: "company",
   financialOperations: 0,
   financialNavigationPending: false,
@@ -1111,7 +1112,7 @@ function financialScopeBusy() {
 
 function resetFinancialScopeData() {
   Object.assign(state, {
-    financialAccounts: [], financialCategories: [], financialEntries: [], financialImports: [], financialStatementItems: [],
+    financialAccounts: [], financialAccountTypeFilter: "all", financialCategories: [], financialEntries: [], financialImports: [], financialStatementItems: [],
     financialEditingAccountId: null, financialEditingCategoryId: null, financialEditingEntryId: null,
     financialEntryDraftTags: [], financialTagEntries: null, financialTagEditingName: null,
     financialSelectedImportId: null, financialCategoryTargetItemId: null, financialCategoryTargetEntry: false,
@@ -1939,7 +1940,9 @@ function renderFinancialAccounts() {
   const { end } = financialMonthBounds(period);
   const priority = ["mercado pago", "itau", "santander"];
   const normalizedName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
-  const accounts = [...state.financialAccounts].sort((first, second) => {
+  const accountTypeFilter = state.financialAccountTypeFilter || "all";
+  document.querySelector("#financialAccountsTypeFilter").value = accountTypeFilter;
+  const accounts = state.financialAccounts.filter((account) => accountTypeFilter === "bank" ? account.account_type === "bank" : accountTypeFilter === "other" ? account.account_type !== "bank" : true).sort((first, second) => {
     if (state.financialScope === "braga") {
       const prefix = (account) => {
         const digits = String(account.name || "").match(/^\d{2}/);
@@ -2727,7 +2730,7 @@ function openFinancialEntryDialog(entryId = null, duplicate = false) {
   state.financialEditingEntryId = duplicate ? null : entry?.id || null;
   elements.financialEntryForm.reset();
   fillFinancialEntryOptions();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   document.querySelector("#financialEntryDialogTitle").textContent = duplicate ? "Duplicar lançamento" : entry ? "Editar lançamento" : "Novo lançamento";
   document.querySelector("#financialEntryType").value = entry?.entry_type || financialEntryViewType() || "expense";
   document.querySelector("#financialEntryStatus").value = entry?.status === "overdue" ? "pending" : entry?.status || "pending";
@@ -2737,9 +2740,9 @@ function openFinancialEntryDialog(entryId = null, duplicate = false) {
   document.querySelector("#financialEntryAccount").value = entry?.account_id || state.financialAccounts.find((item) => item.active)?.id || "";
   document.querySelector("#financialEntryTransferAccount").value = entry?.transfer_account_id || "";
   document.querySelector("#financialEntryCategory").value = entry?.category_id || "";
-  document.querySelector("#financialEntryIssueDate").value = entry?.issue_date || today;
-  document.querySelector("#financialEntryCompetenceDate").value = entry?.competence_date || today;
-  document.querySelector("#financialEntryDueDate").value = entry?.due_date || "";
+  document.querySelector("#financialEntryIssueDate").value = entry?.due_date || today;
+  document.querySelector("#financialEntryCompetenceDate").value = entry?.due_date || today;
+  document.querySelector("#financialEntryDueDate").value = entry?.due_date || today;
   state.financialEntryDraftTags = financialEntryTags(entry);
   document.querySelector("#financialEntryTagInput").value = "";
   document.querySelector("#financialEntryNotes").value = financialEntryNotes(entry);
@@ -2759,14 +2762,16 @@ async function submitFinancialEntry(event) {
     if (amount === null) return;
     const type = document.querySelector("#financialEntryType").value;
     const status = document.querySelector("#financialEntryStatus").value;
+    const dueDate = document.querySelector("#financialEntryDueDate").value;
+    if (!dueDate) { document.querySelector("#financialEntryDueDate").reportValidity(); return; }
     const pendingTag = normalizeFinancialTag(document.querySelector("#financialEntryTagInput").value);
     const tags = pendingTag ? [...state.financialEntryDraftTags, pendingTag] : state.financialEntryDraftTags;
-    const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount, issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
+    const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount, issue_date: dueDate, competence_date: dueDate, due_date: dueDate, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
     if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
     const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
     if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
     const groupId = installmentCount > 1 ? crypto.randomUUID() : null;
-    const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, competence_date: addMonthsToFinancialDate(payload.competence_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
+    const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, issue_date: addMonthsToFinancialDate(payload.due_date, index), competence_date: addMonthsToFinancialDate(payload.due_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
     if (installmentCount === 1) ["id", "installment_number", "installment_count", "installment_group_id"].forEach((key) => delete records[0][key]);
     try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0]); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
   } finally { state.financialOperations--; }
@@ -7947,6 +7952,10 @@ document.querySelector("#financialTagManagerList")?.addEventListener("keydown", 
 });
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
+document.querySelector("#financialAccountsTypeFilter")?.addEventListener("change", (event) => {
+  state.financialAccountTypeFilter = event.target.value;
+  renderFinancialAccounts();
+});
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; state.financialEntryPage = 1; renderFinancialEntries(); });
 document.querySelector("#financialColumnPicker")?.addEventListener("change", (event) => {
   const input = event.target.closest("[data-financial-column]");

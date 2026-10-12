@@ -705,7 +705,7 @@
           </section>
 
           <section class="financial-accounts-view" id="financialAccountsPanel" hidden>
-            <header class="financial-accounts-header"><div><h2>Gestão de contas</h2><p>Saldos e lançamentos de cada conta.</p></div><div class="financial-accounts-header-actions"><label class="financial-period-filter">Período<input id="financialAccountsMonth" type="month" /></label><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></div></header>
+            <header class="financial-accounts-header"><div><h2>Gestão de contas</h2><p>Saldos e lançamentos de cada conta.</p></div><div class="financial-accounts-header-actions"><label class="financial-period-filter">Mostrar<select id="financialAccountsTypeFilter"><option value="all">Todas as contas</option><option value="bank">Somente contas bancárias</option><option value="other">Somente outras contas</option></select></label><label class="financial-period-filter">Período<input id="financialAccountsMonth" type="month" /></label><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></div></header>
             <div class="financial-accounts-layout">
               <div class="financial-account-cards" id="financialAccountRows"></div>
               <aside class="financial-accounts-summary" aria-label="Resumo das contas"><article class="stat-card"><span class="stat-icon teal">$</span><div><span>Saldo atual</span><strong id="financialAccountsBalance">R$ 0,00</strong></div></article><article class="stat-card"><span class="stat-icon orange">↗</span><div><span>Saldo previsto</span><strong id="financialAccountsProjected">R$ 0,00</strong></div></article></aside>
@@ -1065,9 +1065,9 @@
           <label id="financialEntryTransferField" hidden>Conta de destino *<select id="financialEntryTransferAccount"></select></label>
           <label id="financialEntryCategoryField">Categoria<select id="financialEntryCategory"><option value="">Sem categoria</option></select></label>
           <div class="span-2 financial-entry-tags-field"><div class="financial-entry-tags-heading"><label for="financialEntryTagInput">Tags</label><button class="link-button" id="manageFinancialTagsBtn" type="button">Gerenciar tags</button></div><div class="financial-entry-tag-control"><input id="financialEntryTagInput" list="financialEntryTagSuggestions" maxlength="60" placeholder="Digite ou selecione uma tag" /><datalist id="financialEntryTagSuggestions"></datalist><button class="button secondary" id="addFinancialEntryTagBtn" type="button">Adicionar</button></div><div class="financial-entry-tag-chips" id="financialEntryTagChips"></div></div>
-          <label>Emissão<input id="financialEntryIssueDate" type="date" required /></label>
-          <label>Competência<input id="financialEntryCompetenceDate" type="date" required /></label>
-          <label>Vencimento<input id="financialEntryDueDate" type="date" /></label>
+          <label hidden>Emissão<input id="financialEntryIssueDate" type="date" /></label>
+          <label hidden>Competência<input id="financialEntryCompetenceDate" type="date" /></label>
+          <label>Vencimento<input id="financialEntryDueDate" type="date" required /></label>
           <label id="financialEntryInstallmentField">Parcelado?<select id="financialEntryInstallment"><option value="false">Não</option><option value="true">Sim</option></select></label>
           <label id="financialEntryInstallmentCountField" hidden>Quantidade de parcelas<input id="financialEntryInstallmentCount" type="number" min="2" max="120" value="2" /></label>
           <p class="span-2 financial-installment-hint" id="financialEntryInstallmentHint" hidden>O valor da parcela será repetido e os vencimentos serão criados nos meses seguintes.</p>
