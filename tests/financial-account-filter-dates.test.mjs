@@ -58,5 +58,39 @@ for (const scope of ["company", "braga"]) {
     await save({ preventDefault() {} });
     assert.equal(records[0].issue_date, "2027-01-20");
     assert.equal(records[0].competence_date, "2027-01-20");
+    records.length = 0;
+    state.financialEditingEntryId = null;
+    values.financialEntryType = "transfer";
+    values.financialEntryTransferAccount = "destination";
+    values.financialEntryInstallment = "true";
+    values.financialEntryDueDate = "2026-10-15";
+    await save({ preventDefault() {} });
+    assert.equal(records.length, 3);
+    for (const record of records) {
+      assert.equal(record.entry_type, "transfer");
+      assert.equal(record.account_id, "bank");
+      assert.equal(record.transfer_account_id, "destination");
+      assert.equal(record.amount, 50);
+      assert.equal(record.installment_count, 3);
+      assert.equal(record.category_id, null);
+    }
   });
 }
+
+test("transferência permite exibir parcelas e preserva opção escolhida", () => {
+  const fields = new Map();
+  const document = { querySelector: (selector) => { if (!fields.has(selector)) fields.set(selector, {}); return fields.get(selector); } };
+  document.querySelector("#financialEntryType").value = "transfer";
+  document.querySelector("#financialEntryInstallment").value = "true";
+  const state = { financialEntries: [] };
+  const sync = runInNewContext(`${extract("function syncFinancialEntryTypeFields(", "\nfunction addMonthsToFinancialDate(")}\nsyncFinancialEntryTypeFields`, { document, state });
+  sync();
+  assert.equal(document.querySelector("#financialEntryInstallmentField").hidden, false);
+  assert.equal(document.querySelector("#financialEntryInstallmentCountField").hidden, false);
+  assert.equal(document.querySelector("#financialEntryInstallmentCount").required, true);
+  assert.equal(document.querySelector("#financialEntryTransferAccount").required, true);
+  assert.equal(document.querySelector("#financialEntryInstallment").value, "true");
+  state.financialEditingEntryId = "existing";
+  sync();
+  assert.equal(document.querySelector("#financialEntryInstallmentField").hidden, true);
+});

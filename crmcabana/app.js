@@ -2659,13 +2659,12 @@ function syncFinancialEntryTypeFields() {
   document.querySelector("#financialEntryCategoryField").hidden = transfer;
   document.querySelector("#financialEntryTransferAccount").required = transfer;
   const installmentField = document.querySelector("#financialEntryInstallmentField");
-  if (installmentField) installmentField.hidden = transfer || Boolean(state.financialEditingEntryId);
-  if (transfer) document.querySelector("#financialEntryInstallment").value = "false";
+  if (installmentField) installmentField.hidden = Boolean(state.financialEditingEntryId);
   syncFinancialInstallmentFields();
 }
 
 function syncFinancialInstallmentFields() {
-  const installment = !state.financialEditingEntryId && document.querySelector("#financialEntryType").value !== "transfer" && document.querySelector("#financialEntryInstallment").value === "true";
+  const installment = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true";
   document.querySelector("#financialEntryInstallmentCountField").hidden = !installment;
   document.querySelector("#financialEntryInstallmentHint").hidden = !installment;
   document.querySelector("#financialEntryInstallmentCount").required = installment;
