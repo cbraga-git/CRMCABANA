@@ -2772,7 +2772,36 @@ async function submitFinancialEntry(event) {
     const groupId = installmentCount > 1 ? crypto.randomUUID() : null;
     const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, issue_date: addMonthsToFinancialDate(payload.due_date, index), competence_date: addMonthsToFinancialDate(payload.due_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
     if (installmentCount === 1) ["id", "installment_number", "installment_count", "installment_group_id"].forEach((key) => delete records[0][key]);
-    try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0]); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
+    try {
+      const editedEntry = state.financialEntries?.find((entry) => entry.id === state.financialEditingEntryId);
+      const scope = state.financialScope || "company";
+      let pendingInstallments = [];
+      if (editedEntry?.installment_group_id) {
+        const query = `?installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&id=neq.${encodeURIComponent(editedEntry.id)}&status=in.(pending,overdue)&select=*`;
+        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ headers: supabaseHeaders() }));
+        if (!response.ok) throw new Error("Não foi possível consultar as demais parcelas. Nenhuma alteração foi salva.");
+        const entries = await response.json();
+        if (entries.length && confirm(`Deseja aplicar as alterações também às outras ${entries.length} parcela(s) pendente(s)? Cancelar altera somente este registro. Parcelas pagas ou canceladas serão preservadas.`)) pendingInstallments = entries;
+      }
+      await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0], scope);
+      for (const entry of pendingInstallments) {
+        const changes = {};
+        for (const key of ["entry_type", "account_id", "transfer_account_id", "category_id", "description", "amount", "notes"]) {
+          if ((payload[key] ?? null) !== (editedEntry[key] ?? null)) changes[key] = payload[key];
+        }
+        if (payload.due_date !== editedEntry.due_date) {
+          const offset = Number(entry.installment_number) - Number(editedEntry.installment_number);
+          if (!Number.isInteger(offset)) throw new Error("Não foi possível identificar a ordem das parcelas para atualizar os vencimentos.");
+          const date = addMonthsToFinancialDate(payload.due_date, offset);
+          Object.assign(changes, { due_date: date, issue_date: date, competence_date: date });
+        }
+        if (!Object.keys(changes).length) continue;
+        const query = `?id=eq.${encodeURIComponent(entry.id)}&installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&status=in.(pending,overdue)`;
+        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ method: "PATCH", headers: supabaseHeaders(), body: JSON.stringify(changes) }));
+        if (!response.ok) throw new Error("O registro foi salvo, mas não foi possível atualizar todas as demais parcelas. Confira os lançamentos antes de tentar novamente.");
+      }
+      await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close();
+    } catch (error) { alert(error.message); }
   } finally { state.financialOperations--; }
 }
 
