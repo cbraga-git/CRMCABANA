@@ -3838,15 +3838,14 @@ dialog::backdrop {
 body[data-financial-scope="braga"] #bragaFinancialNavToggle { color: var(--accent); }
 
 body[data-financial-scope="company"]:is([data-view^="finance"], [data-view="financial"]) {
-  background:
-    radial-gradient(ellipse at top right, rgba(217, 199, 121, .24), transparent 58%),
-    linear-gradient(135deg, #eee5cb, #e4d7b4);
+  background: #fff;
 }
 body[data-financial-scope="company"] :is(.financial-module-view, .financial-view) {
-  --card: #fffaf0;
+  --card: #f5efd8;
   --shadow: 0 4px 16px rgba(92, 70, 24, .10);
 }
-body[data-financial-scope="company"] .financial-register th { background: #f3ecd5; }
+body[data-financial-scope="company"] .financial-register th { background: #efe3aa; }
+body[data-financial-scope="company"] :is(.financial-entry-filters, .financial-entry-balance-controls, .financial-entry-pagination, .financial-entries-context) { background: #f5efd8; }
 
 /* As telas pessoais usam uma base preta para distinguir os dois financeiros. */
 body[data-financial-scope="braga"] {
