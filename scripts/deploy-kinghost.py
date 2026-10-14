@@ -1,7 +1,8 @@
-import ftplib
 import os
 from pathlib import Path
-import ssl
+import subprocess
+import tempfile
+from urllib.parse import quote
 
 
 def deploy():
@@ -12,23 +13,17 @@ def deploy():
     files = sorted(path for path in root.rglob("*") if path.is_file())
     if not files or not (root / "crmcabana/index.html").is_file():
         raise RuntimeError("Pacote de publicação incompleto.")
-    with ftplib.FTP_TLS(context=ssl.create_default_context(), timeout=60) as ftp:
-        ftp.connect(os.environ["KINGHOST_FTP_HOST"], 21)
-        ftp.login(os.environ["KINGHOST_FTP_USER"], os.environ["KINGHOST_FTP_PASSWORD"])
-        ftp.prot_p()
-        ftp.cwd(os.environ["KINGHOST_FTP_DIR"])
-        destination = ftp.pwd()
+    credentials = os.environ["KINGHOST_FTP_USER"] + ":" + os.environ["KINGHOST_FTP_PASSWORD"]
+    escaped = credentials.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
+    with tempfile.TemporaryDirectory() as temporary:
+        config = Path(temporary) / "curl.conf"
+        config.write_text('user = "' + escaped + '"\n', encoding="utf-8")
+        os.chmod(config, 0o600)
         for path in files:
             relative = path.relative_to(root)
-            ftp.cwd(destination)
-            for folder in relative.parts[:-1]:
-                try:
-                    ftp.cwd(folder)
-                except ftplib.error_perm:
-                    ftp.mkd(folder)
-                    ftp.cwd(folder)
-            with path.open("rb") as content:
-                ftp.storbinary("STOR " + relative.name, content)
+            directory = os.environ["KINGHOST_FTP_DIR"].strip("/")
+            url = "ftp://" + os.environ["KINGHOST_FTP_HOST"] + "/" + quote(directory + "/" + relative.as_posix(), safe="/")
+            subprocess.run(["curl.exe", "--config", str(config), "--ssl-reqd", "--silent", "--show-error", "--connect-timeout", "30", "--max-time", "180", "--ftp-create-dirs", "--upload-file", str(path), url], check=True)
             print("Publicado: " + relative.as_posix())
     print("Envio concluído. Valide o site e o login do CRM antes de alterar o DNS.")
 
