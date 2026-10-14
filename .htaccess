@@ -1,0 +1,5 @@
+# Publicação via Git: somente os arquivos do site devem ser acessíveis pela web.
+RedirectMatch 404 ^/(\.git|\.github|\.claude|\.codex|tests|scripts|gmail-xml-exporter)(/|$)
+<FilesMatch "(?i)(^\.|\.(sql|csv|xlsx|xml|md|mjs|py|toml|zip|txt)$|^(package(-lock)?\.json|clientes_.*\.json|CNAME)$)">
+  Require all denied
+</FilesMatch>
