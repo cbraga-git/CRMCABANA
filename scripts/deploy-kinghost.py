@@ -19,6 +19,8 @@ def deploy():
         config = Path(temporary) / "curl.conf"
         config.write_text('user = "' + escaped + '"\n', encoding="utf-8")
         os.chmod(config, 0o600)
+        listing = subprocess.run(["curl.exe", "--config", str(config), "--ssl-reqd", "--silent", "--show-error", "--max-time", "60", "--list-only", "ftp://" + os.environ["KINGHOST_FTP_HOST"] + "/"], check=True, capture_output=True, text=True)
+        print("Diretórios e arquivos disponíveis na raiz FTP:\n" + listing.stdout, flush=True)
         for path in files:
             relative = path.relative_to(root)
             directory = os.environ["KINGHOST_FTP_DIR"].strip("/")
