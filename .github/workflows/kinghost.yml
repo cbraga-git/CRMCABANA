@@ -1,0 +1,47 @@
+name: Deploy KingHost
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kinghost
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: vars.KINGHOST_DEPLOY_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: npm run check
+      - run: npm test
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Prepare site files
+        run: |
+          set -euo pipefail
+          mkdir release
+          cp index.html institucional.css release/
+          cp -R assets crmcabana release/
+          VERSION="KingHost $(TZ=America/Sao_Paulo date +'%d/%m/%Y %H:%M') · ${GITHUB_SHA::7}"
+          sed -i "s|__APP_VERSION__|$VERSION|" release/crmcabana/index.html
+          test -s release/index.html
+          test -s release/crmcabana/app.js
+          ! grep -q '__APP_VERSION__' release/crmcabana/index.html
+      - name: Upload through FTPS
+        env:
+          KINGHOST_FTP_HOST: ${{ vars.KINGHOST_FTP_HOST }}
+          KINGHOST_FTP_USER: ${{ vars.KINGHOST_FTP_USER }}
+          KINGHOST_FTP_DIR: ${{ vars.KINGHOST_FTP_DIR }}
+          KINGHOST_FTP_PASSWORD: ${{ secrets.KINGHOST_FTP_PASSWORD }}
+        run: python3 scripts/deploy-kinghost.py
