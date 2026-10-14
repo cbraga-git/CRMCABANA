@@ -23,6 +23,10 @@ def deploy():
         print("Diretórios e arquivos disponíveis na raiz FTP:\n" + listing.stdout + listing.stderr, flush=True)
         if listing.returncode:
             raise RuntimeError("Falha ao consultar diretório FTP.")
+        for folder in ["/", "/home/cabanamoveissobmedida", "/home/cabanamoveissobmedida/www", "www"]:
+            probe = subprocess.run(["curl.exe", "--ipv4", "--disable-epsv", "--config", str(config), "--ssl-reqd", "--verbose", "--max-time", "30", "--quote", "PWD", "--quote", "CWD " + folder, "--list-only", "ftp://" + os.environ["KINGHOST_FTP_HOST"] + "/"], capture_output=True, text=True)
+            replies = [line for line in probe.stderr.splitlines() if line.startswith("< 257") or line.startswith("< 550") or line.startswith("< 250")]
+            print("Diagnóstico " + folder + ": " + str(probe.returncode) + " " + " | ".join(replies), flush=True)
         for path in files:
             relative = path.relative_to(root)
             directory = os.environ["KINGHOST_FTP_DIR"].strip("/")
