@@ -1,0 +1,4 @@
+# Exportacoes privadas da migracao (dados pessoais e hashes).
+/exportacao.csv
+/importar-kinghost.sql
+__pycache__/

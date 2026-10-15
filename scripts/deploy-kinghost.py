@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 from urllib.parse import quote
 
@@ -13,6 +14,7 @@ def deploy():
     files = sorted(path for path in root.rglob("*") if path.is_file())
     if not files or not (root / "crmcabana/index.html").is_file():
         raise RuntimeError("Pacote de publicação incompleto.")
+    subprocess.run([sys.executable, str(Path(__file__).with_name("stamp-build.py")), str(root)], check=True)
     credentials = os.environ["KINGHOST_FTP_USER"] + ":" + os.environ["KINGHOST_FTP_PASSWORD"]
     escaped = credentials.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
     with tempfile.TemporaryDirectory() as temporary:

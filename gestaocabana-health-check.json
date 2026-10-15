@@ -1,0 +1,1 @@
+{"service": "gestaocabana-php", "php_supported": true, "pdo_pgsql": true, "configured": true, "database_connected": true, "schema_ready": true}
