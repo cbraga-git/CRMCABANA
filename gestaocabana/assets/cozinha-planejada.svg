@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 675" role="img" aria-label="Cozinha planejada">
+  <defs>
+    <linearGradient id="wall" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f4f6f7"/>
+      <stop offset="1" stop-color="#dfe8ea"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" x2="1">
+      <stop offset="0" stop-color="#b98953"/>
+      <stop offset="1" stop-color="#7f5738"/>
+    </linearGradient>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#17202a" flood-opacity=".16"/>
+    </filter>
+  </defs>
+  <rect width="900" height="675" fill="url(#wall)"/>
+  <path d="M0 535h900v140H0z" fill="#cfd8dc"/>
+  <path d="M0 552h900v18H0z" fill="#b8c3c8"/>
+  <g filter="url(#soft)">
+    <rect x="86" y="88" width="196" height="184" rx="8" fill="#eef2f2"/>
+    <rect x="310" y="88" width="196" height="184" rx="8" fill="#eef2f2"/>
+    <rect x="534" y="88" width="196" height="184" rx="8" fill="#eef2f2"/>
+    <path d="M100 104h76v152h-76zM192 104h76v152h-76zM324 104h76v152h-76zM416 104h76v152h-76zM548 104h76v152h-76zM640 104h76v152h-76z" fill="#ffffff"/>
+    <path d="M177 104h5v152h-5zM401 104h5v152h-5zM625 104h5v152h-5z" fill="#d0d9dd"/>
+  </g>
+  <rect x="70" y="294" width="760" height="42" rx="8" fill="#263642"/>
+  <g filter="url(#soft)">
+    <rect x="86" y="336" width="150" height="188" rx="8" fill="url(#wood)"/>
+    <rect x="252" y="336" width="150" height="188" rx="8" fill="url(#wood)"/>
+    <rect x="418" y="336" width="150" height="188" rx="8" fill="url(#wood)"/>
+    <rect x="584" y="336" width="150" height="188" rx="8" fill="url(#wood)"/>
+    <rect x="104" y="356" width="112" height="62" rx="5" fill="#d6a56d"/>
+    <rect x="270" y="356" width="112" height="62" rx="5" fill="#d6a56d"/>
+    <rect x="436" y="356" width="112" height="62" rx="5" fill="#d6a56d"/>
+    <rect x="602" y="356" width="112" height="62" rx="5" fill="#d6a56d"/>
+    <rect x="134" y="440" width="52" height="7" rx="4" fill="#49382e"/>
+    <rect x="300" y="440" width="52" height="7" rx="4" fill="#49382e"/>
+    <rect x="466" y="440" width="52" height="7" rx="4" fill="#49382e"/>
+    <rect x="632" y="440" width="52" height="7" rx="4" fill="#49382e"/>
+  </g>
+  <rect x="590" y="250" width="160" height="36" rx="18" fill="#1f6f7a"/>
+  <rect x="112" y="268" width="150" height="24" rx="12" fill="#2f7d57"/>
+  <circle cx="665" cy="268" r="7" fill="#ffffff"/>
+  <circle cx="693" cy="268" r="7" fill="#ffffff"/>
+  <rect x="330" y="286" width="130" height="8" rx="4" fill="#b4862f"/>
+</svg>

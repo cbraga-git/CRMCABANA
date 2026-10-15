@@ -19,3 +19,11 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: npm run check
       - run: npm test
+      - name: Validate isolated PHP application
+        run: |
+          node --check gestaocabana/app.js
+          node --check gestaocabana/config.js
+          node --check gestaocabana/preview-status.js
+          php -l gestaocabana/api/index.php
+          php -l gestaocabana/api/lib.php
+          php tests/gestaocabana-api.test.php
