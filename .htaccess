@@ -1,5 +1,8 @@
 # As funções de criptografia do CRM exigem HTTPS.
 RewriteEngine On
+# O acesso ao CRM antigo segue para o Gestao Cabana.
+RewriteRule ^crmcabana(?:/index\.html|/)?$ /gestaocabana/ [R=302,L,NC]
+
 RewriteCond %{HTTP_HOST} ^(www\.)?cabanamoveissobmedida\.com\.br$ [NC]
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP:X-Forwarded-Proto} !^https$ [NC]
