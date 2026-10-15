@@ -292,14 +292,24 @@ test("financeiro exige vencimentos e simulação identifica as novas receitas", 
   assert.equal(incomes[1].due_date, defaults.firstDueDate);
 });
 
-test("lançamentos do cartão somam crédito informado mais entrada", () => {
+test("financeiro lanca saldo liquido do cartao a vista na data da entrada", () => {
   const h = financialHarness();
   h.budget.paymentPlan = { ...defaults, months: 10, method: "Cartão de Credito", creditAmount: 9000 };
   const incomes = h.budgetFinancialPlan(h.budget, { name: "Cliente" }, "2026-09-26", { id: "account" }, h.categories).filter((row) => row.entry_type === "income");
-  assert.equal(incomes.length, 11);
+  assert.equal(incomes.length, 2);
   assert.equal(incomes[0].amount, 2000);
-  assert.ok(incomes.slice(1).every((row) => row.amount === 900));
-  assert.equal(incomes.reduce((sum, row) => sum + row.amount, 0), 11000);
+  assert.equal(incomes[1].amount, 8000);
+  assert.equal(incomes[1].key, "plan-income-1");
+  assert.equal(incomes[1].due_date, incomes[0].due_date);
+  assert.match(incomes[1].description, /Pagamento .* Vista/);
+  assert.equal(incomes.reduce((sum, row) => sum + row.amount, 0), 10000);
+  h.budget.paymentPlan.entry = 0;
+  const withoutEntry = h.budgetFinancialPlan(h.budget, { name: "Cliente" }, "2026-09-26", { id: "account" }, h.categories).filter((row) => row.entry_type === "income");
+  assert.equal(withoutEntry.length, 1);
+  assert.equal(withoutEntry[0].amount, 10000);
+  assert.equal(withoutEntry[0].due_date, defaults.entryDate);
+  h.budget.paymentPlan.entryDate = "";
+  assert.throws(() => h.budgetFinancialPlan(h.budget, { name: "Cliente" }, "2026-09-26", { id: "account" }, h.categories), /vencimento/);
 });
 
 test("documentos incluem todas as parcelas e novo quadro antecede quadro preservado", () => {

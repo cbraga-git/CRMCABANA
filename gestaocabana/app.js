@@ -5803,9 +5803,14 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   const paymentCalculation = budget.paymentPlan?.enabled
     ? calculateBudgetPaymentPlan(budgetTotals(calculated, budget.settings || {}).net, budget.paymentPlan)
     : null;
-  const planPayments = paymentCalculation?.payments;
+  const planPayments = paymentCalculation?.creditCard
+    ? [
+      ...paymentCalculation.payments.filter((payment) => payment.key === "plan-entry"),
+      ...(paymentCalculation.balance > 0 ? [{ key: "plan-income-1", parcel: "1/1", amount: paymentCalculation.balance, dueDate: budget.paymentPlan.entryDate || "", method: budget.paymentPlan.method }] : []),
+    ]
+    : paymentCalculation?.payments;
   const payments = planPayments ? planPayments.map((payment) => ({
-    key: payment.key, entry_type: "income", description: financialDescription(payment.key === "plan-entry" ? "Entrada à Vista" : `${paymentCalculation.cashPayment ? "Pagamento à Vista" : "Financiamento"} - Parcela ${payment.parcel}`),
+    key: payment.key, entry_type: "income", description: financialDescription(payment.key === "plan-entry" ? "Entrada à Vista" : `${paymentCalculation.cashPayment || paymentCalculation.creditCard ? "Pagamento à Vista" : "Financiamento"} - Parcela ${payment.parcel}`),
     amount: payment.amount, category_id: payment.amount ? categoryFor("Receita Venda de Planejados", "income") : null,
     due_date: payment.dueDate || null, ...base, paymentMethod: payment.method,
   })) : (budget.cashPayments || []).map((payment, index) => {
@@ -5815,7 +5820,7 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   });
   if (payments.some((payment) => payment.amount > 0 && !payment.due_date)) throw new Error("Informe o vencimento da entrada e de cada parcela com valor maior que zero.");
   const finalPaymentDate = payments.filter((payment) => payment.amount > 0).map((payment) => payment.due_date).sort().at(-1);
-  const installmentCount = budget.paymentPlan?.enabled ? Number(budget.paymentPlan.months) || 0 : payments.filter((payment) => payment.amount > 0).length;
+  const installmentCount = paymentCalculation?.creditCard ? payments.filter((payment) => payment.amount > 0).length : budget.paymentPlan?.enabled ? Number(budget.paymentPlan.months) || 0 : payments.filter((payment) => payment.amount > 0).length;
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
     const sourceKey = rule.sourceKey || rule.key;
     const sourceTotal = rule.specialEnvironment
