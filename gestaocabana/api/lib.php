@@ -139,6 +139,21 @@ function connectDb(array $config): PDO {
     return $db;
 }
 
+function databaseReadinessError(Throwable $error): string {
+    $message = strtolower($error->getMessage());
+    if (str_contains($message, 'does not support ssl') || str_contains($message, 'ssl is not enabled')) return 'server_ssl_unavailable';
+    if (str_contains($message, 'certificate') || str_contains($message, 'ssl error')) return 'ssl_validation_failed';
+    if (str_contains($message, 'password authentication failed') || str_contains($message, 'authentication failed')) return 'database_credentials_rejected';
+    if (str_contains($message, 'no pg_hba.conf entry')) return 'database_access_not_allowed';
+    if (str_contains($message, 'database') && str_contains($message, 'does not exist')) return 'database_not_found';
+    if (str_contains($message, 'could not translate host name') || str_contains($message, 'could not resolve')) return 'database_host_not_found';
+    if (str_contains($message, 'timeout') || str_contains($message, 'timed out')) return 'database_connection_timeout';
+    if (str_contains($message, 'connection refused')) return 'database_connection_refused';
+    if (str_contains($message, 'permission denied')) return 'database_permissions_missing';
+    if (str_contains($message, 'could not find driver')) return 'postgresql_driver_missing';
+    return 'database_connection_failed';
+}
+
 function currentUser(PDO $db): array {
     $id = $_SESSION['user_id'] ?? null;
     $token = $_SESSION['token'] ?? '';

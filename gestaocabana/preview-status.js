@@ -6,6 +6,8 @@
     field.textContent = !status.php_supported ? "É necessário PHP 8.1 ou superior."
       : !status.pdo_pgsql ? "Habilite a extensão pdo_pgsql na KingHost."
       : !status.configured ? "API PHP disponível. Aguardando configuração privada do PostgreSQL."
+      : !status.database_connected ? "Arquivo privado reconhecido, mas a conexão PostgreSQL precisa ser corrigida."
+      : !status.schema_ready ? "Conexão PostgreSQL disponível. A estrutura do banco precisa ser conferida."
       : "API configurada. Valide a conexão, os usuários e a importação antes de usar este ambiente.";
   } catch {
     field.textContent = "API PHP aguardando configuração na hospedagem.";

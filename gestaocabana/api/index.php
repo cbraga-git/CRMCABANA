@@ -159,7 +159,20 @@ try {
     if ($path === '/health') {
         $configured = false;
         try { $settings = readConfig(); $configured = true; } catch (ApiError $e) {}
-        respond(['service' => 'gestaocabana-php', 'php_supported' => PHP_VERSION_ID >= 80100, 'pdo_pgsql' => extension_loaded('pdo_pgsql'), 'configured' => $configured], $configured && extension_loaded('pdo_pgsql') ? 200 : 503);
+        $health = ['service' => 'gestaocabana-php', 'php_supported' => PHP_VERSION_ID >= 80100, 'pdo_pgsql' => extension_loaded('pdo_pgsql'), 'configured' => $configured, 'database_connected' => false, 'schema_ready' => false];
+        if ($configured && extension_loaded('pdo_pgsql')) {
+            try {
+                // Conexão curta e leitura de metadados: não expõe dados nem credenciais.
+                if (!str_contains($settings['dsn'], 'connect_timeout=')) $settings['dsn'] .= ';connect_timeout=5';
+                $probe = connectDb($settings);
+                $expected = array_merge(['crm_users'], tableNames());
+                $available = query($probe, "SELECT table_name FROM information_schema.tables WHERE table_schema='public'")->fetchAll(PDO::FETCH_COLUMN);
+                $health['database_connected'] = true;
+                $health['schema_ready'] = !array_diff($expected, $available);
+                if (!$health['schema_ready']) $health['database_error'] = 'database_schema_incomplete';
+            } catch (Throwable $error) { $health['database_error'] = databaseReadinessError($error); }
+        }
+        respond($health, $health['schema_ready'] ? 200 : 503);
     }
     if (PHP_VERSION_ID < 80100) throw new ApiError(503, 'Habilite PHP 8.1 ou superior para a Gestão Cabana.');
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
