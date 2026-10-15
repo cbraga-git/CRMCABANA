@@ -742,7 +742,7 @@ function normalizeClients(clients) {
 function showAuthScreen(message = "") {
   elements.crmShell.hidden = true;
   elements.authScreen.hidden = false;
-  renderAuthMode();
+  elements.authTitle.textContent = "Entrar na Gestão Cabana";
   showAuthMessage(message);
 }
 
