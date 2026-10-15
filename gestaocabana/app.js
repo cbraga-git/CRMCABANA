@@ -1422,13 +1422,16 @@ async function saveRemoteClients(clients) {
   try {
     const response = await authorizedFetch(supabaseEndpoint("?on_conflict=id"), () => ({
       method: "POST",
-      headers: supabaseHeaders("resolution=merge-duplicates,return=minimal"),
+      headers: supabaseHeaders("resolution=merge-duplicates,return=representation"),
       body: JSON.stringify(rows),
       signal: controller.signal,
     }));
     if (!response.ok) throw new Error("Nao foi possivel salvar os clientes no banco.");
+    const saved = await response.json();
+    const versions = new Map(saved.map((row) => [row.id, row.updated_at]));
+    if (clients.some((client) => !versions.get(client.id))) throw new Error("O banco nao confirmou todos os clientes enviados.");
     clients.forEach((client) => {
-      client._remoteUpdatedAt = nowIso;
+      client._remoteUpdatedAt = versions.get(client.id);
     });
   } catch (error) {
     if (error.name === "AbortError") throw new Error("Tempo esgotado ao salvar no banco. Verifique a conexao.");
@@ -1460,7 +1463,7 @@ async function saveRemoteClient(client) {
     const response = await authorizedFetch(path, () => ({
       method: isNew ? "POST" : "PATCH",
       headers: supabaseHeaders(isNew ? "resolution=merge-duplicates,return=representation" : "return=representation"),
-      body: JSON.stringify(isNew ? [payload] : payload),
+      body: JSON.stringify(isNew ? [payload] : { user_id: payload.user_id, data: payload.data, updated_at: payload.updated_at }),
       signal: controller.signal,
     }));
     if (!response.ok) throw new Error("Nao foi possivel salvar o cliente no banco.");
@@ -1474,7 +1477,9 @@ async function saveRemoteClient(client) {
       conflictError.conflict = true;
       throw conflictError;
     }
-    client._remoteUpdatedAt = nowIso;
+    const confirmed = saved.find((row) => row.id === client.id);
+    if (!confirmed?.updated_at) throw new Error("O banco nao confirmou a versao do cliente salvo.");
+    client._remoteUpdatedAt = confirmed.updated_at;
   } catch (error) {
     if (error.name === "AbortError") throw new Error("Tempo esgotado ao salvar no banco. Verifique a conexao.");
     throw error;
