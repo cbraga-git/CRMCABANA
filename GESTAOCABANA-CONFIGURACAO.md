@@ -14,16 +14,18 @@ O CRM atual em `/crmcabana/` foi preservado, com sua conexão Supabase. A nova p
 <?php
 return [
     'enabled' => true,
-    'dsn' => 'pgsql:host=pgsql52-farm1.kinghost.net;port=5432;dbname=cabanamoveissobmedida;sslmode=require',
+    'dsn' => 'pgsql:host=pgsql52-farm1.kinghost.net;port=5432;dbname=cabanamoveissobmedida;sslmode=disable',
     'user' => 'cabanamoveissobmedida',
     'password' => 'SUA_SENHA_DO_POSTGRESQL',
     'rate_limit_dir' => '/home/cabanamoveissobmedida/private/gestaocabana-rate-limits',
 ];
 ```
 
+O servidor PostgreSQL testado informou não oferecer SSL nessa conexão; por isso, o DSN usa `sslmode=disable`. Essa conexão não tem criptografia de transporte. Para exigir TLS, solicite à KingHost um endpoint PostgreSQL com SSL antes da adoção definitiva.
+
 O usuário é o do PostgreSQL, não necessariamente a senha FTP. A pasta privada deve ser legível pelo PHP, e o PHP precisa conseguir criar a subpasta de controle de tentativas de login. Se o gerenciador mostrar somente o conteúdo de `www`, solicite ao suporte KingHost a criação do arquivo na pasta privada, ou a configuração da variável de ambiente `CABANA_CONFIG_FILE` com o caminho privado correto.
 
-A senha não é enviada ao navegador. A API não oferece terminal, SQL arbitrário ou configuração pela web. O endpoint público `/gestaocabana/api/index.php/health` informa apenas se o PHP/extensão e o arquivo estão disponíveis; não verifica a senha nem executa consultas no banco. Sem configuração, a aplicação devolve uma mensagem de preparação e não recorre ao Supabase.
+A senha não é enviada ao navegador. A API não oferece terminal, SQL arbitrário ou configuração pela web. O endpoint público `/gestaocabana/api/index.php/health` verifica o PHP, a extensão, a conexão e a presença das tabelas por metadados, sem expor dados ou credenciais. Sem configuração, a aplicação devolve uma mensagem de preparação e não recorre ao Supabase.
 
 ## Usuários e dados
 
