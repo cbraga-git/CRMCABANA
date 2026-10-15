@@ -1,3 +1,10 @@
+# As funções de criptografia do CRM exigem HTTPS.
+RewriteEngine On
+RewriteCond %{HTTP_HOST} ^(www\.)?cabanamoveissobmedida\.com\.br$ [NC]
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !^https$ [NC]
+RewriteRule ^ https://www.cabanamoveissobmedida.com.br%{REQUEST_URI} [R=302,L]
+
 # Publicação via Git: somente os arquivos do site devem ser acessíveis pela web.
 RedirectMatch 404 ^/(\.git|\.github|\.claude|\.codex|tests|scripts|gmail-xml-exporter)(/|$)
 <FilesMatch "(?i)(^\.|\.(sql|csv|xlsx|xml|md|mjs|py|toml|zip|txt)$|^(package(-lock)?\.json|clientes_.*\.json|CNAME)$)">

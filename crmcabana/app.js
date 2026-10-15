@@ -2928,7 +2928,12 @@ function parseStatementFile(text, extension) {
   return lines.slice(headerLineIndex + 1).map((line) => { const row = parseCsvLine(line, delimiter); return { date: normalizeStatementDate(row[dateIndex]), description: row[descriptionIndex] || "Lançamento importado", amount: parseStatementAmount(row[amountIndex]), externalId: externalIdIndex >= 0 ? row[externalIdIndex] || null : null, balance: balanceIndex >= 0 ? parseStatementAmount(row[balanceIndex]) : null }; }).filter((item) => item.date && item.amount);
 }
 
-async function sha256(value) { const data = value instanceof ArrayBuffer ? new Uint8Array(value) : new TextEncoder().encode(value); const hash = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
+async function sha256(value) {
+  if (!globalThis.crypto?.subtle?.digest) throw new Error("Abra o CRM por HTTPS: https://www.cabanamoveissobmedida.com.br/crmcabana/. Se o erro persistir, use um navegador atualizado.");
+  const data = value instanceof ArrayBuffer ? new Uint8Array(value) : new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 async function importFinancialStatement(file) {
   state.financialOperations = (state.financialOperations || 0) + 1;
