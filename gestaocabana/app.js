@@ -2162,25 +2162,54 @@ function financialEntryViewType(view = state.view) {
   return view === "financePayable" ? "expense" : view === "financeReceivable" ? "income" : null;
 }
 
+function financialFilterValues(value) {
+  return String(value || "").split("|").filter(Boolean);
+}
+
+function financialFilterMatches(value, selected) {
+  const choices = financialFilterValues(selected);
+  return !choices.length || choices.includes(value);
+}
+
+function financialAccountSelected(accountId, selected, bankAccountIds) {
+  const choices = financialFilterValues(selected);
+  return !choices.length || choices.includes(accountId) || (choices.includes(FINANCIAL_BANK_ACCOUNTS_FILTER) && bankAccountIds.has(accountId));
+}
+
 function financialAccountFilterMatches(entry, accountId, bankAccountIds) {
-  if (!accountId) return true;
-  if (accountId === FINANCIAL_BANK_ACCOUNTS_FILTER) {
-    return bankAccountIds.has(entry.account_id) || (entry.entry_type === "transfer" && bankAccountIds.has(entry.transfer_account_id));
-  }
-  return entry.account_id === accountId || (entry.entry_type === "transfer" && entry.transfer_account_id === accountId);
+  return financialAccountSelected(entry.account_id, accountId, bankAccountIds)
+    || (entry.entry_type === "transfer" && financialAccountSelected(entry.transfer_account_id, accountId, bankAccountIds));
 }
 
 function financialAccountFilterMovement(entry, accountId, bankAccountIds) {
   const amount = Number(entry.amount) || 0;
   if (entry.entry_type === "income" || entry.entry_type === "expense") {
-    const accountMatches = !accountId || (accountId === FINANCIAL_BANK_ACCOUNTS_FILTER && bankAccountIds.has(entry.account_id)) || entry.account_id === accountId;
-    return accountMatches ? (entry.entry_type === "income" ? amount : -amount) : 0;
+    return financialAccountSelected(entry.account_id, accountId, bankAccountIds) ? (entry.entry_type === "income" ? amount : -amount) : 0;
   }
-  if (entry.entry_type !== "transfer" || !accountId) return 0;
-  if (accountId === FINANCIAL_BANK_ACCOUNTS_FILTER) {
-    return (bankAccountIds.has(entry.transfer_account_id) ? amount : 0) - (bankAccountIds.has(entry.account_id) ? amount : 0);
+  if (entry.entry_type !== "transfer") return 0;
+  return (financialAccountSelected(entry.transfer_account_id, accountId, bankAccountIds) ? amount : 0)
+    - (financialAccountSelected(entry.account_id, accountId, bankAccountIds) ? amount : 0);
+}
+
+function renderFinancialMultiFilter(select, value) {
+  if (!select) return;
+  const selected = financialFilterValues(value);
+  const options = Array.from(select.options);
+  options.forEach((option) => { option.selected = option.value ? selected.includes(option.value) : !selected.length; });
+  select.hidden = true;
+  let picker = select.nextElementSibling;
+  if (!picker?.classList.contains("financial-multi-filter")) {
+    picker = document.createElement("details");
+    picker.className = "financial-multi-filter";
+    select.after(picker);
   }
-  return (entry.transfer_account_id === accountId ? amount : 0) - (entry.account_id === accountId ? amount : 0);
+  const labels = options.filter((option) => option.value && selected.includes(option.value)).map((option) => option.textContent);
+  const summary = labels.length ? labels.join(", ") : options[0]?.textContent || "Todas";
+  const focusedValue = picker.contains(document.activeElement) ? document.activeElement.value : null;
+  picker.innerHTML = `<summary title="${escapeHtml(summary)}">${escapeHtml(summary)}</summary><div class="financial-multi-options">${options.map((option) => `<label><input type="checkbox" data-financial-multi-filter="${select.id}" value="${escapeHtml(option.value)}" ${option.selected ? "checked" : ""} ${select.disabled ? "disabled" : ""} /><span>${escapeHtml(option.textContent)}</span></label>`).join("")}</div>`;
+  if (focusedValue != null) Array.from(picker.querySelectorAll("input")).find((input) => input.value === focusedValue)?.focus();
+  picker.classList.toggle("is-disabled", select.disabled);
+  if (select.disabled) picker.open = false;
 }
 
 function formatFinancialDate(value) {
@@ -2463,7 +2492,7 @@ function renderFinancialDailyBalanceBreaks(table) {
   const rows = allRows.filter((row) => !row.hidden);
   const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
   const filteredAccountId = state.financialEntryAccountFilter || filters.accountId;
-  const filteredAccounts = state.financialAccounts.filter((account) => account.active && (!filteredAccountId || (filteredAccountId === FINANCIAL_BANK_ACCOUNTS_FILTER && account.account_type === "bank") || account.id === filteredAccountId));
+  const filteredAccounts = state.financialAccounts.filter((account) => account.active && financialAccountSelected(account.id, filteredAccountId, bankAccountIds));
   if (state.financialEntryShowDailyBalance) {
     rows.forEach((row, index) => {
       const date = row.dataset.financialEntryDate;
@@ -2513,7 +2542,7 @@ function renderFinancialDailyBalanceBreaks(table) {
   }
   if (!state.financialEntryShowDailyBalance) return;
   const selectedAccountId = state.financialEntryAccountFilter || filters.accountId;
-  const accounts = state.financialAccounts.filter((account) => account.active && (!selectedAccountId || (selectedAccountId === FINANCIAL_BANK_ACCOUNTS_FILTER && account.account_type === "bank") || account.id === selectedAccountId));
+  const accounts = state.financialAccounts.filter((account) => account.active && financialAccountSelected(account.id, selectedAccountId, bankAccountIds));
   rows.forEach((row, index) => {
     const date = row.dataset.financialEntryDate;
     if (rows[index + 1]?.dataset.financialEntryDate === date) return;
@@ -2554,7 +2583,7 @@ function renderFinancialEntries(view = state.view) {
   if (view === "financeTransactions") renderFinancialTransactionSummary(start, end);
   const entries = state.financialEntries.filter((entry) => {
     if (filterType && entry.entry_type !== filterType) return false;
-    if (view === "financeTransactions" && filters.type && entry.entry_type !== filters.type) return false;
+    if (view === "financeTransactions" && filters.type && !financialFilterMatches(entry.entry_type, filters.type)) return false;
     const entryDate = financialEntryDate(entry);
     if (state.financialEntryMonthFilter && !hasGlobalFilter && (entryDate < start || entryDate > end)) return false;
     const contextualAccount = view === "financeTransactions" ? state.financialEntryAccountFilter : "";
@@ -2563,8 +2592,8 @@ function renderFinancialEntries(view = state.view) {
     if (contextualAccount && !hasGlobalFilter && (entryDate < start || entryDate > end)) return false;
     if (filters.startDate && entryDate < filters.startDate) return false;
     if (filters.endDate && entryDate > filters.endDate) return false;
-    if (filters.categoryId && entry.category_id !== filters.categoryId) return false;
-    if (filters.status && entry.status !== filters.status) return false;
+    if (filters.categoryId && !financialFilterMatches(entry.category_id, filters.categoryId)) return false;
+    if (filters.status && !financialFilterMatches(entry.status, filters.status)) return false;
     if (filters.search) {
       const search = filters.search.toLocaleLowerCase("pt-BR");
       const matchesDescription = String(entry.description || "").toLocaleLowerCase("pt-BR").includes(search);
@@ -2580,14 +2609,14 @@ function renderFinancialEntries(view = state.view) {
   const categories = new Map(state.financialCategories.map((category) => [category.id, category.name]));
   const accountSelect = document.querySelector("#financialEntryFilterAccount");
   const categorySelect = document.querySelector("#financialEntryFilterCategory");
-  if (accountSelect) { accountSelect.innerHTML = `<option value="">Todas as contas</option><option value="${FINANCIAL_BANK_ACCOUNTS_FILTER}">Contas bancárias</option>` + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.value = state.financialEntryAccountFilter || filters.accountId; accountSelect.disabled = Boolean(state.financialEntryAccountFilter); }
-  if (categorySelect) { const eligibleCategories = state.financialCategories.filter((category) => category.active && (!filterType || category.category_type === filterType || category.category_type === "both")); categorySelect.innerHTML = '<option value="">Todas as categorias</option>' + financialGroupedCategoryOptions(eligibleCategories) ; categorySelect.value = filters.categoryId; }
+  if (accountSelect) { accountSelect.innerHTML = `<option value="">Todas as contas</option><option value="${FINANCIAL_BANK_ACCOUNTS_FILTER}">Contas bancárias</option>` + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${account.id}">${escapeHtml(account.name)}</option>`).join(""); accountSelect.disabled = Boolean(state.financialEntryAccountFilter); renderFinancialMultiFilter(accountSelect, state.financialEntryAccountFilter || filters.accountId); }
+  if (categorySelect) { const eligibleCategories = state.financialCategories.filter((category) => category.active && (!filterType || category.category_type === filterType || category.category_type === "both")); categorySelect.innerHTML = '<option value="">Todas as categorias</option>' + financialGroupedCategoryOptions(eligibleCategories) ; renderFinancialMultiFilter(categorySelect, filters.categoryId); }
   document.querySelector("#financialEntryFilterSearch").value = filters.search;
   document.querySelector("#financialEntryTypeFilter").hidden = view !== "financeTransactions";
-  document.querySelector("#financialEntryFilterType").value = filters.type;
+  renderFinancialMultiFilter(document.querySelector("#financialEntryFilterType"), filters.type);
   document.querySelector("#financialEntryMonth").value = state.financialEntryMonthFilter;
   document.querySelector("#financialEntryMonthLabel").textContent = formatFinancialMonth(state.financialEntryMonthFilter);
-  document.querySelector("#financialEntryFilterStatus").value = filters.status;
+  renderFinancialMultiFilter(document.querySelector("#financialEntryFilterStatus"), filters.status);
   const balanceControls = document.querySelector("#financialEntryBalanceControls");
   if (balanceControls) balanceControls.hidden = view !== "financeTransactions";
   const dailyBalanceToggle = document.querySelector("#financialEntryShowDailyBalance");
@@ -8021,11 +8050,24 @@ document.querySelector("#clearFinancialEntryFilter")?.addEventListener("click", 
   state.financialEntryPage = 1;
   renderFinancialEntries("financeTransactions");
 });
+document.addEventListener("click", (event) => {
+  document.querySelectorAll(".financial-multi-filter[open]").forEach((picker) => {
+    if (!picker.contains(event.target)) picker.open = false;
+  });
+});
+
 document.querySelector("#financialEntryFilters")?.addEventListener("input", (event) => {
   const keys = { financialEntryFilterSearch: "search", financialEntryFilterType: "type", financialEntryFilterAccount: "accountId", financialEntryFilterCategory: "categoryId", financialEntryFilterStatus: "status", financialEntryFilterStart: "startDate", financialEntryFilterEnd: "endDate" };
-  const key = keys[event.target.id];
+  const pickerId = event.target.dataset.financialMultiFilter;
+  const key = keys[pickerId || event.target.id];
   if (!key || event.target.disabled) return;
-  state.financialEntryFilters[key] = event.target.value;
+  if (pickerId) {
+    const current = financialFilterValues(state.financialEntryFilters[key]);
+    const choice = event.target.value;
+    state.financialEntryFilters[key] = !choice ? "" : event.target.checked
+      ? [...new Set([...current, choice])].join("|")
+      : current.filter((value) => value !== choice).join("|");
+  } else state.financialEntryFilters[key] = event.target.value;
   state.financialEntryPage = 1;
   renderFinancialEntries();
 });
