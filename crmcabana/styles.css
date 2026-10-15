@@ -923,6 +923,13 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 }
 
 .financial-register { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.financial-entry-status-selection { display: flex; align-items: center; gap: 6px; }
+.financial-entry-status-selection input, #selectAllFinancialEntries { width: 15px; height: 15px; margin: 0; padding: 0; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+.financial-entry-selection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--line); }
+.financial-entry-selection-actions[hidden] { display: none; }
+.financial-entry-selection-actions > span { margin-right: auto; font-size: 13px; font-weight: 700; }
+.financial-entry-table tr.financial-entry-selected { background: rgba(217, 199, 121, .2); }
+.financial-entry-table th:first-child:has(#selectAllFinancialEntries:not([hidden])) { min-width: 92px; width: 92px !important; }
 .financial-register > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
 #financialEntriesPanel > header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 #financialEntriesPanel > header > .button { justify-self: end; }
@@ -985,6 +992,7 @@ table[data-financial-sortable] th[data-sort-type]:focus-visible { outline: 2px s
 .financial-entry-table th:first-child, .financial-entry-table td:first-child { width: 74px; text-align: center; }
 .financial-entry-table th:last-child, .financial-entry-table td:last-child { width: 72px; text-align: center; }
 .financial-entry-table td:nth-child(7) { font-weight: 800; white-space: nowrap; }
+
 .financial-entry-notes { min-width: 180px; max-width: 320px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.45; }
 body[data-sidebar-collapsed="true"] .financial-module-view { max-width: none; }
 body[data-sidebar-collapsed="true"] .financial-entry-table { min-width: 0; table-layout: fixed; }
@@ -1003,10 +1011,17 @@ body[data-sidebar-collapsed="true"] .financial-entry-table td:nth-child(4),
 body[data-sidebar-collapsed="true"] .financial-entry-table td:nth-child(5) { white-space: normal; overflow-wrap: anywhere; }
 body[data-sidebar-collapsed="true"] .financial-entry-notes { min-width: 0; max-width: none; }
 
-@media (min-width: 1051px) and (max-width: 1450px) {
+@media (min-width: 1051px) {
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)) repeat(2, minmax(0, .95fr)) auto;
+    gap: 8px;
+    padding-right: 16px;
+    padding-left: 16px;
   }
+
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters label { min-width: 0; }
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters input,
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-filters select { padding-right: 6px; padding-left: 6px; }
 
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table {
     min-width: 0;
@@ -1021,16 +1036,17 @@ body[data-sidebar-collapsed="true"] .financial-entry-notes { min-width: 0; max-w
 
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(1) { width: 64px; }
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(2) { width: 116px; }
-  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(3) { width: 18%; }
-  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(4) { width: 22%; }
-  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(5) { width: 15%; }
-  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(6) { width: 16%; }
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(3),
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(4),
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(5),
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(6) { width: auto; }
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(7) { width: 112px; }
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table th:nth-child(8) { width: 62px; }
 
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table td:nth-child(3),
   body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table td:nth-child(4),
-  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table td:nth-child(5) {
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table td:nth-child(5),
+  body[data-view="financeTransactions"]:not([data-sidebar-collapsed="true"]) .financial-entry-table td:nth-child(6) {
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -1612,7 +1628,7 @@ button.financial-entry-tag-chip { cursor: pointer; }
 
 .environment-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, 170px) auto;
   align-items: end;
   gap: 10px;
   font-size: 13px;
@@ -1648,11 +1664,11 @@ button.financial-entry-tag-chip { cursor: pointer; }
   width: auto;
 }
 
-.environment-table th:nth-child(2) {
+.environment-table th:nth-child(2), .environment-table th:nth-child(3) {
   width: 130px;
 }
 
-.environment-table input {
+.environment-table input, .environment-table select {
   width: 100%;
   min-height: 30px;
   border: 1px solid var(--line);
@@ -2534,6 +2550,7 @@ body[data-view="order"] .budget-table {
 }
 
 .budget-payment-plan { margin-bottom: 12px; }
+.budget-payment-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 8px; }
 .budget-payment-enabled { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
 .budget-payment-enabled input { width: auto; }
 .budget-payment-plan .budget-finance-grid > div { display: block !important; }
@@ -3810,3 +3827,54 @@ dialog::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .sidebar { transition: none; }
 }
+
+.financial-entry-balance-controls { flex-wrap: wrap; align-items: center; gap: 16px; }
+.financial-column-picker { position: relative; margin-right: auto; font-size: 12px; }
+.financial-column-picker summary { cursor: pointer; font-weight: 700; padding: 6px; }
+.financial-column-options { position: absolute; left: 0; top: 100%; z-index: 20; min-width: 190px; display: grid; gap: 12px; padding: 16px; background: white; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px #0002; }
+.financial-entry-table th[hidden], .financial-entry-table td[hidden] { display: none !important; }
+
+.financial-scope-message { color: #a33723; padding: 12px; background: #fff1eb; border: 1px solid #f0c4b7; border-radius: 8px; }
+body[data-financial-scope="braga"] #bragaFinancialNavToggle { color: var(--accent); }
+
+body[data-financial-scope="company"]:is([data-view^="finance"], [data-view="financial"]) {
+  background: #fff;
+}
+body[data-financial-scope="company"] :is(.financial-module-view, .financial-view) {
+  --card: #f5efd8;
+  --shadow: 0 4px 16px rgba(92, 70, 24, .10);
+}
+body[data-financial-scope="company"] .financial-register th { background: #efe3aa; }
+body[data-financial-scope="company"] :is(.financial-entry-filters, .financial-entry-balance-controls, .financial-entry-pagination, .financial-entries-context) { background: #f5efd8; }
+
+/* As telas pessoais usam uma base preta para distinguir os dois financeiros. */
+body[data-financial-scope="braga"] {
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --card: #2b2b2b;
+  --text: #f5f5f5;
+  --muted: #bcbcbc;
+  --line: #484848;
+  --accent-dark: #d9c779;
+  --surface: #333333;
+  --ink: #f5f5f5;
+  --gold: #d9c779;
+  background: var(--bg);
+}
+
+body[data-financial-scope="braga"] :is(input, select, textarea, dialog) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+body[data-financial-scope="braga"] :is(input, textarea)::placeholder { color: #9c9c9c; }
+body[data-financial-scope="braga"] .button.primary { background: var(--accent); color: #111; }
+body[data-financial-scope="braga"] .button.secondary { background: var(--surface); color: var(--text); border-color: var(--line); }
+body[data-financial-scope="braga"] :is(.button.danger, .link-button.danger, .financial-account-actions-menu button.danger) { color: #ff9eaa; }
+body[data-financial-scope="braga"] :is(.financial-entry-filters, .financial-entry-balance-controls, .financial-entry-pagination, .financial-entries-context, .financial-column-options) { background: var(--card); }
+body[data-financial-scope="braga"] .financial-register th { background: #393939; }
+body[data-financial-scope="braga"] :is(.financial-register th, .financial-register td) { border-bottom-color: var(--line); }
+body[data-financial-scope="braga"] :is(.financial-daily-balance-row span, .financial-filter-balance-row span) { background: #3c3c3c; }
+body[data-financial-scope="braga"] :is(.financial-positive, .financial-entry-value.income) { color: #67dc94; }
+body[data-financial-scope="braga"] :is(.financial-negative, .financial-entry-value.expense) { color: #ff9085; }
+body[data-financial-scope="braga"] .financial-scope-message { background: #291713; color: #ffb6a7; border-color: #784338; }

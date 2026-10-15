@@ -52,6 +52,31 @@ test("exclusão parcial mantém marca enquanto houver transação vinculada", as
   assert.equal(h.saved.length, 0);
 });
 
+for (const simulated of [true, false]) {
+  test(`recupera referência perdida de lançamento ${simulated ? "simulado" : "efetivo"} sem recriar transações`, async () => {
+    const h = harness({ entries: [{ id: "income-id", status: "paid", description: simulated ? "Simulado - Entrada À Vista" : "Entrada À Vista" }] });
+    for (const budget of [h.budget, h.state.clients[0].budget, h.state.clients[0].budgets[0]]) {
+      budget.financialLaunchedAt = "";
+      budget.financialSimulationAt = "";
+    }
+    assert.equal(await h.reconcile("client-1", h.budget), true);
+    for (const budget of [h.state.clients[0].budget, h.state.clients[0].budgets[0]]) {
+      assert.ok(budget[simulated ? "financialSimulationAt" : "financialLaunchedAt"]);
+      assert.equal(budget[simulated ? "financialLaunchedAt" : "financialSimulationAt"], "");
+      assert.equal(budget.rows[0].gross, 100);
+    }
+    assert.equal(h.state.clients[0].budgets[1], h.other);
+    assert.deepEqual(h.saved, [["client-1"]]);
+  });
+}
+
+test("orçamento sem marca e sem lançamentos não precisa ser salvo", async () => {
+  const h = harness();
+  h.budget.financialLaunchedAt = "";
+  assert.equal(await h.reconcile("client-1", h.budget), false);
+  assert.equal(h.saved.length, 0);
+});
+
 test("erro de consulta não é interpretado como ausência de transações", async () => {
   const h = harness({ fetchError: true });
   await assert.rejects(h.reconcile("client-1", h.budget), /Falha de conexão/);
@@ -61,7 +86,7 @@ test("erro de consulta não é interpretado como ausência de transações", asy
 
 test("erro ao persistir preserva marca local para permitir nova conferência", async () => {
   const h = harness({ saveOk: false });
-  await assert.rejects(h.reconcile("client-1", h.budget), /não foi possível confirmar/);
+  await assert.rejects(h.reconcile("client-1", h.budget), /não foi possível confirmar/i);
   assert.equal(h.state.clients[0].budget.financialLaunchedAt, "2026-09-26");
 });
 

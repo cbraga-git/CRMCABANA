@@ -11,6 +11,33 @@ const context = { BRL: new Intl.NumberFormat("pt-BR", { style: "currency", curre
 const { calculateBudgetPaymentPlan: calculate, budgetPaymentMonthDate: monthDate, normalizeBudgetPaymentPlan: normalize } = runInNewContext(`${core}\n({ calculateBudgetPaymentPlan, budgetPaymentMonthDate, normalizeBudgetPaymentPlan })`, context);
 const defaults = { enabled: true, entry: 2000, months: 12, entryDate: "2026-09-26", firstDueDate: "2026-10-31", entryMethod: "PIX", method: "Boleto" };
 
+test("editar vencimentos preserva o campo e salva datas da entrada e das parcelas", () => {
+  const handlers = {};
+  const state = {};
+  const entryDate = { value: "" };
+  let updates = 0;
+  let dirty = 0;
+  const document = { querySelector: (selector) => selector === "#budgetPaymentEntryDate" ? entryDate : {
+    addEventListener: (name, handler) => { handlers[`${selector}:${name}`] = handler; },
+  } };
+  runInNewContext(extract('document.querySelector("#budgetPaymentSchedule")?.addEventListener', '\ndocument.querySelector("#budgetPaymentEntry")?.addEventListener'), {
+    document, state, markBudgetDirty: () => dirty++, updateBudgetSummary: () => updates++,
+    runBudgetFinancialAction() {}, handleBudgetStatusDateFields() {},
+  });
+  for (const [key, date] of [["plan-income-1", "2027-02-15"], ["plan-entry", "2026-10-10"]]) {
+    const input = { value: date, dataset: { budgetPaymentDue: key }, closest() { return this; }, matches: () => true };
+    handlers["#budgetPaymentPlanPanel:input"]({ target: input });
+    handlers["#budgetPaymentSchedule:change"]({ target: input });
+    handlers["#budgetPaymentPlanPanel:change"]({ target: input });
+  }
+  assert.equal(state.budgetPaymentDueDates["plan-income-1"], "2027-02-15");
+  assert.equal(entryDate.value, "2026-10-10");
+  assert.equal(updates, 0);
+  assert.equal(dirty, 4);
+  handlers["#budgetPaymentPlanPanel:change"]({ target: { matches: () => false } });
+  assert.equal(updates, 1);
+});
+
 test("matriz comercial aplica 2,2% para 12x com entrada de 20% e fecha centavos", () => {
   const result = calculate(10000, defaults);
   assert.equal(result.balance, 8000);
@@ -23,10 +50,76 @@ test("matriz comercial aplica 2,2% para 12x com entrada de 20% e fecha centavos"
 });
 
 test("matriz escolhe a coluna pela maior faixa de entrada atingida", () => {
-  assert.equal(calculate(10000, { ...defaults, months: 2 }).effectiveRate, 1.3);
+  assert.equal(calculate(10000, { ...defaults, months: 3 }).effectiveRate, 1.3);
   assert.equal(calculate(10000, { ...defaults, entry: 3000, months: 6 }).effectiveRate, 1.5);
   assert.equal(calculate(10000, { ...defaults, entry: 4000, months: 6 }).effectiveRate, 1.4);
   assert.equal(calculate(10000, { ...defaults, entry: 5000, months: 6 }).effectiveRate, 1.2);
+});
+
+test("cartão divide o valor do crédito informado e ignora taxa mensal", () => {
+  for (const months of [2, 10, 24]) {
+    const result = calculate(10000, { ...defaults, method: "Cartão de Credito", creditAmount: 9000.01, months, rate: 3.3, rateAuto: false });
+    assert.equal(result.creditCard, true);
+    assert.equal(result.cashPayment, false);
+    assert.equal(result.effectiveRate, 0);
+    assert.equal(result.financedTotal, 9000.01);
+    assert.equal(result.total, 11000.01);
+    const installments = result.payments.filter((item) => item.key !== "plan-entry");
+    assert.equal(installments.length, months);
+    assert.equal(installments.reduce((sum, item) => sum + Math.round(item.amount * 100), 0), 900001);
+    assert.ok(installments.every((item) => item.method === "Cartão de Credito"));
+  }
+});
+
+test("valor do crédito persiste e outras formas de pagamento usam a taxa", () => {
+  const saved = normalize({ ...defaults, method: "Cartão de Credito", creditAmount: 9000 });
+  assert.equal(saved.creditAmount, 9000);
+  assert.equal(calculate(10000, saved).financedTotal, 9000);
+  const boleto = calculate(10000, { ...saved, method: "Boleto" });
+  assert.equal(boleto.total, 11189.59);
+  assert.equal(boleto.effectiveRate, 2.2);
+  const noAmount = calculate(10000, { ...defaults, method: "Cartão de Credito" });
+  assert.equal(noAmount.financedTotal, 8000);
+  for (const creditAmount of [-1, 0, NaN, Infinity]) assert.throws(() => calculate(10000, { ...saved, creditAmount }), /valor do crédito/);
+});
+
+test("campo de crédito preenche valor inicial e preserva edição durante o recálculo", () => {
+  const nodes = new Map();
+  const node = (selector) => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: "", dataset: {}, querySelector: () => ({}), closest: () => ({ querySelector: () => ({}) }) });
+    return nodes.get(selector);
+  };
+  const input = node("#budgetPaymentCreditAmount");
+  const document = { querySelector: node, activeElement: null };
+  let plan = { ...defaults, method: "Cartão de Credito", creditAmount: null };
+  const render = runInNewContext(`${extract("function renderBudgetPaymentPlan(", "\nfunction renderCashPaymentRows(")}\nrenderBudgetPaymentPlan`, {
+    document, readBudgetPaymentPlan: () => plan, calculateBudgetPaymentPlan: calculate,
+    BRL: context.BRL, formatMoneyInput: (value) => value.toFixed(2).replace(".", ","),
+    selectBudgetPaymentRate: () => {}, escapeHtml: String,
+  });
+  render(10000);
+  assert.equal(input.value, "8000,00");
+  assert.equal(node("#budgetPaymentRateField").hidden, true);
+  assert.equal(node("#budgetPaymentCreditField").hidden, false);
+  document.activeElement = input;
+  input.value = "9000,";
+  plan.creditAmount = 9000;
+  render(10000);
+  assert.equal(input.value, "9000,");
+  assert.equal(node("#budgetPaymentTotal").textContent, context.BRL.format(11000));
+  input.value = "";
+  plan.creditAmount = null;
+  render(10000);
+  assert.equal(input.value, "");
+});
+
+test("entrada mais duas parcelas é à vista mesmo com uma taxa antiga salva", () => {
+  const result = calculate(10000, { ...defaults, months: 2, rate: 4, rateAuto: false });
+  assert.equal(result.cashPayment, true);
+  assert.equal(result.effectiveRate, 0);
+  assert.equal(result.interest, 0);
+  assert.equal(result.total, 10000);
+  assert.equal(result.payments.length, 3);
 });
 
 test("taxa mensal informada manualmente substitui a sugestão da matriz", () => {
@@ -139,8 +232,20 @@ test("vencimentos preservam dia original e ajustam fevereiro e meses curtos", ()
 });
 
 test("rejeita entrada excedente, negativa, prazos e taxas inválidos", () => {
-  for (const change of [{ entry: -1 }, { entry: 10001 }, { entry: 1999 }, { months: 0 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
+  for (const change of [{ entry: -1 }, { entry: 10001 }, { months: 0 }, { months: 25 }, { months: 1.5 }]) assert.throws(() => calculate(10000, { ...defaults, ...change }));
   assert.equal(normalize().enabled, false);
+});
+
+test("entrada inferior a 20% ou zero aceita taxa automática, manual e sem juros", () => {
+  for (const entry of [0, 1000, 1999]) {
+    for (const rate of [null, 0, 1.25]) {
+      const result = calculate(10000, { ...defaults, entry, rate, rateAuto: rate === null });
+      assert.equal(result.balance, 10000 - entry);
+      assert.equal(result.effectiveRate, rate === null ? 2.2 : rate);
+      assert.equal(result.payments.reduce((sum, row) => sum + Math.round(row.amount * 100), 0), Math.round(result.total * 100));
+      if (rate === 0) assert.equal(result.total, 10000);
+    }
+  }
 });
 
 function financialHarness() {
@@ -187,13 +292,23 @@ test("financeiro exige vencimentos e simulação identifica as novas receitas", 
   assert.equal(incomes[1].due_date, defaults.firstDueDate);
 });
 
+test("lançamentos do cartão somam crédito informado mais entrada", () => {
+  const h = financialHarness();
+  h.budget.paymentPlan = { ...defaults, months: 10, method: "Cartão de Credito", creditAmount: 9000 };
+  const incomes = h.budgetFinancialPlan(h.budget, { name: "Cliente" }, "2026-09-26", { id: "account" }, h.categories).filter((row) => row.entry_type === "income");
+  assert.equal(incomes.length, 11);
+  assert.equal(incomes[0].amount, 2000);
+  assert.ok(incomes.slice(1).every((row) => row.amount === 900));
+  assert.equal(incomes.reduce((sum, row) => sum + row.amount, 0), 11000);
+});
+
 test("documentos incluem todas as parcelas e novo quadro antecede quadro preservado", () => {
   const ctx = {
     ...context, calculateBudgetPaymentPlan: calculate, escapeHtml: String,
     formatPrintDate: (value) => value, formatPercent: runInNewContext(`${extract("function formatPercent(", "\nfunction budgetInputValue(")}\nformatPercent`),
     printField: (label, value) => `<div>${label}: ${value}</div>`,
   };
-  const functions = runInNewContext(`${extract("function orderPaymentRows(", "\nconst ORDER_ITEMS_PER_PAGE")}\n${extract("function buildBudgetPaymentPlanDocument(", "\nfunction buildQuoteDocument(")}\n({ orderPaymentRows, buildBudgetPaymentPlanDocument })`, ctx);
+  const functions = runInNewContext(`${extract("function documentCompanyHeaderRows(", "\nfunction formatPrintDate(")}\n${extract("function orderPaymentRows(", "\nconst ORDER_ITEMS_PER_PAGE")}\n${extract("function buildBudgetPaymentPlanDocument(", "\nfunction buildQuoteDocument(")}\n({ orderPaymentRows, buildBudgetPaymentPlanDocument })`, ctx);
   const input = { client: { name: "Cliente" }, budget: { code: "002-082026", paymentPlan: { ...defaults, months: 24 } }, totals: { net: 10000 } };
   assert.equal(functions.orderPaymentRows(input).length, 25);
   const printed = functions.buildBudgetPaymentPlanDocument(input);
@@ -203,6 +318,31 @@ test("documentos incluem todas as parcelas e novo quadro antecede quadro preserv
   input.budget.paymentPlan.months = 24;
   assert.match(functions.buildBudgetPaymentPlanDocument(input), /3,3% a.m./);
   assert.ok(html.indexOf('id="budgetPaymentPlanPanel"') < html.indexOf('id="cashPaymentRows"'));
+  input.budget.paymentPlan = { ...defaults, months: 10, method: "Cartão de Credito", creditAmount: 9000 };
+  const cardDocument = functions.buildBudgetPaymentPlanDocument(input);
+  assert.ok(cardDocument.includes(`Valor do crédito: ${context.BRL.format(9000)}`));
+  assert.ok(cardDocument.includes(`Total com entrada: ${context.BRL.format(11000)}`));
+  assert.doesNotMatch(cardDocument, /Tabela Price/);
+  assert.ok(cardDocument.includes("<div>Juros: </div>"));
+  assert.ok(cardDocument.includes("<div>Total de juros: </div>"));
+  assert.equal(functions.orderPaymentRows(input)[1].value, context.BRL.format(900));
+});
+
+test("orçamento impresso deixa juros em branco para cartão e mantém juros de boleto", () => {
+  const buildQuote = runInNewContext(`${extract("function buildQuoteDocument(", "\nfunction openPrintableHtml(")}\nbuildQuoteDocument`, {
+    ...context, calculateBudgetPaymentPlan: calculate, escapeHtml: String,
+    printField: (label, value) => `<div>${label}: ${value}</div>`,
+    printableHeader: () => "", printableClientSection: () => "", formatPercent: String,
+    documentWithRepeatingHeader: (_, content) => content,
+    buildBudgetPaymentPlanDocument: () => "", printableDocumentShell: (_, body) => body,
+  });
+  const input = { rows: [], client: {}, budget: { paymentPlan: { ...defaults, method: "Cartão de Credito", creditAmount: 9000 } }, totals: { net: 10000 } };
+  const card = buildQuote(input).body;
+  assert.ok(card.includes("<div>Total de juros: </div>"));
+  assert.ok(card.includes(`Valor parcela: ${context.BRL.format(750)}`));
+  assert.ok(card.includes(`Total financiamento: ${context.BRL.format(11000)}`));
+  input.budget.paymentPlan.method = "Boleto";
+  assert.ok(buildQuote(input).body.includes(`Total de juros: ${context.BRL.format(1189.59)}`));
 });
 
 test("sincronização substitui receitas antigas, atualiza vencimentos e não duplica", async () => {

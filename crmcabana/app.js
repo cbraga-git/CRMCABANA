@@ -11,6 +11,7 @@ const CLIENT_COLUMNS_WIDTH_KEY = "movelcrm-client-column-widths";
 const BUDGET_COLUMNS_WIDTH_KEY = "movelcrm-budget-column-widths";
 const BUDGET_STATUS_STORAGE_KEY = "movelcrm-budget-statuses";
 const APP_PREFERENCES_KEY = "movelcrm-app-preferences";
+const BRAGA_FINANCE_EMAIL = "fernandes.braga@gmail.com";
 const PRESENCE_SESSION_KEY = "movelcrm-presence-session";
 const DEFAULT_APP_PREFERENCES = {
   budgetCodeSeparator: " - ",
@@ -196,8 +197,15 @@ const state = {
   returnView: "clients",
   clients: [],
   environments: [],
+  environmentTypes: {},
   budgetStatuses: DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status })),
   financialAccounts: [],
+  financialAccountTypeFilter: "all",
+  financialScope: "company",
+  financialOperations: 0,
+  financialNavigationPending: false,
+  financialScopeVersion: 0,
+  financialScopeError: "",
   financialCategories: [],
   financialEditingAccountId: null,
   financialEditingCategoryId: null,
@@ -222,6 +230,8 @@ const state = {
   financialEntryShowDailyBalance: true,
   financialEntryPage: 1,
   financialEntryPageSize: 20,
+  financialSelectedEntryIds: new Set(),
+  financialDeletingEntries: false,
   onlineUsers: [],
 };
 
@@ -399,8 +409,10 @@ function supabaseProfilesEndpoint(path = "") {
   return `${baseUrl}/rest/v1/${CONFIG.profilesTable || "crm_profiles"}${path}`;
 }
 
-function supabaseTableEndpoint(table, path = "") {
+function supabaseTableEndpoint(table, path = "", scope = state.financialScope || "company") {
   const baseUrl = CONFIG.supabaseUrl.replace(/\/$/, "");
+  if (table.startsWith("crm_financial_") && scope === "braga") table = table.replace("crm_financial_", "crm_braga_financial_");
+  if (table.startsWith("crm_braga_financial_") && !canAccessBragaFinance()) throw new Error("Acesso exclusivo ao Financeiro Braga.");
   return `${baseUrl}/rest/v1/${table}${path}`;
 }
 
@@ -550,6 +562,8 @@ function showAuthenticatedApp() {
   if (elements.financialNavGroup) {
     elements.financialNavGroup.hidden = !isAdmin();
   }
+  const bragaNavGroup = document.querySelector("#bragaFinancialNavGroup");
+  if (bragaNavGroup) bragaNavGroup.hidden = !canAccessBragaFinance();
 }
 
 function currentUserName() {
@@ -824,6 +838,7 @@ function hasStoredEnvironmentCatalog() {
 
 function saveEnvironmentCatalog() {
   localStorage.setItem(environmentStorageKey(), JSON.stringify(state.environments));
+  localStorage.setItem(`${environmentStorageKey()}-types`, JSON.stringify(state.environmentTypes));
 }
 
 function clientEnvironmentNames() {
@@ -842,6 +857,18 @@ function renderEnvironmentOptions() {
 }
 
 function refreshEnvironmentCatalog(extraEnvironments = []) {
+  try {
+    const savedTypes = JSON.parse(localStorage.getItem(`${environmentStorageKey()}-types`) || "{}");
+    state.environmentTypes = savedTypes && typeof savedTypes === "object" && !Array.isArray(savedTypes) ? savedTypes : {};
+  } catch { state.environmentTypes = {}; }
+  for (const client of state.clients) {
+    for (const budget of clientBudgetHistory(client)) {
+      for (const row of budget.rows || []) {
+        const name = normalizeEnvironmentName(row.name || "");
+        if (name && !Object.prototype.hasOwnProperty.call(state.environmentTypes, name) && ["factory", "cost"].includes(row.environmentType)) state.environmentTypes[name] = row.environmentType;
+      }
+    }
+  }
   const baseEnvironments = hasStoredEnvironmentCatalog() ? loadStoredEnvironments() : DEFAULT_ENVIRONMENTS;
   const names = [...baseEnvironments, ...clientEnvironmentNames(), ...extraEnvironments]
     .map(normalizeEnvironmentName)
@@ -920,11 +947,12 @@ function persistEnvironmentCatalog() {
   renderEnvironmentManager();
 }
 
-function addEnvironmentToCatalog(name) {
+function addEnvironmentToCatalog(name, type = "factory") {
   const normalized = normalizeEnvironmentName(name);
   if (!normalized) return false;
   if (state.environments.includes(normalized)) return false;
   state.environments = [...state.environments, normalized];
+  state.environmentTypes[normalized] = budgetEnvironmentHasSpecialPricing(normalized, type) ? "cost" : "factory";
   persistEnvironmentCatalog();
   return true;
 }
@@ -943,6 +971,8 @@ function renameEnvironmentInCatalog(previousName, nextName) {
   const next = normalizeEnvironmentName(nextName);
   if (!previous || !next) return previous;
   if (previous === next) return next;
+  state.environmentTypes[next] = state.environmentTypes[previous] || (budgetEnvironmentHasSpecialPricing(previous) ? "cost" : "factory");
+  delete state.environmentTypes[previous];
   state.environments = state.environments.map((environment) => (environment === previous ? next : environment));
   persistEnvironmentCatalog();
   return next;
@@ -952,6 +982,7 @@ function removeEnvironmentFromCatalog(name) {
   const normalized = normalizeEnvironmentName(name);
   if (!normalized) return;
   state.environments = state.environments.filter((environment) => environment !== normalized);
+  delete state.environmentTypes[normalized];
   persistEnvironmentCatalog();
 }
 
@@ -1066,6 +1097,41 @@ function isAdmin() {
   return state.userRole === "admin";
 }
 
+function canAccessBragaFinance() {
+  return Boolean(currentUserId()) && String(state.session?.user?.email || "").trim().toLowerCase() === BRAGA_FINANCE_EMAIL;
+}
+
+function canAccessFinancialScope(scope = state.financialScope || "company") {
+  return scope === "braga" ? canAccessBragaFinance() : scope === "company" && isAdmin();
+}
+
+function financialScopeBusy() {
+  return Boolean(state.financialOperations || state.financialDeletingEntries || state.financialTagUpdating || document.querySelector("#reportsExportBtn")?.disabled) ||
+    [elements.financialAccountDialog, elements.financialCategoryDialog, elements.financialEntryDialog, document.querySelector("#financialTagManagerDialog")].some((dialog) => dialog?.open);
+}
+
+function resetFinancialScopeData() {
+  Object.assign(state, {
+    financialAccounts: [], financialAccountTypeFilter: "all", financialCategories: [], financialEntries: [], financialImports: [], financialStatementItems: [],
+    financialEditingAccountId: null, financialEditingCategoryId: null, financialEditingEntryId: null,
+    financialEntryDraftTags: [], financialTagEntries: null, financialTagEditingName: null,
+    financialSelectedImportId: null, financialCategoryTargetItemId: null, financialCategoryTargetEntry: false,
+    financialEntryAccountFilter: "", financialEvolutionAccountId: "", financialSelectedEntryIds: new Set(),
+    financialEntryFilters: { search: "", type: "", accountId: "__bank_accounts__", categoryId: "", status: "", startDate: "", endDate: "" },
+    financialEntryMonthFilter: new Date().toISOString().slice(0, 7), financialEntryPage: 1,
+    financialDashboardMonth: new Date().toISOString().slice(0, 7), financialEvolutionYear: new Date().getFullYear(),
+    financialEvolutionView: "chart", financialEntryShowDailyBalance: true, financialScopeError: "",
+  });
+  document.querySelector("#financialImportAccount").value = "";
+  document.querySelector("#reportsForm")?.reset();
+  const reportMessage = document.querySelector("#reportsStatusMessage");
+  if (reportMessage) reportMessage.textContent = "";
+  document.querySelectorAll("table[data-financial-sortable]").forEach((table) => {
+    financialTableSorts.delete(table);
+    table.querySelectorAll("thead th[data-sort-type]").forEach((header) => header.setAttribute("aria-sort", "none"));
+  });
+}
+
 function startsInFinanceTransactions() {
   return String(state.session?.user?.email || "").trim().toLocaleLowerCase("pt-BR") === "fernandes.braga@gmail.com";
 }
@@ -1128,6 +1194,7 @@ async function signIn(email, password) {
 }
 
 async function signOut() {
+  if (state.financialOperations || state.financialNavigationPending || document.querySelector("#reportsExportBtn")?.disabled) { alert("Aguarde a operação financeira terminar antes de sair."); return; }
   const signingOutUserId = currentUserId();
   await removeCurrentPresence();
   if (state.session?.access_token) {
@@ -1151,6 +1218,12 @@ async function signOut() {
   sessionStorage.removeItem(PRESENCE_SESSION_KEY);
   state.clients = [];
   state.selectedId = null;
+  state.financialScope = "company";
+  document.body.dataset.financialScope = "company";
+  state.financialScopeVersion++;
+  resetFinancialScopeData();
+  document.querySelector("#bragaFinancialNavGroup").hidden = true;
+  document.querySelectorAll("#financialModuleView tbody, #financialAccountRows").forEach((node) => node.replaceChildren());
   if (elements.budgetNavItem) elements.budgetNavItem.hidden = true;
   if (elements.orderNavItem) elements.orderNavItem.hidden = true;
   if (elements.financialNavGroup) elements.financialNavGroup.hidden = true;
@@ -1588,8 +1661,15 @@ function markProjectDirty() {
   state.projectDirty = true;
 }
 
-async function showView(view, selectedId) {
-  if ((view === "users" || view === "maintenance" || view === "reports" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial" || isFinanceModuleView(view)) && !isAdmin()) {
+async function showView(view, selectedId, requestedFinancialScope) {
+  if (state.financialNavigationPending) return;
+  const financialView = isFinanceModuleView(view) || view === "reports";
+  const nextScope = requestedFinancialScope || (isFinanceModuleView(view) ? state.financialScope : "company") || "company";
+  if (financialView && !canAccessFinancialScope(nextScope)) {
+    alert(nextScope === "braga" ? "Acesso exclusivo ao Financeiro Braga." : "Acesso restrito a administradores.");
+    return;
+  }
+  if ((view === "users" || view === "maintenance" || view === "budgetStatuses" || view === "budget" || view === "order" || view === "financial") && !isAdmin()) {
     alert("Acesso restrito a administradores.");
     view = "clients";
   }
@@ -1616,9 +1696,31 @@ async function showView(view, selectedId) {
 
   if (view === "budget" && view !== previousView) state.budgetSelectedStatuses = ["Todos"];
   if (view === "order" && view !== previousView) state.budgetStatus = "Todos";
+  if (nextScope !== state.financialScope) {
+    if (financialScopeBusy()) {
+      alert("Conclua a operação ou feche o formulário financeiro antes de trocar de menu.");
+      return;
+    }
+    state.financialScope = nextScope;
+    state.financialScopeVersion++;
+    resetFinancialScopeData();
+  }
+  if (financialView || (view === "financial" && isAdmin())) {
+    state.financialNavigationPending = true;
+    try {
+      await loadFinancialRegisters();
+      state.financialScopeError = "";
+    } catch (error) {
+      console.warn(error);
+      state.financialScopeError = error.message;
+    } finally {
+      state.financialNavigationPending = false;
+    }
+  }
   state.view = view;
   document.body.dataset.view = view;
   setMobileMenuOpen(false);
+  document.body.dataset.financialScope = state.financialScope;
   state.selectedId = selectedId || state.selectedId;
   if (view === "detail" && previousView !== "detail") {
     state.returnView = previousView;
@@ -1629,11 +1731,20 @@ async function showView(view, selectedId) {
   document.querySelector(`#${viewElementId}`)?.classList.add("active");
 
   elements.navItems.forEach((item) => {
-    item.classList.toggle("active", item.dataset.view === view);
+    item.classList.toggle("active", item.dataset.view === view && (!financialView || (item.dataset.financialScope || "company") === state.financialScope));
   });
-  elements.financialNavGroup?.classList.toggle("active", view === "financial" || isFinanceModuleView(view));
+  elements.financialNavGroup?.classList.toggle("active", state.financialScope === "company" && (view === "financial" || isFinanceModuleView(view)));
+  document.querySelector("#bragaFinancialNavGroup")?.classList.toggle("active", state.financialScope === "braga" && financialView);
+  const configActive = ["users", "environments", "budgetStatuses", "maintenance"].includes(view);
+  document.querySelector("#configNavGroup")?.classList.toggle("active", configActive);
+  if (configActive) {
+    document.querySelector("#configNavToggle").setAttribute("aria-expanded", "true");
+    document.querySelector("#configSubmenu").hidden = false;
+  }
   if (isFinanceModuleView(view)) renderFinanceModuleView(view);
   if (view === "reports") renderReportsView();
+  const scopeMessage = document.querySelector("#financialScopeMessage");
+  if (scopeMessage) { scopeMessage.textContent = state.financialScopeError; scopeMessage.hidden = !state.financialScopeError; }
   if (view === "budget" || view === "order") refreshBudgetStatusSelect();
 
   render();
@@ -1646,8 +1757,8 @@ function renderFinanceModuleView(view) {
   const descriptionElement = document.querySelector("#financialModuleDescription");
   const emptyTitleElement = document.querySelector("#financialModuleEmptyTitle");
   const emptyTextElement = document.querySelector("#financialModuleEmptyText");
-  if (titleElement) titleElement.textContent = title;
-  if (descriptionElement) descriptionElement.textContent = description;
+  if (titleElement) titleElement.textContent = state.financialScope === "braga" ? `Financeiro Braga · ${title}` : title;
+  if (descriptionElement) descriptionElement.textContent = state.financialScope === "braga" ? "Controle de contas pessoais de Braga." : description;
   if (emptyTitleElement) emptyTitleElement.textContent = emptyTitle;
   if (emptyTextElement) emptyTextElement.textContent = emptyText;
   const showingAccounts = view === "financeAccounts";
@@ -1669,9 +1780,11 @@ function renderFinanceModuleView(view) {
   if (showingCategories) renderFinancialCategories();
   if (showingEntries) renderFinancialEntries(view);
   if (showingImport) renderFinancialImports();
-  if (elements.financialSubmenu?.hidden) {
-    elements.financialSubmenu.hidden = false;
-    elements.financialNavToggle?.setAttribute("aria-expanded", "true");
+  const submenu = state.financialScope === "braga" ? document.querySelector("#bragaFinancialSubmenu") : elements.financialSubmenu;
+  const toggle = state.financialScope === "braga" ? document.querySelector("#bragaFinancialNavToggle") : elements.financialNavToggle;
+  if (submenu?.hidden && !startsInFinanceTransactions()) {
+    submenu.hidden = false;
+    toggle?.setAttribute("aria-expanded", "true");
   }
 }
 
@@ -1707,9 +1820,9 @@ function prepareFinancialCanvas(canvas, height) {
 function renderFinancialDonut(canvasId, legendId, data) {
   const canvas = document.querySelector(`#${canvasId}`); const legend = document.querySelector(`#${legendId}`); if (!canvas || !legend) return;
   const { context, width, height } = prepareFinancialCanvas(canvas, 280); const total = data.reduce((sum, item) => sum + item.value, 0); const radius = Math.min(width, height) * 0.32; const thickness = Math.max(26, radius * .28); const centerX = width / 2; const centerY = height / 2; let angle = -Math.PI / 2;
-  if (!total) { context.strokeStyle = "#e6dcc0"; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, 0, Math.PI * 2); context.stroke(); }
+  if (!total) { context.strokeStyle = state.financialScope === "braga" ? "#404040" : "#e6dcc0"; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, 0, Math.PI * 2); context.stroke(); }
   data.forEach((item, index) => { const next = angle + item.value / total * Math.PI * 2; context.strokeStyle = FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]; context.lineWidth = thickness; context.beginPath(); context.arc(centerX, centerY, radius, angle, next); context.stroke(); angle = next; });
-  context.fillStyle = "#1b1606"; context.textAlign = "center"; context.font = "700 18px Arial"; context.fillText(BRL.format(total), centerX, centerY + 2); context.font = "12px Arial"; context.fillStyle = "#6e6135"; context.fillText("Total", centerX, centerY + 23);
+  context.fillStyle = state.financialScope === "braga" ? "#f5f5f5" : "#1b1606"; context.textAlign = "center"; context.font = "700 18px Arial"; context.fillText(BRL.format(total), centerX, centerY + 2); context.font = "12px Arial"; context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.fillText("Total", centerX, centerY + 23);
   legend.innerHTML = data.length ? data.slice(0, 8).map((item, index) => `<span><i style="background:${FINANCIAL_CHART_COLORS[index % FINANCIAL_CHART_COLORS.length]}"></i>${escapeHtml(item.name)} <strong>${BRL.format(item.value)}</strong></span>`).join("") : "<span>Sem lançamentos no período.</span>";
 }
 
@@ -1726,10 +1839,10 @@ function financialEvolutionAccounts() {
 function renderFinancialBalanceChart(year) {
   const canvas = document.querySelector("#financialBalanceChart"); if (!canvas) return; const { context, width, height } = prepareFinancialCanvas(canvas, 300); const accounts = financialEvolutionAccounts(); const values = Array.from({ length: 12 }, (_, index) => accounts.reduce((sum, account) => sum + financialAccountBalance(account, `${year}-${String(index + 1).padStart(2, "0")}-${String(new Date(year, index + 1, 0).getDate()).padStart(2, "0")}`, true), 0));
   const padding = { top: 25, right: 25, bottom: 45, left: 78 }; const min = Math.min(0, ...values); const max = Math.max(1, ...values); const range = max - min || 1; const chartWidth = width - padding.left - padding.right; const chartHeight = height - padding.top - padding.bottom;
-  context.font = "11px Arial"; context.strokeStyle = "#e0d3aa"; context.fillStyle = "#6e6135"; context.textAlign = "right";
+  context.font = "11px Arial"; context.strokeStyle = state.financialScope === "braga" ? "#404040" : "#e0d3aa"; context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.textAlign = "right";
   for (let tick = 0; tick <= 4; tick += 1) { const value = min + range * tick / 4; const y = height - padding.bottom - chartHeight * tick / 4; context.beginPath(); context.moveTo(padding.left, y); context.lineTo(width - padding.right, y); context.stroke(); context.fillText(BRL.format(value), padding.left - 8, y + 4); }
   const points = values.map((value, index) => ({ x: padding.left + chartWidth * index / 11, y: padding.top + (max - value) / range * chartHeight })); context.strokeStyle = "#aa8e34"; context.lineWidth = 3; context.beginPath(); points.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.stroke();
-  points.forEach((point, index) => { context.fillStyle = "#aa8e34"; context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.fillStyle = "#6e6135"; context.textAlign = "center"; context.fillText(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][index], point.x, height - 18); });
+  points.forEach((point, index) => { context.fillStyle = "#aa8e34"; context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.textAlign = "center"; context.fillText(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][index], point.x, height - 18); });
 }
 
 function renderFinancialEvolutionTable(year) {
@@ -1782,19 +1895,42 @@ function financialAccountReference(name) {
   return `<span class="financial-account-reference">${financialAccountBrand(name)}<span>${escapeHtml(name)}</span></span>`;
 }
 
-async function loadFinancialRegisters() {
-  if (!remoteDatabaseEnabled() || !currentUserId() || !isAdmin()) return;
-  const [accountsResponse, categoriesResponse, entriesResponse, importsResponse] = await Promise.all([
-    authorizedFetch(supabaseTableEndpoint("crm_financial_accounts", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_categories", "?select=*&order=active.desc,name.asc"), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?select=*&order=competence_date.desc,created_at.desc"), () => ({ headers: supabaseHeaders() })),
-    authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", "?select=*&order=created_at.desc"), () => ({ headers: supabaseHeaders() })),
+async function loadFinancialRegisters(scope = state.financialScope || "company") {
+  if (!remoteDatabaseEnabled() || !currentUserId() || !canAccessFinancialScope(scope)) return;
+  const version = state.financialScopeVersion;
+  const userId = currentUserId();
+  async function fetchAll(table) {
+    const rows = [];
+    let cursor = "";
+    while (true) {
+      const query = `?select=*&order=id.asc&limit=1000${cursor ? `&id=gt.${encodeURIComponent(cursor)}` : ""}`;
+      const response = await authorizedFetch(supabaseTableEndpoint(table, query, scope), () => ({ headers: supabaseHeaders() }));
+      if (!response.ok) throw new Error(scope === "braga" ? "Financeiro Braga indisponível. Execute supabase-financeiro-braga.sql no SQL Editor do Supabase." : "Não foi possível carregar os dados financeiros. Confirme se o script do Supabase foi executado.");
+      const page = await response.json();
+      rows.push(...page);
+      if (page.length < 1000) return rows;
+      const nextCursor = page[page.length - 1]?.id;
+      if (!nextCursor || nextCursor === cursor) throw new Error("Não foi possível carregar todo o histórico financeiro. Atualize a página e tente novamente.");
+      cursor = nextCursor;
+    }
+  }
+  const [accounts, categories, entries, imports] = await Promise.all([
+    fetchAll("crm_financial_accounts"),
+    fetchAll("crm_financial_categories"),
+    fetchAll("crm_financial_entries"),
+    fetchAll("crm_financial_statement_imports"),
   ]);
-  if (!accountsResponse.ok || !categoriesResponse.ok || !entriesResponse.ok || !importsResponse.ok) throw new Error("Não foi possível carregar os dados financeiros. Confirme se o script do Supabase foi executado.");
-  state.financialAccounts = await accountsResponse.json();
-  state.financialCategories = await categoriesResponse.json();
-  state.financialEntries = await entriesResponse.json();
-  state.financialImports = await importsResponse.json();
+  const byName = (a, b) => Number(b.active) - Number(a.active) || String(a.name || "").localeCompare(String(b.name || ""), "pt-BR");
+  const newest = (field) => (a, b) => String(b[field] || "").localeCompare(String(a[field] || ""));
+  accounts.sort(byName);
+  categories.sort(byName);
+  entries.sort((a, b) => newest("competence_date")(a, b) || newest("created_at")(a, b));
+  imports.sort(newest("created_at"));
+  if ((state.financialScope || "company") !== scope || version !== state.financialScopeVersion || userId !== currentUserId()) return;
+  state.financialAccounts = accounts;
+  state.financialCategories = categories;
+  state.financialEntries = entries;
+  state.financialImports = imports;
 }
 
 function renderFinancialAccounts() {
@@ -1804,7 +1940,16 @@ function renderFinancialAccounts() {
   const { end } = financialMonthBounds(period);
   const priority = ["mercado pago", "itau", "santander"];
   const normalizedName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
-  const accounts = [...state.financialAccounts].sort((first, second) => {
+  const accountTypeFilter = state.financialAccountTypeFilter || "all";
+  document.querySelector("#financialAccountsTypeFilter").value = accountTypeFilter;
+  const accounts = state.financialAccounts.filter((account) => accountTypeFilter === "bank" ? account.account_type === "bank" : accountTypeFilter === "other" ? account.account_type !== "bank" : true).sort((first, second) => {
+    if (state.financialScope === "braga") {
+      const prefix = (account) => {
+        const digits = String(account.name || "").match(/^\d{2}/);
+        return digits ? Number(digits[0]) : Infinity;
+      };
+      return (prefix(first) - prefix(second)) || financialSortCollator.compare(first.name, second.name);
+    }
     const rank = (account) => { const index = priority.findIndex((name) => normalizedName(`${account.name} ${account.institution}`).includes(name)); return index < 0 ? priority.length : index; };
     return Number(second.active) - Number(first.active) || rank(first) - rank(second) || financialSortCollator.compare(first.name, second.name);
   });
@@ -1867,78 +2012,145 @@ function openFinancialCategoryDialog(categoryId = null) {
   elements.financialCategoryDialog.showModal();
 }
 
-async function saveFinancialRecord(table, id, payload) {
+async function saveFinancialRecord(table, id, payload, scope = state.financialScope || "company") {
   const path = id ? `?id=eq.${encodeURIComponent(id)}` : "";
-  const response = await authorizedFetch(supabaseTableEndpoint(table, path), () => ({ method: id ? "PATCH" : "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify(payload) }));
+  const response = await authorizedFetch(supabaseTableEndpoint(table, path, scope), () => ({ method: id ? "PATCH" : "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify(payload) }));
   if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível salvar o registro financeiro."); }
   const saved = await response.json().catch(() => []);
   return saved[0] || null;
 }
 
 async function submitFinancialAccount(event) {
-  event.preventDefault();
-  const type = document.querySelector("#financialAccountType").value;
-  const numberOrNull = (selector) => document.querySelector(selector).value ? Number(document.querySelector(selector).value) : null;
-  const payload = { name: document.querySelector("#financialAccountName").value.trim(), account_type: type, institution: document.querySelector("#financialAccountInstitution").value.trim() || null, initial_balance: Number(document.querySelector("#financialAccountBalance").value), initial_balance_date: document.querySelector("#financialAccountBalanceDate").value, active: document.querySelector("#financialAccountActive").value === "true", closing_day: type === "credit_card" ? numberOrNull("#financialAccountClosingDay") : null, due_day: type === "credit_card" ? numberOrNull("#financialAccountDueDay") : null, credit_limit: type === "credit_card" ? numberOrNull("#financialAccountCreditLimit") : null };
-  try { await saveFinancialRecord("crm_financial_accounts", state.financialEditingAccountId, payload); await loadFinancialRegisters(); renderFinancialAccounts(); elements.financialAccountDialog.close(); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    event.preventDefault();
+    const type = document.querySelector("#financialAccountType").value;
+    const numberOrNull = (selector) => document.querySelector(selector).value ? Number(document.querySelector(selector).value) : null;
+    const payload = { name: document.querySelector("#financialAccountName").value.trim(), account_type: type, institution: document.querySelector("#financialAccountInstitution").value.trim() || null, initial_balance: Number(document.querySelector("#financialAccountBalance").value), initial_balance_date: document.querySelector("#financialAccountBalanceDate").value, active: document.querySelector("#financialAccountActive").value === "true", closing_day: type === "credit_card" ? numberOrNull("#financialAccountClosingDay") : null, due_day: type === "credit_card" ? numberOrNull("#financialAccountDueDay") : null, credit_limit: type === "credit_card" ? numberOrNull("#financialAccountCreditLimit") : null };
+    try { await saveFinancialRecord("crm_financial_accounts", state.financialEditingAccountId, payload); await loadFinancialRegisters(); renderFinancialAccounts(); elements.financialAccountDialog.close(); } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function submitFinancialCategory(event) {
-  event.preventDefault();
-  const payload = { name: document.querySelector("#financialCategoryName").value.trim(), category_type: document.querySelector("#financialCategoryType").value, parent_id: document.querySelector("#financialCategoryParent").value || null, color: document.querySelector("#financialCategoryColor").value, active: document.querySelector("#financialCategoryActive").value === "true" };
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    const saved = await saveFinancialRecord("crm_financial_categories", state.financialEditingCategoryId, payload);
-    await loadFinancialRegisters();
-    renderFinancialCategories();
-    elements.financialCategoryDialog.close();
-    if (state.financialCategoryTargetItemId && !elements.financialImportDetail.hidden) {
-      const targetItemId = state.financialCategoryTargetItemId;
-      const checkedIds = new Set(selectedStatementItems().map((item) => item.id));
-      const selectedCategories = new Map(Array.from(elements.financialStatementItemRows.querySelectorAll("[data-statement-category]")).map((select) => [select.dataset.statementCategory, select.value]));
-      renderFinancialStatementItems();
-      checkedIds.add(targetItemId);
-      checkedIds.forEach((id) => { const checkbox = elements.financialStatementItemRows.querySelector(`[data-statement-select="${id}"]`); if (checkbox) checkbox.checked = true; });
-      selectedCategories.forEach((value, id) => { const select = elements.financialStatementItemRows.querySelector(`[data-statement-category="${id}"]`); if (select && value !== "__new__") select.value = value; });
-      elements.financialStatementItemRows.querySelectorAll("[data-statement-category]").forEach(syncStatementTransferField);
-      const targetSelect = elements.financialStatementItemRows.querySelector(`[data-statement-category="${targetItemId}"]`);
-      if (targetSelect && saved?.id) targetSelect.value = saved.id;
-      state.financialCategoryTargetItemId = null;
-    } else if (state.financialCategoryTargetEntry) {
-      const categorySelect = document.querySelector("#financialEntryCategory");
-      if (categorySelect && saved?.id) {
-        const option = document.createElement("option");
-        option.value = saved.id;
-        option.textContent = saved.name;
-        categorySelect.insertBefore(option, categorySelect.querySelector('option[value="__new__"]'));
-        categorySelect.value = saved.id;
+    event.preventDefault();
+    const payload = { name: document.querySelector("#financialCategoryName").value.trim(), category_type: document.querySelector("#financialCategoryType").value, parent_id: document.querySelector("#financialCategoryParent").value || null, color: document.querySelector("#financialCategoryColor").value, active: document.querySelector("#financialCategoryActive").value === "true" };
+    try {
+      const saved = await saveFinancialRecord("crm_financial_categories", state.financialEditingCategoryId, payload);
+      await loadFinancialRegisters();
+      renderFinancialCategories();
+      elements.financialCategoryDialog.close();
+      if (state.financialCategoryTargetItemId && !elements.financialImportDetail.hidden) {
+        const targetItemId = state.financialCategoryTargetItemId;
+        const checkedIds = new Set(selectedStatementItems().map((item) => item.id));
+        const selectedCategories = new Map(Array.from(elements.financialStatementItemRows.querySelectorAll("[data-statement-category]")).map((select) => [select.dataset.statementCategory, select.value]));
+        renderFinancialStatementItems();
+        checkedIds.add(targetItemId);
+        checkedIds.forEach((id) => { const checkbox = elements.financialStatementItemRows.querySelector(`[data-statement-select="${id}"]`); if (checkbox) checkbox.checked = true; });
+        selectedCategories.forEach((value, id) => { const select = elements.financialStatementItemRows.querySelector(`[data-statement-category="${id}"]`); if (select && value !== "__new__") select.value = value; });
+        elements.financialStatementItemRows.querySelectorAll("[data-statement-category]").forEach(syncStatementTransferField);
+        const targetSelect = elements.financialStatementItemRows.querySelector(`[data-statement-category="${targetItemId}"]`);
+        if (targetSelect && saved?.id) targetSelect.value = saved.id;
+        state.financialCategoryTargetItemId = null;
+      } else if (state.financialCategoryTargetEntry) {
+        const categorySelect = document.querySelector("#financialEntryCategory");
+        if (categorySelect && saved?.id) {
+          const option = document.createElement("option");
+          option.value = saved.id;
+          option.textContent = saved.name;
+          categorySelect.insertBefore(option, categorySelect.querySelector('option[value="__new__"]'));
+          categorySelect.value = saved.id;
+        }
+        state.financialCategoryTargetEntry = false;
       }
-      state.financialCategoryTargetEntry = false;
-    }
-  } catch (error) { alert(error.message); }
+    } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function toggleFinancialRecord(table, id, active, renderFunction) {
-  try { await saveFinancialRecord(table, id, { active }); await loadFinancialRegisters(); renderFunction(); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    try { await saveFinancialRecord(table, id, { active }); await loadFinancialRegisters(); renderFunction(); } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function deleteFinancialRecord(table, id, label) {
-  if (!confirm(`Excluir ${label}? Esta ação não poderá ser desfeita.`)) return false;
-  const response = await authorizedFetch(supabaseTableEndpoint(table, `?id=eq.${encodeURIComponent(id)}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
-  if (!response.ok) {
-    const details = await response.json().catch(() => null);
-    throw new Error(details?.code === "23503" ? "Este registro está em uso e não pode ser excluído. Inative-o em vez disso." : details?.message || "Não foi possível excluir o registro.");
-  }
-  if (table === "crm_financial_entries") {
-    for (const client of state.clients) {
-      for (const budget of clientBudgetHistory(client)) {
-        if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
-        const pairs = await budgetFinancialEntryIds(budget);
-        if (pairs.some(([, entryId]) => entryId === id)) await reconcileBudgetFinancialStatus(client.id, budget);
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    if (!confirm(`Excluir ${label}? Esta ação não poderá ser desfeita.`)) return false;
+    const response = await authorizedFetch(supabaseTableEndpoint(table, `?id=eq.${encodeURIComponent(id)}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.code === "23503" ? "Este registro está em uso e não pode ser excluído. Inative-o em vez disso." : details?.message || "Não foi possível excluir o registro.");
+    }
+    if (table === "crm_financial_entries" && state.financialScope !== "braga") {
+      for (const client of state.clients) {
+        for (const budget of clientBudgetHistory(client)) {
+          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          const pairs = await budgetFinancialEntryIds(budget);
+          if (pairs.some(([, entryId]) => entryId === id)) await reconcileBudgetFinancialStatus(client.id, budget);
+        }
       }
     }
+    await loadFinancialRegisters();
+    return true;
+  } finally { state.financialOperations--; }
+}
+
+function updateFinancialEntrySelection() {
+  const inputs = Array.from(elements.financialEntryRows?.querySelectorAll("[data-select-financial-entry]") || []);
+  inputs.forEach((input) => {
+    input.checked = state.financialSelectedEntryIds.has(input.dataset.selectFinancialEntry);
+    input.disabled = state.financialDeletingEntries;
+    input.closest("tr")?.classList.toggle("financial-entry-selected", input.checked);
+  });
+  const selectAll = document.querySelector("#selectAllFinancialEntries");
+  if (selectAll) {
+    selectAll.checked = inputs.length > 0 && inputs.every((input) => input.checked);
+    selectAll.indeterminate = inputs.some((input) => input.checked) && !selectAll.checked;
+    selectAll.disabled = !inputs.length || state.financialDeletingEntries;
+    selectAll.hidden = state.view !== "financeTransactions";
   }
-  await loadFinancialRegisters();
-  return true;
+  const toolbar = document.querySelector("#financialEntrySelectionActions");
+  if (toolbar) toolbar.hidden = state.view !== "financeTransactions" || !state.financialSelectedEntryIds.size;
+  const count = document.querySelector("#financialEntrySelectionCount");
+  if (count) count.textContent = `${state.financialSelectedEntryIds.size} selecionada(s)`;
+  document.querySelectorAll("#financialEntrySelectionActions button").forEach((button) => { button.disabled = state.financialDeletingEntries; });
+}
+
+async function deleteSelectedFinancialEntries() {
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    if (state.financialDeletingEntries || state.view !== "financeTransactions") return;
+    const ids = [...state.financialSelectedEntryIds];
+    if (!ids.length || !confirm(`Excluir ${ids.length} transação(ões) selecionada(s)? Esta ação não poderá ser desfeita.`)) return;
+    state.financialDeletingEntries = true;
+    updateFinancialEntrySelection();
+    try {
+      const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.map(encodeURIComponent).join(",")})`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        throw new Error(details?.message || "Não foi possível excluir as transações selecionadas.");
+      }
+      state.financialSelectedEntryIds.clear();
+      const deletedIds = new Set(ids);
+      state.financialEntries = state.financialEntries.filter((entry) => !deletedIds.has(entry.id));
+      renderFinancialEntries();
+      for (const client of state.financialScope === "braga" ? [] : state.clients) {
+        for (const budget of clientBudgetHistory(client)) {
+          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          const pairs = await budgetFinancialEntryIds(budget);
+          if (pairs.some(([, id]) => deletedIds.has(id))) await reconcileBudgetFinancialStatus(client.id, budget);
+        }
+      }
+      await loadFinancialRegisters();
+      renderFinancialEntries();
+    } finally {
+      state.financialDeletingEntries = false;
+      updateFinancialEntrySelection();
+    }
+  } finally { state.financialOperations--; }
 }
 
 function financialEntryViewType(view = state.view) {
@@ -2043,16 +2255,19 @@ function renderFinancialTagManager() {
 }
 
 async function openFinancialTagManager() {
-  const button = document.querySelector("#manageFinancialTagsBtn");
-  button.disabled = true;
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    state.financialTagEntries = await fetchFinancialTagEntries();
-    state.financialTagEditingName = null;
-    document.querySelector("#financialTagManagerMessage").textContent = "";
-    renderFinancialTagManager();
-    document.querySelector("#financialTagManagerDialog").showModal();
-  } catch (error) { alert(error.message); }
-  finally { button.disabled = false; }
+    const button = document.querySelector("#manageFinancialTagsBtn");
+    button.disabled = true;
+    try {
+      state.financialTagEntries = await fetchFinancialTagEntries();
+      state.financialTagEditingName = null;
+      document.querySelector("#financialTagManagerMessage").textContent = "";
+      renderFinancialTagManager();
+      document.querySelector("#financialTagManagerDialog").showModal();
+    } catch (error) { alert(error.message); }
+    finally { button.disabled = false; }
+  } finally { state.financialOperations--; }
 }
 
 function changedFinancialTagNotes(entry, previousTag, replacementTag) {
@@ -2062,41 +2277,44 @@ function changedFinancialTagNotes(entry, previousTag, replacementTag) {
 }
 
 async function updateFinancialTag(previousTag, replacementTag) {
-  const affected = (state.financialTagEntries || []).filter((entry) => financialEntryTags(entry).includes(previousTag));
-  const action = replacementTag ? `Alterar a tag "${previousTag}" para "${replacementTag}"` : `Excluir a tag "${previousTag}"`;
-  if (!confirm(`${action} em ${affected.length} ${affected.length === 1 ? "lançamento" : "lançamentos"}? Os lançamentos serão preservados.`)) return;
-  const dialog = document.querySelector("#financialTagManagerDialog");
-  const message = document.querySelector("#financialTagManagerMessage");
-  state.financialTagUpdating = true;
-  dialog.querySelectorAll("button").forEach((button) => { button.disabled = true; });
-  let completed = 0;
-  let failure = null;
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    for (const entry of affected) {
-      await saveFinancialRecord("crm_financial_entries", entry.id, { notes: changedFinancialTagNotes(entry, previousTag, replacementTag) });
-      completed += 1;
-      message.textContent = `Atualizando tags: ${completed} de ${affected.length}`;
-    }
-    state.financialEntryDraftTags = Array.from(new Set(state.financialEntryDraftTags.flatMap((tag) => tag === previousTag ? (replacementTag ? [replacementTag] : []) : [tag])));
-    const tagInput = document.querySelector("#financialEntryTagInput");
-    if (normalizeFinancialTag(tagInput?.value) === previousTag) tagInput.value = replacementTag || "";
-    state.financialTagEditingName = null;
-  } catch (error) { failure = error; }
-  try {
-    await loadFinancialRegisters();
-    state.financialTagEntries = await fetchFinancialTagEntries();
-    if (failure && completed && state.financialEditingEntryId) {
-      const editingEntry = state.financialEntries.find((entry) => entry.id === state.financialEditingEntryId);
-      if (editingEntry) state.financialEntryDraftTags = financialEntryTags(editingEntry);
-    }
-    renderFinancialEntries();
-    renderFinancialEntryTagEditor();
-    syncFinancialEntryTagAction();
-    renderFinancialTagManager();
-  } catch (error) { failure ||= error; }
-  dialog.querySelectorAll("button").forEach((button) => { button.disabled = false; });
-  state.financialTagUpdating = false;
-  message.textContent = failure ? `Atualização incompleta (${completed} de ${affected.length}): ${failure.message}` : replacementTag ? "Tag alterada em todos os lançamentos." : "Tag excluída dos lançamentos.";
+    const affected = (state.financialTagEntries || []).filter((entry) => financialEntryTags(entry).includes(previousTag));
+    const action = replacementTag ? `Alterar a tag "${previousTag}" para "${replacementTag}"` : `Excluir a tag "${previousTag}"`;
+    if (!confirm(`${action} em ${affected.length} ${affected.length === 1 ? "lançamento" : "lançamentos"}? Os lançamentos serão preservados.`)) return;
+    const dialog = document.querySelector("#financialTagManagerDialog");
+    const message = document.querySelector("#financialTagManagerMessage");
+    state.financialTagUpdating = true;
+    dialog.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+    let completed = 0;
+    let failure = null;
+    try {
+      for (const entry of affected) {
+        await saveFinancialRecord("crm_financial_entries", entry.id, { notes: changedFinancialTagNotes(entry, previousTag, replacementTag) });
+        completed += 1;
+        message.textContent = `Atualizando tags: ${completed} de ${affected.length}`;
+      }
+      state.financialEntryDraftTags = Array.from(new Set(state.financialEntryDraftTags.flatMap((tag) => tag === previousTag ? (replacementTag ? [replacementTag] : []) : [tag])));
+      const tagInput = document.querySelector("#financialEntryTagInput");
+      if (normalizeFinancialTag(tagInput?.value) === previousTag) tagInput.value = replacementTag || "";
+      state.financialTagEditingName = null;
+    } catch (error) { failure = error; }
+    try {
+      await loadFinancialRegisters();
+      state.financialTagEntries = await fetchFinancialTagEntries();
+      if (failure && completed && state.financialEditingEntryId) {
+        const editingEntry = state.financialEntries.find((entry) => entry.id === state.financialEditingEntryId);
+        if (editingEntry) state.financialEntryDraftTags = financialEntryTags(editingEntry);
+      }
+      renderFinancialEntries();
+      renderFinancialEntryTagEditor();
+      syncFinancialEntryTagAction();
+      renderFinancialTagManager();
+    } catch (error) { failure ||= error; }
+    dialog.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+    state.financialTagUpdating = false;
+    message.textContent = failure ? `Atualização incompleta (${completed} de ${affected.length}): ${failure.message}` : replacementTag ? "Tag alterada em todos os lançamentos." : "Tag excluída dos lançamentos.";
+  } finally { state.financialOperations--; }
 }
 
 function renderFinancialEntryTagEditor() {
@@ -2204,10 +2422,30 @@ function applyFinancialTableSort(table) {
   if (table.classList.contains("financial-entry-table")) renderFinancialEntryPagination(table);
 }
 
+function financialTransactionColumnVisibility() {
+  const saved = state.appPreferences?.[state.financialScope === "braga" ? "bragaFinancialTransactionColumns" : "financialTransactionColumns"];
+  return Object.fromEntries(["status", "dueDate", "description", "notes", "category", "account", "amount"].map((key) => [key, typeof saved?.[key] === "boolean" ? saved[key] : key !== "notes"]));
+}
+
+function applyFinancialTransactionColumns(table) {
+  if (!table) return;
+  const visibility = financialTransactionColumnVisibility();
+  const keys = Object.keys(visibility);
+  const transactions = state.view === "financeTransactions";
+  const headers = Array.from(table.querySelectorAll("thead th"));
+  headers.forEach((header, index) => { header.hidden = transactions && visibility[keys[index]] === false; });
+  Array.from(table.tBodies[0]?.rows || []).forEach((row) => {
+    if (row.dataset.financialEntryId) Array.from(row.cells).forEach((cell, index) => { cell.hidden = transactions && visibility[keys[index]] === false; });
+    else if (row.cells.length === 1) row.cells[0].colSpan = headers.filter((header) => !header.hidden).length;
+  });
+  document.querySelectorAll("[data-financial-column]").forEach((input) => { input.checked = visibility[input.dataset.financialColumn]; });
+}
+
 function renderFinancialEntryPagination(table) {
   const rows = Array.from(table?.tBodies[0]?.rows || []).filter((row) => row.dataset.financialEntryId);
   rows.forEach((row) => { row.hidden = false; });
   renderFinancialDailyBalanceBreaks(table);
+  applyFinancialTransactionColumns(table);
 }
 
 function renderFinancialDailyBalanceBreaks(table) {
@@ -2227,10 +2465,12 @@ function renderFinancialDailyBalanceBreaks(table) {
       if (rows[index + 1]?.dataset.financialEntryDate === date) return;
       const projectedBalance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, true), 0);
       const realizedBalance = filteredAccounts.reduce((sum, account) => sum + financialAccountBalance(account, date, false), 0);
-      const pendingBalance = projectedBalance - realizedBalance;
+      const pendingBalance = state.financialEntries
+        .filter((entry) => (entry.status === "pending" || entry.status === "overdue") && financialEntryDate(entry) === date)
+        .reduce((sum, entry) => sum + filteredAccounts.reduce((movement, account) => movement + financialAccountFilterMovement(entry, account.id, bankAccountIds), 0), 0);
       const summary = document.createElement("tr");
       summary.className = "financial-daily-balance-row";
-      summary.innerHTML = `<td colspan="8"><div class="financial-daily-balance-values"><span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span></div></td>`;
+      summary.innerHTML = `<td colspan="7"><div class="financial-daily-balance-values"><span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span></div></td>`;
       row.after(summary);
     });
     return;
@@ -2285,7 +2525,8 @@ function initializeFinancialTableSorting() {
     table.querySelectorAll("thead th[data-sort-type]").forEach((header) => {
       header.tabIndex = 0;
       header.setAttribute("aria-sort", "none");
-      const sort = () => {
+      const sort = (event) => {
+        if (event?.target.closest("input, button")) return;
         const column = header.cellIndex;
         const current = financialTableSorts.get(table);
         const direction = current?.column === column && current.direction === "asc" ? "desc" : "asc";
@@ -2294,7 +2535,7 @@ function initializeFinancialTableSorting() {
         applyFinancialTableSort(table);
       };
       header.addEventListener("click", sort);
-      header.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); sort(); } });
+      header.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { if (event.target.closest("input, button")) return; event.preventDefault(); sort(); } });
     });
   });
 }
@@ -2328,6 +2569,8 @@ function renderFinancialEntries(view = state.view) {
     }
     return true;
   });
+  const eligibleIds = new Set(view === "financeTransactions" ? entries.map((entry) => entry.id) : []);
+  state.financialSelectedEntryIds = new Set([...state.financialSelectedEntryIds].filter((id) => eligibleIds.has(id)));
   const accounts = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
   const categories = new Map(state.financialCategories.map((category) => [category.id, category.name]));
   const accountSelect = document.querySelector("#financialEntryFilterAccount");
@@ -2365,7 +2608,7 @@ function renderFinancialEntries(view = state.view) {
     const notes = financialEntryNotes(entry);
     const tags = financialEntryTags(entry);
     const tagList = tags.length ? `<div class="financial-entry-list-tags">${tags.map((tag) => `<span class="financial-entry-tag-chip"><span>${escapeHtml(tag)}</span></span>`).join("")}</div>` : "";
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td class="financial-entry-notes" data-sort-value="${escapeHtml(notes)}">${notes ? escapeHtml(notes) : "—"}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><div class="financial-entry-status-selection">${view === "financeTransactions" ? `<input type="checkbox" data-select-financial-entry="${entry.id}" aria-label="Selecionar ${escapeHtml(formatFinancialDescription(entry.description))}" />` : ""}<span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></div></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td class="financial-entry-notes" data-sort-value="${escapeHtml(notes)}">${notes ? escapeHtml(notes) : "—"}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
   }).join("") : '<tr><td colspan="8" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   const entryTable = elements.financialEntryRows.closest("table");
   if (!financialTableSorts.has(entryTable)) {
@@ -2373,6 +2616,7 @@ function renderFinancialEntries(view = state.view) {
     entryTable.querySelector("thead th:nth-child(2)")?.setAttribute("aria-sort", "descending");
   }
   applyFinancialTableSort(entryTable);
+  updateFinancialEntrySelection();
 }
 
 function compareFinancialCategoryPriority(first, second) {
@@ -2415,13 +2659,12 @@ function syncFinancialEntryTypeFields() {
   document.querySelector("#financialEntryCategoryField").hidden = transfer;
   document.querySelector("#financialEntryTransferAccount").required = transfer;
   const installmentField = document.querySelector("#financialEntryInstallmentField");
-  if (installmentField) installmentField.hidden = transfer || Boolean(state.financialEditingEntryId);
-  if (transfer) document.querySelector("#financialEntryInstallment").value = "false";
+  if (installmentField) installmentField.hidden = Boolean(state.financialEditingEntryId);
   syncFinancialInstallmentFields();
 }
 
 function syncFinancialInstallmentFields() {
-  const installment = !state.financialEditingEntryId && document.querySelector("#financialEntryType").value !== "transfer" && document.querySelector("#financialEntryInstallment").value === "true";
+  const installment = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true";
   document.querySelector("#financialEntryInstallmentCountField").hidden = !installment;
   document.querySelector("#financialEntryInstallmentHint").hidden = !installment;
   document.querySelector("#financialEntryInstallmentCount").required = installment;
@@ -2486,7 +2729,7 @@ function openFinancialEntryDialog(entryId = null, duplicate = false) {
   state.financialEditingEntryId = duplicate ? null : entry?.id || null;
   elements.financialEntryForm.reset();
   fillFinancialEntryOptions();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   document.querySelector("#financialEntryDialogTitle").textContent = duplicate ? "Duplicar lançamento" : entry ? "Editar lançamento" : "Novo lançamento";
   document.querySelector("#financialEntryType").value = entry?.entry_type || financialEntryViewType() || "expense";
   document.querySelector("#financialEntryStatus").value = entry?.status === "overdue" ? "pending" : entry?.status || "pending";
@@ -2496,9 +2739,9 @@ function openFinancialEntryDialog(entryId = null, duplicate = false) {
   document.querySelector("#financialEntryAccount").value = entry?.account_id || state.financialAccounts.find((item) => item.active)?.id || "";
   document.querySelector("#financialEntryTransferAccount").value = entry?.transfer_account_id || "";
   document.querySelector("#financialEntryCategory").value = entry?.category_id || "";
-  document.querySelector("#financialEntryIssueDate").value = entry?.issue_date || today;
-  document.querySelector("#financialEntryCompetenceDate").value = entry?.competence_date || today;
-  document.querySelector("#financialEntryDueDate").value = entry?.due_date || "";
+  document.querySelector("#financialEntryIssueDate").value = entry?.due_date || today;
+  document.querySelector("#financialEntryCompetenceDate").value = entry?.due_date || today;
+  document.querySelector("#financialEntryDueDate").value = entry?.due_date || today;
   state.financialEntryDraftTags = financialEntryTags(entry);
   document.querySelector("#financialEntryTagInput").value = "";
   document.querySelector("#financialEntryNotes").value = financialEntryNotes(entry);
@@ -2511,21 +2754,55 @@ function openFinancialEntryDialog(entryId = null, duplicate = false) {
 }
 
 async function submitFinancialEntry(event) {
-  event.preventDefault();
-  const amount = resolveFinancialEntryAmount(true);
-  if (amount === null) return;
-  const type = document.querySelector("#financialEntryType").value;
-  const status = document.querySelector("#financialEntryStatus").value;
-  const pendingTag = normalizeFinancialTag(document.querySelector("#financialEntryTagInput").value);
-  const tags = pendingTag ? [...state.financialEntryDraftTags, pendingTag] : state.financialEntryDraftTags;
-  const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount, issue_date: document.querySelector("#financialEntryIssueDate").value, competence_date: document.querySelector("#financialEntryCompetenceDate").value, due_date: document.querySelector("#financialEntryDueDate").value || null, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
-  if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
-  const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
-  if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
-  const groupId = installmentCount > 1 ? crypto.randomUUID() : null;
-  const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, competence_date: addMonthsToFinancialDate(payload.competence_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
-  if (installmentCount === 1) ["id", "installment_number", "installment_count", "installment_group_id"].forEach((key) => delete records[0][key]);
-  try { await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0]); await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close(); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    event.preventDefault();
+    const amount = resolveFinancialEntryAmount(true);
+    if (amount === null) return;
+    const type = document.querySelector("#financialEntryType").value;
+    const status = document.querySelector("#financialEntryStatus").value;
+    const dueDate = document.querySelector("#financialEntryDueDate").value;
+    if (!dueDate) { document.querySelector("#financialEntryDueDate").reportValidity(); return; }
+    const pendingTag = normalizeFinancialTag(document.querySelector("#financialEntryTagInput").value);
+    const tags = pendingTag ? [...state.financialEntryDraftTags, pendingTag] : state.financialEntryDraftTags;
+    const payload = { entry_type: type, status, account_id: document.querySelector("#financialEntryAccount").value, transfer_account_id: type === "transfer" ? document.querySelector("#financialEntryTransferAccount").value : null, category_id: type === "transfer" ? null : document.querySelector("#financialEntryCategory").value || null, description: formatFinancialDescription(document.querySelector("#financialEntryDescription").value), amount, issue_date: dueDate, competence_date: dueDate, due_date: dueDate, paid_at: status === "paid" ? new Date().toISOString() : null, notes: notesWithFinancialTags(document.querySelector("#financialEntryNotes").value, tags) };
+    if (type === "transfer" && payload.account_id === payload.transfer_account_id) { alert("A conta de destino deve ser diferente da conta de origem."); return; }
+    const installmentCount = !state.financialEditingEntryId && document.querySelector("#financialEntryInstallment").value === "true" ? Number(document.querySelector("#financialEntryInstallmentCount").value) : 1;
+    if (installmentCount > 1 && !payload.due_date) return alert("Informe o vencimento da primeira parcela.");
+    const groupId = installmentCount > 1 ? crypto.randomUUID() : null;
+    const records = Array.from({ length: installmentCount }, (_, index) => ({ ...payload, id: installmentCount > 1 ? crypto.randomUUID() : undefined, status: index === 0 ? payload.status : "pending", paid_at: index === 0 ? payload.paid_at : null, issue_date: addMonthsToFinancialDate(payload.due_date, index), competence_date: addMonthsToFinancialDate(payload.due_date, index), due_date: payload.due_date ? addMonthsToFinancialDate(payload.due_date, index) : null, installment_number: installmentCount > 1 ? index + 1 : null, installment_count: installmentCount > 1 ? installmentCount : null, installment_group_id: groupId }));
+    if (installmentCount === 1) ["id", "installment_number", "installment_count", "installment_group_id"].forEach((key) => delete records[0][key]);
+    try {
+      const editedEntry = state.financialEntries?.find((entry) => entry.id === state.financialEditingEntryId);
+      const scope = state.financialScope || "company";
+      let pendingInstallments = [];
+      if (editedEntry?.installment_group_id) {
+        const query = `?installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&id=neq.${encodeURIComponent(editedEntry.id)}&status=in.(pending,overdue)&select=*`;
+        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ headers: supabaseHeaders() }));
+        if (!response.ok) throw new Error("Não foi possível consultar as demais parcelas. Nenhuma alteração foi salva.");
+        const entries = await response.json();
+        if (entries.length && confirm(`Deseja aplicar as alterações também às outras ${entries.length} parcela(s) pendente(s)? Cancelar altera somente este registro. Parcelas pagas ou canceladas serão preservadas.`)) pendingInstallments = entries;
+      }
+      await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0], scope);
+      for (const entry of pendingInstallments) {
+        const changes = {};
+        for (const key of ["entry_type", "account_id", "transfer_account_id", "category_id", "description", "amount", "notes"]) {
+          if ((payload[key] ?? null) !== (editedEntry[key] ?? null)) changes[key] = payload[key];
+        }
+        if (payload.due_date !== editedEntry.due_date) {
+          const offset = Number(entry.installment_number) - Number(editedEntry.installment_number);
+          if (!Number.isInteger(offset)) throw new Error("Não foi possível identificar a ordem das parcelas para atualizar os vencimentos.");
+          const date = addMonthsToFinancialDate(payload.due_date, offset);
+          Object.assign(changes, { due_date: date, issue_date: date, competence_date: date });
+        }
+        if (!Object.keys(changes).length) continue;
+        const query = `?id=eq.${encodeURIComponent(entry.id)}&installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&status=in.(pending,overdue)`;
+        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ method: "PATCH", headers: supabaseHeaders(), body: JSON.stringify(changes) }));
+        if (!response.ok) throw new Error("O registro foi salvo, mas não foi possível atualizar todas as demais parcelas. Confira os lançamentos antes de tentar novamente.");
+      }
+      await loadFinancialRegisters(); renderFinancialEntries(); elements.financialEntryDialog.close();
+    } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 function renderFinancialImports() {
@@ -2540,14 +2817,17 @@ function renderFinancialImports() {
 }
 
 async function openFinancialImport(importId) {
-  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items", `?import_id=eq.${encodeURIComponent(importId)}&select=*&order=transaction_date.asc,created_at.asc`), () => ({ headers: supabaseHeaders() }));
-  if (!response.ok) throw new Error("Não foi possível carregar os lançamentos importados.");
-  state.financialSelectedImportId = importId;
-  state.financialStatementItems = await response.json();
-  renderFinancialImports();
-  renderFinancialStatementItems();
-  elements.financialImportDetail.hidden = false;
-  elements.financialImportDetail.scrollIntoView({ behavior: "smooth", block: "start" });
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items", `?import_id=eq.${encodeURIComponent(importId)}&select=*&order=transaction_date.asc,created_at.asc`), () => ({ headers: supabaseHeaders() }));
+    if (!response.ok) throw new Error("Não foi possível carregar os lançamentos importados.");
+    state.financialSelectedImportId = importId;
+    state.financialStatementItems = await response.json();
+    renderFinancialImports();
+    renderFinancialStatementItems();
+    elements.financialImportDetail.hidden = false;
+    elements.financialImportDetail.scrollIntoView({ behavior: "smooth", block: "start" });
+  } finally { state.financialOperations--; }
 }
 
 function statementCategoryOptions(item) {
@@ -2576,35 +2856,41 @@ async function patchStatementItemStatus(ids, status) {
 }
 
 async function ignoreSelectedStatementItems() {
-  const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
-  if (!confirm(`Ignorar ${items.length} lançamento(s) selecionado(s)?`)) return;
-  try { await patchStatementItemStatus(items.map((item) => item.id), "ignored"); await openFinancialImport(state.financialSelectedImportId); } catch (error) { alert(error.message); }
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
+    if (!confirm(`Ignorar ${items.length} lançamento(s) selecionado(s)?`)) return;
+    try { await patchStatementItemStatus(items.map((item) => item.id), "ignored"); await openFinancialImport(state.financialSelectedImportId); } catch (error) { alert(error.message); }
+  } finally { state.financialOperations--; }
 }
 
 async function confirmSelectedStatementItems() {
-  const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
-  const selections = items.map((item) => ({ item, categoryId: elements.financialStatementItemRows.querySelector(`[data-statement-category="${item.id}"]`)?.value || "", transferAccountId: elements.financialStatementItemRows.querySelector(`[data-statement-transfer-account="${item.id}"]`)?.value || "" }));
-  if (selections.some(({ categoryId }) => !categoryId || categoryId === "__new__")) return alert("Selecione a categoria de todos os lançamentos marcados.");
-  if (selections.some(({ categoryId, transferAccountId }) => categoryId === "__transfer__" && !transferAccountId)) return alert("Selecione a outra conta em todas as transferências marcadas.");
-  const entries = selections.map(({ item, categoryId, transferAccountId }) => {
-    const transfer = categoryId === "__transfer__";
-    const incoming = Number(item.amount) >= 0;
-    return { id: createId(), entry_type: transfer ? "transfer" : incoming ? "income" : "expense", status: "paid", account_id: transfer && incoming ? transferAccountId : item.account_id, transfer_account_id: transfer ? (incoming ? item.account_id : transferAccountId) : null, category_id: transfer ? null : categoryId, description: formatFinancialDescription(item.description), amount: Math.abs(Number(item.amount)), issue_date: item.transaction_date, competence_date: item.transaction_date, due_date: item.transaction_date, paid_at: `${item.transaction_date}T12:00:00.000Z`, source_type: "statement" };
-  });
+  state.financialOperations = (state.financialOperations || 0) + 1;
   try {
-    const entryResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(entries) }));
-    if (!entryResponse.ok) throw new Error("Não foi possível criar as transações do extrato.");
-    const reconciliations = entries.map((entry, index) => ({ statement_item_id: selections[index].item.id, entry_id: entry.id, amount: entry.amount }));
-    const reconciliationResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_reconciliations"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(reconciliations) }));
-    if (!reconciliationResponse.ok) throw new Error("Não foi possível conciliar as transações do extrato.");
-    await patchStatementItemStatus(items.map((item) => item.id), "reconciled");
-    await loadFinancialRegisters(); await openFinancialImport(state.financialSelectedImportId);
-    alert(`${items.length} lançamento(s) confirmado(s) e enviado(s) para Transações.`);
-  } catch (error) {
-    const ids = entries.map((entry) => entry.id).join(",");
-    await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids})`), () => ({ method: "DELETE", headers: supabaseHeaders() })).catch(() => null);
-    alert(error.message);
-  }
+    const items = selectedStatementItems(); if (!items.length) return alert("Selecione ao menos um lançamento.");
+    const selections = items.map((item) => ({ item, categoryId: elements.financialStatementItemRows.querySelector(`[data-statement-category="${item.id}"]`)?.value || "", transferAccountId: elements.financialStatementItemRows.querySelector(`[data-statement-transfer-account="${item.id}"]`)?.value || "" }));
+    if (selections.some(({ categoryId }) => !categoryId || categoryId === "__new__")) return alert("Selecione a categoria de todos os lançamentos marcados.");
+    if (selections.some(({ categoryId, transferAccountId }) => categoryId === "__transfer__" && !transferAccountId)) return alert("Selecione a outra conta em todas as transferências marcadas.");
+    const entries = selections.map(({ item, categoryId, transferAccountId }) => {
+      const transfer = categoryId === "__transfer__";
+      const incoming = Number(item.amount) >= 0;
+      return { id: createId(), entry_type: transfer ? "transfer" : incoming ? "income" : "expense", status: "paid", account_id: transfer && incoming ? transferAccountId : item.account_id, transfer_account_id: transfer ? (incoming ? item.account_id : transferAccountId) : null, category_id: transfer ? null : categoryId, description: formatFinancialDescription(item.description), amount: Math.abs(Number(item.amount)), issue_date: item.transaction_date, competence_date: item.transaction_date, due_date: item.transaction_date, paid_at: `${item.transaction_date}T12:00:00.000Z`, source_type: "statement" };
+    });
+    try {
+      const entryResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(entries) }));
+      if (!entryResponse.ok) throw new Error("Não foi possível criar as transações do extrato.");
+      const reconciliations = entries.map((entry, index) => ({ statement_item_id: selections[index].item.id, entry_id: entry.id, amount: entry.amount }));
+      const reconciliationResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_reconciliations"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(reconciliations) }));
+      if (!reconciliationResponse.ok) throw new Error("Não foi possível conciliar as transações do extrato.");
+      await patchStatementItemStatus(items.map((item) => item.id), "reconciled");
+      await loadFinancialRegisters(); await openFinancialImport(state.financialSelectedImportId);
+      alert(`${items.length} lançamento(s) confirmado(s) e enviado(s) para Transações.`);
+    } catch (error) {
+      const ids = entries.map((entry) => entry.id).join(",");
+      await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids})`), () => ({ method: "DELETE", headers: supabaseHeaders() })).catch(() => null);
+      alert(error.message);
+    }
+  } finally { state.financialOperations--; }
 }
 
 function parseCsvLine(line, delimiter) {
@@ -2642,20 +2928,28 @@ function parseStatementFile(text, extension) {
   return lines.slice(headerLineIndex + 1).map((line) => { const row = parseCsvLine(line, delimiter); return { date: normalizeStatementDate(row[dateIndex]), description: row[descriptionIndex] || "Lançamento importado", amount: parseStatementAmount(row[amountIndex]), externalId: externalIdIndex >= 0 ? row[externalIdIndex] || null : null, balance: balanceIndex >= 0 ? parseStatementAmount(row[balanceIndex]) : null }; }).filter((item) => item.date && item.amount);
 }
 
-async function sha256(value) { const data = value instanceof ArrayBuffer ? new Uint8Array(value) : new TextEncoder().encode(value); const hash = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
+async function sha256(value) {
+  if (!globalThis.crypto?.subtle?.digest) throw new Error("Abra o CRM por HTTPS: https://www.cabanamoveissobmedida.com.br/crmcabana/. Se o erro persistir, use um navegador atualizado.");
+  const data = value instanceof ArrayBuffer ? new Uint8Array(value) : new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 async function importFinancialStatement(file) {
-  const accountId = document.querySelector("#financialImportAccount").value;
-  if (!accountId) throw new Error("Selecione a conta antes do arquivo.");
-  const extension = file.name.split(".").pop().toLowerCase(); if (!["ofx", "csv"].includes(extension)) throw new Error("Use um arquivo OFX ou CSV.");
-  const text = await file.text(); const items = parseStatementFile(text, extension); if (!items.length) throw new Error("Nenhum lançamento válido foi encontrado.");
-  const fileHash = await sha256(text); const importResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports"), () => ({ method: "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify({ account_id: accountId, file_name: file.name, file_type: extension, file_hash: fileHash, period_start: items.map((item) => item.date).sort()[0], period_end: items.map((item) => item.date).sort().at(-1), item_count: items.length, status: "completed", completed_at: new Date().toISOString() }) }));
-  if (!importResponse.ok) { const details = await importResponse.json().catch(() => null); throw new Error(details?.code === "23505" ? "Este extrato já foi importado para essa conta." : details?.message || "Não foi possível registrar a importação."); }
-  const importRow = (await importResponse.json())[0];
-  const rows = await Promise.all(items.map(async (item, index) => ({ import_id: importRow.id, account_id: accountId, external_id: item.externalId, transaction_date: item.date, description: formatFinancialDescription(item.description).slice(0, 500), amount: item.amount, balance: Number.isFinite(item.balance) ? item.balance : null, fingerprint: await sha256(`${accountId}|${item.externalId || ""}|${item.date}|${item.amount}|${item.description}|${index}`), raw_data: item })));
-  const itemResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(rows) }));
-  if (!itemResponse.ok) { await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", `?id=eq.${importRow.id}`), () => ({ method: "DELETE", headers: supabaseHeaders() })); throw new Error("Não foi possível salvar os itens do extrato."); }
-  await loadFinancialRegisters(); renderFinancialImports();
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const accountId = document.querySelector("#financialImportAccount").value;
+    if (!accountId) throw new Error("Selecione a conta antes do arquivo.");
+    const extension = file.name.split(".").pop().toLowerCase(); if (!["ofx", "csv"].includes(extension)) throw new Error("Use um arquivo OFX ou CSV.");
+    const text = await file.text(); const items = parseStatementFile(text, extension); if (!items.length) throw new Error("Nenhum lançamento válido foi encontrado.");
+    const fileHash = await sha256(text); const importResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports"), () => ({ method: "POST", headers: supabaseHeaders("return=representation"), body: JSON.stringify({ account_id: accountId, file_name: file.name, file_type: extension, file_hash: fileHash, period_start: items.map((item) => item.date).sort()[0], period_end: items.map((item) => item.date).sort().at(-1), item_count: items.length, status: "completed", completed_at: new Date().toISOString() }) }));
+    if (!importResponse.ok) { const details = await importResponse.json().catch(() => null); throw new Error(details?.code === "23505" ? "Este extrato já foi importado para essa conta." : details?.message || "Não foi possível registrar a importação."); }
+    const importRow = (await importResponse.json())[0];
+    const rows = await Promise.all(items.map(async (item, index) => ({ import_id: importRow.id, account_id: accountId, external_id: item.externalId, transaction_date: item.date, description: formatFinancialDescription(item.description).slice(0, 500), amount: item.amount, balance: Number.isFinite(item.balance) ? item.balance : null, fingerprint: await sha256(`${accountId}|${item.externalId || ""}|${item.date}|${item.amount}|${item.description}|${index}`), raw_data: item })));
+    const itemResponse = await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_items"), () => ({ method: "POST", headers: supabaseHeaders(), body: JSON.stringify(rows) }));
+    if (!itemResponse.ok) { await authorizedFetch(supabaseTableEndpoint("crm_financial_statement_imports", `?id=eq.${importRow.id}`), () => ({ method: "DELETE", headers: supabaseHeaders() })); throw new Error("Não foi possível salvar os itens do extrato."); }
+    await loadFinancialRegisters(); renderFinancialImports();
+  } finally { state.financialOperations--; }
 }
 
 async function unzipXlsxFiles(arrayBuffer) {
@@ -2726,45 +3020,48 @@ async function deterministicMigrationUuid(key) {
   const value = chars.join(""); return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
 }
 
-async function postFinancialRows(table, rows, prefer = "return=representation") {
+async function postFinancialRows(table, rows, prefer = "return=representation", scope = state.financialScope || "company") {
   if (!rows.length) return [];
-  const response = await authorizedFetch(supabaseTableEndpoint(table), () => ({ method: "POST", headers: supabaseHeaders(prefer), body: JSON.stringify(rows) }));
+  const response = await authorizedFetch(supabaseTableEndpoint(table, "", scope), () => ({ method: "POST", headers: supabaseHeaders(prefer), body: JSON.stringify(rows) }));
   if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || `Não foi possível gravar ${table}.`); }
   return prefer.includes("return=representation") ? response.json() : [];
 }
 
 async function migrateMobillsWorkbook(file) {
-  const workbook = await readMobillsWorkbook(file); const normalize = normalizedMigrationText;
-  const findSheet = (prefix) => Array.from(workbook).find(([name]) => normalize(name).startsWith(prefix))?.[1];
-  const regularSheet = findSheet("receitas e despesas"); const transferSheet = findSheet("transfer");
-  if (!regularSheet?.length) throw new Error("A aba Receitas e Despesas não foi encontrada.");
-  const objects = (rows) => { const headers = rows[0].map(normalize); return rows.slice(1).filter((row) => row.some((value) => value !== "" && value != null)).map((row, rowIndex) => ({ rowIndex: rowIndex + 2, values: Object.fromEntries(headers.map((header, index) => [header, row[index]])) })); };
-  const regular = objects(regularSheet); const transfers = transferSheet?.length ? objects(transferSheet) : [];
-  if (!confirm(`Migrar ${regular.length} receitas/despesas e ${transfers.length} transferências do Mobills?`)) return null;
-  await loadFinancialRegisters();
-  const accountMap = new Map(state.financialAccounts.map((account) => [normalize(cleanMobillsAccountName(account.name)), account]));
-  const allAccountNames = new Set([...regular.map(({ values }) => values.conta), ...transfers.flatMap(({ values }) => [values["conta origem"], values["conta destino"]])].map(cleanMobillsAccountName).filter(Boolean));
-  for (const name of allAccountNames) {
-    const key = normalize(name); if (accountMap.has(key)) continue;
-    const [created] = await postFinancialRows("crm_financial_accounts", [{ name, account_type: "bank", initial_balance: 0, initial_balance_date: normalizeStatementDate(regular[0]?.values.data) || new Date().toISOString().slice(0, 10) }]); accountMap.set(key, created);
-  }
-  const categoryMap = new Map(state.financialCategories.map((category) => [`${category.category_type}|${normalize(category.name)}`, category]));
-  async function ensureCategory(name, type, parentId = null) { if (!String(name || "").trim()) return null; const key = `${type}|${normalize(name)}`; if (categoryMap.has(key)) return categoryMap.get(key); const [created] = await postFinancialRows("crm_financial_categories", [{ name: String(name).trim(), category_type: type, parent_id: parentId, active: true }]); categoryMap.set(key, created); return created; }
-  const fileHash = await sha256(await file.arrayBuffer()); const entries = [];
-  for (const { rowIndex, values } of regular) {
-    const amount = Number(values.valor); if (!Number.isFinite(amount) || amount === 0) continue;
-    const type = amount > 0 ? "income" : "expense"; const parent = await ensureCategory(values.categoria, type); const child = await ensureCategory(values.subcategoria, type, parent?.id || null);
-    const date = normalizeStatementDate(values.data); if (!date) continue; const paid = normalize(values.situacao).startsWith("paga");
-    entries.push({ id: await deterministicMigrationUuid(`${fileHash}|regular|${rowIndex}`), entry_type: type, status: paid ? "paid" : "pending", account_id: accountMap.get(normalize(cleanMobillsAccountName(values.conta)))?.id || null, transfer_account_id: null, category_id: child?.id || parent?.id || null, description: formatFinancialDescription(values.descricao || "Migração Mobills").slice(0, 240), notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount: Math.abs(amount), issue_date: date, competence_date: date, due_date: date, paid_at: paid ? `${date}T12:00:00.000Z` : null, source_type: "adjustment" });
-  }
-  for (const { rowIndex, values } of transfers) {
-    const amount = Math.abs(Number(values.valor)); const date = normalizeStatementDate(values.data); if (!amount || !date) continue;
-    entries.push({ id: await deterministicMigrationUuid(`${fileHash}|transfer|${rowIndex}`), entry_type: "transfer", status: "paid", account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta origem"])))?.id || null, transfer_account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta destino"])))?.id || null, category_id: null, description: "Transferência migrada do Mobills", notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount, issue_date: date, competence_date: date, due_date: date, paid_at: `${date}T12:00:00.000Z`, source_type: "adjustment" });
-  }
-  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?on_conflict=id"), () => ({ method: "POST", headers: supabaseHeaders("resolution=ignore-duplicates,return=representation"), body: JSON.stringify(entries) }));
-  if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível gravar as transações migradas."); }
-  const inserted = await response.json(); await loadFinancialRegisters();
-  return { total: entries.length, inserted: inserted.length, accounts: allAccountNames.size, categories: categoryMap.size };
+  state.financialOperations = (state.financialOperations || 0) + 1;
+  try {
+    const workbook = await readMobillsWorkbook(file); const normalize = normalizedMigrationText;
+    const findSheet = (prefix) => Array.from(workbook).find(([name]) => normalize(name).startsWith(prefix))?.[1];
+    const regularSheet = findSheet("receitas e despesas"); const transferSheet = findSheet("transfer");
+    if (!regularSheet?.length) throw new Error("A aba Receitas e Despesas não foi encontrada.");
+    const objects = (rows) => { const headers = rows[0].map(normalize); return rows.slice(1).filter((row) => row.some((value) => value !== "" && value != null)).map((row, rowIndex) => ({ rowIndex: rowIndex + 2, values: Object.fromEntries(headers.map((header, index) => [header, row[index]])) })); };
+    const regular = objects(regularSheet); const transfers = transferSheet?.length ? objects(transferSheet) : [];
+    if (!confirm(`Migrar ${regular.length} receitas/despesas e ${transfers.length} transferências do Mobills?`)) return null;
+    await loadFinancialRegisters();
+    const accountMap = new Map(state.financialAccounts.map((account) => [normalize(cleanMobillsAccountName(account.name)), account]));
+    const allAccountNames = new Set([...regular.map(({ values }) => values.conta), ...transfers.flatMap(({ values }) => [values["conta origem"], values["conta destino"]])].map(cleanMobillsAccountName).filter(Boolean));
+    for (const name of allAccountNames) {
+      const key = normalize(name); if (accountMap.has(key)) continue;
+      const [created] = await postFinancialRows("crm_financial_accounts", [{ name, account_type: "bank", initial_balance: 0, initial_balance_date: normalizeStatementDate(regular[0]?.values.data) || new Date().toISOString().slice(0, 10) }]); accountMap.set(key, created);
+    }
+    const categoryMap = new Map(state.financialCategories.map((category) => [`${category.category_type}|${normalize(category.name)}`, category]));
+    async function ensureCategory(name, type, parentId = null) { if (!String(name || "").trim()) return null; const key = `${type}|${normalize(name)}`; if (categoryMap.has(key)) return categoryMap.get(key); const [created] = await postFinancialRows("crm_financial_categories", [{ name: String(name).trim(), category_type: type, parent_id: parentId, active: true }]); categoryMap.set(key, created); return created; }
+    const fileHash = await sha256(await file.arrayBuffer()); const entries = [];
+    for (const { rowIndex, values } of regular) {
+      const amount = Number(values.valor); if (!Number.isFinite(amount) || amount === 0) continue;
+      const type = amount > 0 ? "income" : "expense"; const parent = await ensureCategory(values.categoria, type); const child = await ensureCategory(values.subcategoria, type, parent?.id || null);
+      const date = normalizeStatementDate(values.data); if (!date) continue; const paid = normalize(values.situacao).startsWith("paga");
+      entries.push({ id: await deterministicMigrationUuid(`${fileHash}|regular|${rowIndex}`), entry_type: type, status: paid ? "paid" : "pending", account_id: accountMap.get(normalize(cleanMobillsAccountName(values.conta)))?.id || null, transfer_account_id: null, category_id: child?.id || parent?.id || null, description: formatFinancialDescription(values.descricao || "Migração Mobills").slice(0, 240), notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount: Math.abs(amount), issue_date: date, competence_date: date, due_date: date, paid_at: paid ? `${date}T12:00:00.000Z` : null, source_type: "adjustment" });
+    }
+    for (const { rowIndex, values } of transfers) {
+      const amount = Math.abs(Number(values.valor)); const date = normalizeStatementDate(values.data); if (!amount || !date) continue;
+      entries.push({ id: await deterministicMigrationUuid(`${fileHash}|transfer|${rowIndex}`), entry_type: "transfer", status: "paid", account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta origem"])))?.id || null, transfer_account_id: accountMap.get(normalize(cleanMobillsAccountName(values["conta destino"])))?.id || null, category_id: null, description: "Transferência migrada do Mobills", notes: values.tags ? `Tags Mobills: ${values.tags}` : null, amount, issue_date: date, competence_date: date, due_date: date, paid_at: `${date}T12:00:00.000Z`, source_type: "adjustment" });
+    }
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", "?on_conflict=id"), () => ({ method: "POST", headers: supabaseHeaders("resolution=ignore-duplicates,return=representation"), body: JSON.stringify(entries) }));
+    if (!response.ok) { const details = await response.json().catch(() => null); throw new Error(details?.message || "Não foi possível gravar as transações migradas."); }
+    const inserted = await response.json(); await loadFinancialRegisters();
+    return { total: entries.length, inserted: inserted.length, accounts: allAccountNames.size, categories: categoryMap.size };
+  } finally { state.financialOperations--; }
 }
 
 function nextSelectedStatuses(selected, status, additive) {
@@ -3468,7 +3765,7 @@ function renderEnvironmentManager() {
   }
 
   if (!state.environments.length) {
-    elements.environmentRows.innerHTML = '<tr><td colspan="2" class="empty-state">Nenhum ambiente cadastrado</td></tr>';
+    elements.environmentRows.innerHTML = '<tr><td colspan="3" class="empty-state">Nenhum ambiente cadastrado</td></tr>';
     return;
   }
 
@@ -3499,6 +3796,19 @@ function renderEnvironmentManager() {
     });
     nameCell.appendChild(nameInput);
     row.appendChild(nameCell);
+
+    const typeCell = document.createElement("td");
+    const typeSelect = document.createElement("select");
+    typeSelect.innerHTML = '<option value="factory">Fábrica</option><option value="cost">Custo</option>';
+    typeSelect.value = budgetEnvironmentHasSpecialPricing(environment) ? "cost" : "factory";
+    typeSelect.setAttribute("aria-label", `Classificação de ${environment}`);
+    typeSelect.disabled = ["led", "leds", "ferragens"].includes(normalizedMigrationText(environment));
+    typeSelect.addEventListener("change", () => {
+      state.environmentTypes[environment] = typeSelect.value;
+      saveEnvironmentCatalog();
+    });
+    typeCell.appendChild(typeSelect);
+    row.appendChild(typeCell);
 
     const actionsCell = document.createElement("td");
     const removeButton = document.createElement("button");
@@ -3774,7 +4084,7 @@ function clientBudget(client) {
     orderMaterials: Array.isArray(saved.orderMaterials) ? saved.orderMaterials : [],
     deliveryForecastAt: saved.deliveryForecastAt || "",
     cashPayments: Array.isArray(saved.cashPayments) ? saved.cashPayments : defaultCashPaymentRows(),
-    paymentPlan: normalizeBudgetPaymentPlan(saved.paymentPlan),
+    paymentPlan: normalizeBudgetPaymentPlan(saved.paymentPlan || { enabled: !saved.id && !saved.code && !saved.updatedAt }),
     assistances: normalizeBudgetAssistances(saved.assistances),
     financialLaunchedAt: saved.financialLaunchedAt || "",
     financialSimulationAt: saved.financialSimulationAt || "",
@@ -3823,12 +4133,78 @@ const BUDGET_PAYMENT_RATE_MATRIX = {
 };
 const BUDGET_PAYMENT_METHODS = ["PIX", "Dinheiro", "Cartão de Credito", "Boleto"];
 
+function normalizeDocumentBankAccount(value = {}) {
+  const limits = { id: 80, label: 120, bank: 80, code: 3, agency: 30, number: 40, holder: 160, document: 30, pix: 160, updatedAt: 40 };
+  return Object.fromEntries(Object.entries(limits).map(([key, limit]) => [key, String(value[key] || "").trim().slice(0, limit)]));
+}
+
+function documentBankAccounts() {
+  const fallback = normalizeDocumentBankAccount({ id: "cabana-itau", label: "Cabana - Itaú", bank: "Itau", code: "341", agency: "0568", number: "99307-5", holder: "Cabana Moveis Sob Medida Ltda", document: "47.946.284/0001-77" });
+  const accounts = new Map([[fallback.id, fallback]]);
+  const saved = (state.clients || []).flatMap((client) => [client.budget, ...(client.budgets || [])]).map((budget) => budget?.paymentPlan?.bankAccount).filter(Boolean);
+  saved.map(normalizeDocumentBankAccount).forEach((account) => {
+    if (account.id && account.bank) accounts.set(account.id, account);
+  });
+  const registered = (state.clients || []).flatMap((client) => client.documentBankAccounts || []);
+  registered.map(normalizeDocumentBankAccount).sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)).forEach((account) => {
+    if (account.id && account.bank) accounts.set(account.id, account);
+  });
+  return [...accounts.values()];
+}
+
+function readDocumentBankAccount() {
+  if (!document.querySelector("#budgetBankName")) return null;
+  const values = { id: document.querySelector("#budgetBankAccountSelect")?.value || "" };
+  for (const [field, key] of [["Label", "label"], ["Name", "bank"], ["Code", "code"], ["Agency", "agency"], ["Number", "number"], ["Holder", "holder"], ["Document", "document"], ["Pix", "pix"]]) values[key] = document.querySelector(`#budgetBank${field}`)?.value || "";
+  return normalizeDocumentBankAccount(values);
+}
+
+function writeDocumentBankAccount(account) {
+  const select = document.querySelector("#budgetBankAccountSelect");
+  if (!select) return;
+  const selected = normalizeDocumentBankAccount(account);
+  const accounts = documentBankAccounts();
+  if (selected.id && !accounts.some((item) => item.id === selected.id)) accounts.push(selected);
+  select.innerHTML = accounts.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label || `${item.bank} - ${item.number || item.pix}`)}</option>`).join("") + '<option value="">Nova conta / preenchimento livre</option>';
+  select.value = selected.id;
+  for (const [field, key] of [["Label", "label"], ["Name", "bank"], ["Code", "code"], ["Agency", "agency"], ["Number", "number"], ["Holder", "holder"], ["Document", "document"], ["Pix", "pix"]]) document.querySelector(`#budgetBank${field}`).value = selected[key];
+  const message = document.querySelector("#budgetBankMessage");
+  if (message) message.textContent = "Os dados preenchidos serão usados no orçamento, pedido e contrato ao salvar o documento.";
+}
+
+async function registerDocumentBankAccount() {
+  if (!isAdmin()) return;
+  const client = selectedBudgetClient();
+  const account = readDocumentBankAccount();
+  const message = document.querySelector("#budgetBankMessage");
+  if (!client) { message.textContent = "Selecione um cliente antes de cadastrar a conta."; return; }
+  if (!account?.bank || !account.label || (!account.pix && (!account.agency || !account.number))) {
+    message.textContent = "Informe o nome da conta, o banco e a agência/conta ou chave PIX.";
+    return;
+  }
+  if (account.code && !/^\d{3}$/.test(account.code)) { message.textContent = "O código do banco deve conter três números."; return; }
+  const button = document.querySelector("#budgetBankRegister");
+  const userId = currentUserId();
+  const editingId = state.budgetEditingId;
+  button.disabled = true;
+  try {
+    account.id ||= createId();
+    account.updatedAt = new Date().toISOString();
+    client.documentBankAccounts = [...(client.documentBankAccounts || []).filter((item) => item.id !== account.id), account];
+    writeDocumentBankAccount(account);
+    markBudgetDirty();
+    const saved = await saveClients([client.id]);
+    if (currentUserId() !== userId || state.budgetEditingId !== editingId || selectedBudgetClient()?.id !== client.id) return;
+    message.textContent = saved ? "Conta cadastrada. Salve o orçamento para confirmar a conta escolhida neste documento." : "Conta salva neste navegador; a sincronização com o banco não foi concluída. Salve o orçamento após resolver a sincronização.";
+  } catch (error) { message.textContent = error.message; }
+  finally { button.disabled = false; }
+}
+
 function budgetPaymentRateFor(netCents, entryCents, months) {
   if (entryCents >= netCents) return 0;
   const rates = BUDGET_PAYMENT_RATE_MATRIX[months] || (months === 1 || months === 2 ? BUDGET_PAYMENT_RATE_MATRIX[3] : null);
   if (!rates) throw new Error("O financiamento próprio está disponível de 1 a 24 parcelas.");
   const entryPercent = entryCents / netCents * 100;
-  if (entryPercent < 20) throw new Error("O financiamento próprio exige entrada mínima de 20%.");
   return rates[entryPercent >= 50 ? 3 : entryPercent >= 40 ? 2 : entryPercent >= 30 ? 1 : 0];
 }
 
@@ -3841,9 +4217,11 @@ function normalizeBudgetPaymentPlan(value = {}) {
     rateAuto: value.rateAuto === true || value.rate === "" || value.rate == null,
     entryMethod: BUDGET_PAYMENT_METHODS.includes(value.entryMethod) ? value.entryMethod : "PIX",
     method: BUDGET_PAYMENT_METHODS.includes(value.method) ? value.method : "PIX",
+    creditAmount: value.creditAmount == null || value.creditAmount === "" ? null : Number(value.creditAmount),
     entryDate: value.entryDate || "",
     firstDueDate: value.firstDueDate || "",
     dueDates: Object.fromEntries(Object.entries(value.dueDates || {}).filter(([key, date]) => /^plan-income-([1-9]|1\d|2[0-4])$/.test(key) && typeof date === "string")),
+    bankAccount: value.bankAccount ? normalizeDocumentBankAccount(value.bankAccount) : null,
   };
 }
 
@@ -3865,12 +4243,15 @@ function calculateBudgetPaymentPlan(net, value) {
   if (!Number.isInteger(plan.months) || plan.months < 1 || plan.months > 24) throw new Error("Escolha de 1 a 24 parcelas.");
   if (entryCents && entryCents < netCents && budgetPaymentMonthDate(plan.entryDate, 0) && budgetPaymentMonthDate(plan.firstDueDate, 0) && plan.firstDueDate < plan.entryDate) throw new Error("O primeiro vencimento não pode ser anterior à entrada.");
   const balanceCents = netCents - entryCents;
-  const cashPayment = balanceCents === 0;
-  const suggestedRate = budgetPaymentRateFor(netCents, entryCents, plan.months);
-  if (plan.rate != null && (!Number.isFinite(plan.rate) || plan.rate < 0)) throw new Error("Informe uma taxa de juros mensal válida.");
-  const effectiveRate = cashPayment ? 0 : (plan.rateAuto ? suggestedRate : plan.rate);
+  const creditCard = plan.method === "Cartão de Credito";
+  const creditCents = Math.round((plan.creditAmount ?? balanceCents / 100) * 100);
+  if (creditCard && (!Number.isSafeInteger(creditCents) || creditCents < 0 || (balanceCents > 0 && creditCents === 0))) throw new Error("Informe um valor do crédito maior que zero.");
+  const cashPayment = creditCard ? creditCents === 0 : balanceCents === 0 || (entryCents > 0 && plan.months === 2);
+  const suggestedRate = cashPayment || creditCard ? 0 : budgetPaymentRateFor(netCents, entryCents, plan.months);
+  if (!creditCard && plan.rate != null && (!Number.isFinite(plan.rate) || plan.rate < 0)) throw new Error("Informe uma taxa de juros mensal válida.");
+  const effectiveRate = cashPayment || creditCard ? 0 : (plan.rateAuto ? suggestedRate : plan.rate);
   const rate = effectiveRate / 100;
-  const rawInstallment = balanceCents ? rate ? balanceCents * rate / (1 - Math.pow(1 + rate, -plan.months)) : balanceCents / plan.months : 0;
+  const rawInstallment = creditCard ? creditCents / plan.months : balanceCents ? rate ? balanceCents * rate / (1 - Math.pow(1 + rate, -plan.months)) : balanceCents / plan.months : 0;
   const installmentCents = Math.round(rawInstallment);
   const financedTotalCents = Math.round(rawInstallment * plan.months);
   // Distribute rounding in cents so every payment is nonnegative and totals match.
@@ -3878,12 +4259,12 @@ function calculateBudgetPaymentPlan(net, value) {
   const extraCents = financedTotalCents % plan.months;
   const payments = [];
   if (entryCents) payments.push({ key: "plan-entry", parcel: "Entrada", amount: entryCents / 100, dueDate: budgetPaymentMonthDate(plan.entryDate, 0), method: plan.entryMethod });
-  if (balanceCents) for (let index = 0; index < plan.months; index++) {
+  if (financedTotalCents) for (let index = 0; index < plan.months; index++) {
     const key = `plan-income-${index + 1}`;
     const dueDate = Object.hasOwn(plan.dueDates, key) ? budgetPaymentMonthDate(plan.dueDates[key], 0) : budgetPaymentMonthDate(plan.firstDueDate, index);
     payments.push({ key, parcel: `${index + 1}/${plan.months}`, amount: (lowerCents + (index >= plan.months - extraCents ? 1 : 0)) / 100, dueDate, method: plan.method });
   }
-  return { net: netCents / 100, entry: entryCents / 100, balance: balanceCents / 100, installment: installmentCents / 100, interest: (financedTotalCents - balanceCents) / 100, total: (entryCents + financedTotalCents) / 100, payments, cashPayment, effectiveRate };
+  return { net: netCents / 100, entry: entryCents / 100, balance: balanceCents / 100, installment: installmentCents / 100, interest: (financedTotalCents - balanceCents) / 100, financedTotal: financedTotalCents / 100, total: (entryCents + financedTotalCents) / 100, payments, cashPayment, effectiveRate, creditCard };
 }
 
 function readBudgetPaymentPlan() {
@@ -3895,8 +4276,10 @@ function readBudgetPaymentPlan() {
     rate: budgetInputValue("budgetPaymentRate"),
     rateAuto: rateSelect?.dataset.auto === "true",
     entryMethod: budgetInputValue("budgetPaymentEntryMethod"), method: budgetInputValue("budgetPaymentMethod"),
+    creditAmount: budgetInputValue("budgetPaymentCreditAmount").trim() ? parseMoney(budgetInputValue("budgetPaymentCreditAmount")) : null,
     entryDate: budgetInputValue("budgetPaymentEntryDate"), firstDueDate: budgetInputValue("budgetPaymentFirstDueDate"),
     dueDates: state.budgetPaymentDueDates || {},
+    bankAccount: readDocumentBankAccount(),
   });
 }
 
@@ -3930,12 +4313,16 @@ function changeBudgetPaymentRate(rate) {
 }
 
 function fillBudgetPaymentPlan(value) {
+  const bankDetails = document.querySelector(".budget-bank-details");
+  if (bankDetails) bankDetails.open = false;
   const plan = normalizeBudgetPaymentPlan(value);
   // Planos ainda não ativados eram criados com 3x antes do padrão Cabana mudar para 2x.
   // Mantemos intactos os planos ativos, pois eles podem já ter movimentação financeira.
   if (!plan.enabled && plan.months === 3) plan.months = 2;
   state.budgetPaymentDueDates = { ...plan.dueDates };
   document.querySelector("#budgetPaymentEnabled").checked = plan.enabled;
+  const legacyPayments = document.querySelector("#budgetLegacyPayments");
+  if (legacyPayments) legacyPayments.hidden = plan.enabled;
   const months = document.querySelector("#budgetPaymentMonths");
   months.innerHTML = Array.from({ length: 24 }, (_, index) => `<option value="${index + 1}">${index + 1} ${index ? "parcelas" : "parcela"}</option>`).join("");
   for (const [field, key] of [["Months", "months"], ["EntryMethod", "entryMethod"], ["Method", "method"], ["EntryDate", "entryDate"], ["FirstDueDate", "firstDueDate"]]) document.querySelector(`#budgetPayment${field}`).value = String(plan[key]);
@@ -3944,31 +4331,42 @@ function fillBudgetPaymentPlan(value) {
   selectBudgetPaymentRate(rate, plan.rateAuto ? null : plan.rate);
   rate.dataset.auto = String(plan.rateAuto);
   document.querySelector("#budgetPaymentEntry").value = formatMoneyInput(plan.entry);
+  document.querySelector("#budgetPaymentCreditAmount").value = plan.creditAmount == null ? "" : formatMoneyInput(plan.creditAmount);
+  writeDocumentBankAccount(plan.bankAccount || documentBankAccounts()[0]);
 }
 
 function renderBudgetPaymentPlan(net) {
   const error = document.querySelector("#budgetPaymentError");
   if (!error) return;
   const plan = readBudgetPaymentPlan();
+  const creditCard = plan.method === "Cartão de Credito";
+  document.querySelector("#budgetPaymentRateField").hidden = creditCard;
+  document.querySelector("#budgetPaymentCreditField").hidden = !creditCard;
+  const legacyPayments = document.querySelector("#budgetLegacyPayments");
+  if (legacyPayments) legacyPayments.hidden = plan.enabled;
   const hint = document.querySelector("#budgetPaymentHint");
   hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${plan.rate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} Pode haver ajuste de centavos entre parcelas.`;
   try {
     const result = calculateBudgetPaymentPlan(net, plan);
+    const creditInput = document.querySelector("#budgetPaymentCreditAmount");
+    if (creditCard && plan.creditAmount == null && document.activeElement !== creditInput) creditInput.value = formatMoneyInput(result.financedTotal);
     const rateInput = document.querySelector("#budgetPaymentRate");
-    if (plan.rateAuto) selectBudgetPaymentRate(rateInput, result.effectiveRate);
+    rateInput.disabled = result.cashPayment;
+    if (!creditCard && (plan.rateAuto || result.cashPayment)) selectBudgetPaymentRate(rateInput, result.effectiveRate);
     hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} ${result.cashPayment ? "Pagamento à vista, sem juros. Edite os vencimentos na tabela abaixo." : result.effectiveRate ? "Parcelas pela Tabela Price." : "Parcelamento sem juros."} A matriz preenche uma sugestão inicial; escolha qualquer taxa sugerida ou informe uma taxa livre. Pode haver ajuste de centavos entre parcelas.`;
+    if (creditCard) hint.textContent = `${plan.enabled ? "Este plano será usado no financeiro e nos documentos." : "Prévia: o modelo anterior continua sendo usado no financeiro e nos documentos."} O valor do crédito é dividido pela quantidade de parcelas. Pode haver ajuste de centavos entre parcelas.`;
     const scheduleDetails = document.querySelector("#budgetPaymentSchedule").closest("details");
     const alwaysExpanded = result.effectiveRate === 0;
     scheduleDetails.querySelector("summary").hidden = alwaysExpanded;
     if (alwaysExpanded) scheduleDetails.open = true;
-    for (const [field, key] of [["Net", "net"], ["Balance", "balance"], ["Installment", "installment"], ["Interest", "interest"], ["Total", "total"]]) document.querySelector(`#budgetPayment${field}`).textContent = BRL.format(result[key]);
+    for (const [field, key] of [["Net", "net"], ["Balance", "balance"], ["Installment", "installment"], ["Interest", "interest"], ["FinancedTotal", "financedTotal"], ["Total", "total"]]) document.querySelector(`#budgetPayment${field}`).textContent = BRL.format(result[key]);
     document.querySelector("#budgetPaymentSchedule").innerHTML = result.payments.map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${BRL.format(payment.amount)}</td><td><input type="date" data-budget-payment-due="${payment.key}" value="${payment.dueDate}" aria-label="Vencimento ${escapeHtml(payment.parcel)}" /></td><td>${escapeHtml(payment.method)}</td></tr>`).join("");
     error.hidden = true;
   } catch (failure) {
     if (plan.rateAuto) selectBudgetPaymentRate(document.querySelector("#budgetPaymentRate"), null);
     error.textContent = failure.message;
     error.hidden = false;
-    for (const field of ["Balance", "Installment", "Interest", "Total"]) document.querySelector(`#budgetPayment${field}`).textContent = "—";
+    for (const field of ["Balance", "Installment", "Interest", "FinancedTotal", "Total"]) document.querySelector(`#budgetPayment${field}`).textContent = "—";
     document.querySelector("#budgetPaymentNet").textContent = BRL.format(net);
     document.querySelector("#budgetPaymentSchedule").innerHTML = "";
   }
@@ -4081,6 +4479,7 @@ function readBudgetRows() {
       if (customInput) customInput.hidden = true;
       return {
         name,
+        environmentType: budgetEnvironmentHasSpecialPricing(name, row.dataset.environmentType) ? "cost" : "factory",
         gross: parseMoney(row.querySelector('[data-budget-field="gross"]')?.value),
         factory: parseMoney(row.querySelector('[data-budget-field="factory"]')?.value),
         hardware: parseMoney(row.querySelector('[data-budget-field="hardware"]')?.value),
@@ -4137,8 +4536,10 @@ function renderOrderMaterialRows(materials = [], budgetRows = readBudgetRows()) 
   });
 }
 
-function budgetEnvironmentHasSpecialPricing(name) {
-  return ["leds", "ferragens"].includes(normalizedMigrationText(name));
+function budgetEnvironmentHasSpecialPricing(name, type) {
+  if (["led", "leds", "ferragens"].includes(normalizedMigrationText(name))) return true;
+  const catalogType = typeof state !== "undefined" ? state.environmentTypes?.[String(name || "").trim().replace(/\s+/g, " ").toUpperCase()] : undefined;
+  return (catalogType || type) === "cost";
 }
 
 function calculateBudgetRows(rows, settings) {
@@ -4151,7 +4552,7 @@ function calculateBudgetRows(rows, settings) {
     tax: percentToRate(settings.taxRate),
   };
 
-  const freightRows = rows.filter((row) => !budgetEnvironmentHasSpecialPricing(row.name));
+  const freightRows = rows.filter((row) => !budgetEnvironmentHasSpecialPricing(row.name, row.environmentType));
   const totalFactory = freightRows.reduce((sum, row) => sum + Math.max(0, parseMoney(row.factory)), 0);
   const freightInput = Math.max(0, parseMoney(settings.freightValue));
   const totalFreight = settings.freightMode === "percent" ? totalFactory * percentToRate(freightInput) : freightInput;
@@ -4159,11 +4560,11 @@ function calculateBudgetRows(rows, settings) {
 
   return rows.map((row) => {
     const environmentName = normalizedMigrationText(row.name);
-    const hasSpecialPricing = budgetEnvironmentHasSpecialPricing(row.name);
+    const hasSpecialPricing = budgetEnvironmentHasSpecialPricing(row.name, row.environmentType);
     const gross = hasSpecialPricing ? 0 : parseMoney(row.gross);
     const factory = parseMoney(row.factory);
     const hardware = parseMoney(row.hardware);
-    const manualAssembly = environmentName === "leds" ? Math.max(0, parseMoney(row.assembly)) : 0;
+    const manualAssembly = hasSpecialPricing && environmentName !== "ferragens" ? Math.max(0, parseMoney(row.assembly)) : 0;
     const net = hasSpecialPricing ? 0 : gross - gross * rates.discount;
     const hasValues = Boolean(row.name || gross || factory || hardware);
     const freight = hasSpecialPricing ? 0 : totalFactory > 0
@@ -4180,6 +4581,8 @@ function calculateBudgetRows(rows, settings) {
     const totalCost = factory + hardware + freight + release + assembly + lela + iris + tax;
     return {
       ...row,
+      environmentType: hasSpecialPricing ? "cost" : "factory",
+      environmentCost: hasSpecialPricing && !["led", "leds", "ferragens"].includes(environmentName) ? factory : 0,
       gross,
       factory,
       hardware,
@@ -4263,7 +4666,7 @@ function budgetTotals(calculatedRows, settings) {
 function updateBudgetTableTotals(calculatedRows, totals) {
   const rowTotals = calculatedRows.reduce(
     (summary, row) => ({
-      factory: summary.factory + (budgetEnvironmentHasSpecialPricing(row.name) ? 0 : row.factory),
+      factory: summary.factory + (budgetEnvironmentHasSpecialPricing(row.name, row.environmentType) ? 0 : row.factory),
       factoryFreight: summary.factoryFreight + row.factoryFreight,
       hardware: summary.hardware + row.hardware,
       freight: summary.freight + row.freight,
@@ -4456,6 +4859,14 @@ function printableDocumentStyles() {
     .excel-order .logo-cell { background: rgba(255, 250, 240, 0.88); text-align: center; }
     .order-logo { display: block; width: 100px; max-height: 42px; object-fit: contain; margin: 0 auto; }
     .order-small { font-size: 7px; line-height: 1.05; }
+    .print-document .document-pages { margin: 0; border: 0; table-layout: fixed; }
+    .print-document .document-pages > thead > tr > td,
+    .print-document .document-pages > tbody > tr > td { border: 0; padding: 0; background: transparent; }
+    .print-document .company-header { margin: 0 0 8px; font-size: 7.9px; }
+    .print-document .company-header td { padding: 3px 2px; height: 18px; }
+    .document-repeat-header { display: table-header-group; break-inside: avoid; page-break-inside: avoid; }
+    .document-pages > tbody > tr { break-inside: auto; page-break-inside: auto; }
+    .document-page-content { overflow-wrap: anywhere; }
     .contract-title { text-align: center; font-weight: 900; font-size: 12px; margin: 0 0 7px; text-transform: uppercase; }
     .contract-number { text-align: center; font-weight: 900; margin: 0 0 6px; }
     .contract-clause { margin: 2px 0; text-align: justify; }
@@ -4466,7 +4877,7 @@ function printableDocumentStyles() {
     @media print {
       body { width: 100%; }
       .print-document { width: 100%; max-width: 100%; }
-      .print-page { width: 100%; max-width: 100%; overflow: hidden; }
+      .print-page { width: 100%; max-width: 100%; overflow: visible; }
       .order-page { font-size: 8.8px; }
       .order-page .excel-order { font-size: 8.4px; }
       .order-page .excel-order td, .order-page .excel-order th { padding: 4px 2px; height: 22px; }
@@ -4527,8 +4938,23 @@ function printableHeader(title, context) {
   </header>`;
 }
 
+function documentCompanyHeaderRows(context) {
+  const bank = context.budget.paymentPlan?.bankAccount || { bank: "Itau", code: "341", agency: "0568", number: "99307-5" };
+  const bankDetails = [bank.holder, bank.document, bank.pix ? `PIX: ${bank.pix}` : ""].filter(Boolean).map(escapeHtml).join("<br />");
+  return `<tr><td colspan="4" rowspan="3" class="logo-cell"><img class="order-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" /></td><td colspan="8" class="label">Cabana Moveis Sob Medida Ltda</td><td colspan="2" class="label">CNPJ</td><td colspan="6">47.946.284/0001-77</td><td colspan="6" class="section">Contrato No</td></tr>
+    <tr><td colspan="9" class="order-small">Avenida Vida Nova, 28, Sala 806-B, Jardim Maria Rosa - Taboao da Serra, SP</td><td colspan="2" class="label">Tel.</td><td colspan="5">11 95909-3538</td><td colspan="6" class="center strong">${escapeHtml(context.budget.code || "")}</td></tr>
+    <tr><td colspan="6">cabanamoveissobmedida@gmail.com</td><td class="label">Bco</td><td colspan="3">${escapeHtml([bank.bank, bank.code].filter(Boolean).join(" - "))}</td><td class="label">Ag</td><td>${escapeHtml(bank.agency || "—")}</td><td class="label">CC</td><td colspan="3">${escapeHtml(bank.number || "—")}</td><td colspan="6" class="order-small">${bankDetails}</td></tr>`;
+}
+
+function documentWithRepeatingHeader(context, content) {
+  return `<table class="document-pages"><thead class="document-repeat-header"><tr><td>
+    <table class="excel-order company-header" aria-label="Cabeçalho Cabana"><colgroup>${Array.from({ length: 26 }, () => "<col />").join("")}</colgroup><tbody>${documentCompanyHeaderRows(context)}</tbody></table>
+  </td></tr></thead><tbody><tr><td class="document-page-content">${content}</td></tr></tbody></table>`;
+}
+
 function formatPrintDate(value, options = {}) {
-  const date = value ? new Date(value) : new Date();
+  // Datas de formulário representam um dia local, não um instante em UTC.
+  const date = value ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value) : new Date();
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("pt-BR", options);
 }
@@ -4653,7 +5079,6 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
   const paymentPlan = context.budget.paymentPlan?.enabled ? calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan) : null;
   const client = context.client;
   const address = formattedClientAddressParts(client);
-  const contractCode = context.budget.code || "";
   const createdAt = formatPrintDate(context.budget.createdAt);
   const deliveryForecastAt = formatPrintDateTime(context.budget.deliveryForecastAt);
   const orderRows = buildOrderRows([...rows], startIndex);
@@ -4662,10 +5087,8 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
     <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
     <table class="excel-order" aria-label="Pedido">
       <colgroup>${Array.from({ length: 26 }, () => "<col />").join("")}</colgroup>
+      <thead class="document-repeat-header">${documentCompanyHeaderRows(context)}</thead>
       <tbody>
-        <tr><td colspan="4" rowspan="3" class="logo-cell"><img class="order-logo" src="assets/cabana-logo.png" alt="Cabana Moveis Sob Medida" /></td><td colspan="8" class="label">Cabana Moveis Sob Medida Ltda</td><td colspan="2" class="label">CNPJ</td><td colspan="6">47.946.284/0001-77</td><td colspan="6" class="section">Contrato No</td></tr>
-        <tr><td colspan="9" class="order-small">Avenida Vida Nova, 28, Sala 806-B, Jardim Maria Rosa - Taboao da Serra, SP</td><td colspan="2" class="label">Tel.</td><td colspan="5">11 95909-3538</td><td colspan="6" class="center strong">${escapeHtml(contractCode)}</td></tr>
-        <tr><td colspan="6">cabanamoveissobmedida@gmail.com</td><td class="label">Bco</td><td colspan="3">Itau - 347</td><td class="label">Ag</td><td>0568</td><td class="label">CC</td><td colspan="3">99307-5</td><td colspan="6"></td></tr>
         <tr><td colspan="19" class="label">Responsavel pela venda</td><td colspan="7" class="label">Data do contrato</td></tr>
         <tr><td colspan="19">${escapeHtml(responsibleSeller(client) || "Daniela Moreira")}</td><td colspan="7" class="center">${escapeHtml(createdAt)}</td></tr>
         <tr><td colspan="19" class="label">Cliente</td><td colspan="7" class="label">Banco / Agencia / Conta</td></tr>
@@ -4688,7 +5111,7 @@ function buildOrderPage(context, rows = context.rows, startIndex = 0) {
         <tr><td colspan="26" class="label">Amb Observacao</td></tr>
         <tr><td colspan="26">${escapeHtml(context.budget.notes || "")}</td></tr>
         <tr><td colspan="5" class="label">Total a vista</td><td colspan="11" class="label">Total a prazo</td><td colspan="5" class="label">Forma de pagamento</td><td colspan="5" class="label">Condicao de pagamento</td></tr>
-        <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal || context.totals.net)}</td><td colspan="5">${paymentPlan ? escapeHtml([...new Set(paymentPlan.payments.map((item) => item.method))].join(" / ")) : "Pix"}</td><td colspan="5">${paymentPlan ? paymentPlan.balance ? "Entrada / Parcelado" : "À vista" : context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
+        <tr><td colspan="5" class="right strong">${BRL.format(context.totals.net)}</td><td colspan="11" class="right strong">${BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal || context.totals.net)}</td><td colspan="5">${paymentPlan ? escapeHtml([...new Set(paymentPlan.payments.map((item) => item.method))].join(" / ")) : "Pix"}</td><td colspan="5">${paymentPlan ? paymentPlan.cashPayment ? "À vista" : "Entrada / Parcelado" : context.settings.installments ? "A vista / Parcelado" : "A vista"}</td></tr>
         <tr><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th><th colspan="3">Parcela</th><th colspan="3">Valor</th><th colspan="4">Vencimento</th><th colspan="3">Forma de pagamento</th></tr>
         ${buildPaymentRows(context)}
         <tr><td colspan="13" class="sign">Cabana Moveis Sob Medida</td><td colspan="13" class="sign">Contratante: ${escapeHtml(client.name || "")}</td></tr>
@@ -4702,8 +5125,7 @@ function buildContractPage(context) {
     const heading = /^\d+\./.test(text);
     return `<p class="contract-clause${heading ? " heading" : ""}">${escapeHtml(text)}</p>`;
   }).join("");
-  return `<section class="print-page contract-page">
-    <div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>
+  const content = `
     <p class="contract-number">CONTRATO N.o ${escapeHtml(context.budget.code || "")}</p>
     <h1 class="contract-title">Contrato de Compra e Venda de Produtos e de Prestacao de Servicos</h1>
     ${clauses}
@@ -4725,7 +5147,8 @@ function buildContractPage(context) {
       <div class="signature-line"><strong>CONTRATADA:</strong><br />Cabana Moveis Sob Medida Ltda</div>
       <div class="signature-line"><strong>CONTRATANTE:</strong><br />${escapeHtml(context.client.name || "")}</div>
     </div>
-  </section>`;
+  `;
+  return `<section class="print-page contract-page"><div class="cabana-watermark"><img src="assets/cabana-logo.png" alt="" /></div>${documentWithRepeatingHeader(context, content)}</section>`;
 }
 
 function buildOrderDocument(context) {
@@ -4741,13 +5164,15 @@ function buildBudgetPaymentPlanDocument(context) {
   if (!context.budget.paymentPlan?.enabled) return "";
   const plan = calculateBudgetPaymentPlan(context.totals.net, context.budget.paymentPlan);
   const rate = plan.effectiveRate;
-  return `<section class="print-page payment-plan-page">
+  const content = `
     <h2>Plano de pagamento — ${escapeHtml(context.budget.code || "")}</h2>
+    <p>${plan.cashPayment ? "Pagamento à vista" : "Financiamento"}</p>
     <p>${escapeHtml(context.client.name || "")}</p>
-    <div class="totals">${printField("Valor líquido", BRL.format(plan.net))}${printField("Entrada à vista", BRL.format(plan.entry))}${printField("Saldo financiado", BRL.format(plan.balance))}${printField("Juros", rate ? `${formatPercent(rate / 100)} a.m. — Tabela Price` : "Sem juros")}${printField("Total de juros", BRL.format(plan.interest))}${printField("Total com entrada", BRL.format(plan.total))}</div>
+    <div class="totals">${printField("Valor líquido", BRL.format(plan.net))}${printField("Entrada à vista", BRL.format(plan.entry))}${printField("Saldo financiado", BRL.format(plan.balance))}${plan.creditCard ? printField("Valor do crédito", BRL.format(plan.financedTotal)) : ""}${printField("Juros", plan.creditCard ? "" : rate ? `${formatPercent(rate / 100)} a.m. — Tabela Price` : "Sem juros")}${printField("Total de juros", plan.creditCard ? "" : BRL.format(plan.interest))}${printField("Total com entrada", BRL.format(plan.total))}</div>
     <table><thead><tr><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Forma de pagamento</th></tr></thead><tbody>${orderPaymentRows(context).map((payment) => `<tr><td>${escapeHtml(payment.parcel)}</td><td>${escapeHtml(payment.value)}</td><td>${escapeHtml(payment.dueDate)}</td><td>${escapeHtml(payment.method)}</td></tr>`).join("")}</tbody></table>
     <p>Os valores das parcelas incluem eventuais ajustes de centavos.</p>
-  </section>`;
+  `;
+  return `<section class="print-page payment-plan-page">${documentWithRepeatingHeader(context, content)}</section>`;
 }
 
 function buildQuoteDocument(context) {
@@ -4771,7 +5196,7 @@ function buildQuoteDocument(context) {
       </tr>`
     )
     .join("");
-  const body = `${printableHeader("Orçamento", context)}
+  const content = `${printableHeader("Orçamento", context)}
     ${printableClientSection(context.client)}
     <section>
       <h2>Ambientes e valores</h2>
@@ -4794,11 +5219,12 @@ function buildQuoteDocument(context) {
         ${printField("Total diaria", BRL.format(context.totals.dailyTotal))}
         ${printField("Base financiada", BRL.format(paymentPlan ? paymentPlan.balance : context.totals.financedBase))}
         ${printField("Valor parcela", BRL.format(paymentPlan ? paymentPlan.installment : context.totals.installmentValue))}
-        ${printField(paymentPlan ? "Total de juros" : "Retencao", BRL.format(paymentPlan ? paymentPlan.interest : context.totals.retentionValue))}
+        ${printField(paymentPlan ? "Total de juros" : "Retencao", paymentPlan?.creditCard ? "" : BRL.format(paymentPlan ? paymentPlan.interest : context.totals.retentionValue))}
         ${printField("Total financiamento", BRL.format(paymentPlan ? paymentPlan.total : context.totals.financingTotal))}
       </div>
     </section>
-    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>${buildBudgetPaymentPlanDocument(context)}`;
+    <section><h2>Observações</h2><div class="notes">${escapeHtml(context.budget.notes || "")}</div></section>`;
+  const body = `<section class="print-page quote-page">${documentWithRepeatingHeader(context, content)}</section>${buildBudgetPaymentPlanDocument(context)}`;
   const title = `Orcamento ${context.budget.code || ""}`;
   return { title, body, html: printableDocumentShell(title, body) };
 }
@@ -4911,7 +5337,7 @@ function setBudgetTableOrderMode(orderMode) {
 
 function syncBudgetRowAssemblyMode(row) {
   const environmentName = normalizedMigrationText(row.querySelector('[data-budget-field="name"]')?.value);
-  const hasManualAssembly = ["leds", "ferragens"].includes(environmentName);
+  const hasManualAssembly = budgetEnvironmentHasSpecialPricing(row.querySelector('[data-budget-field="name"]')?.value, row.dataset.environmentType);
   const locksAssembly = environmentName === "ferragens";
   const result = row.querySelector('[data-budget-result="assembly"]');
   const input = row.querySelector('[data-budget-field="assembly"]');
@@ -4931,6 +5357,7 @@ function syncBudgetRowAssemblyMode(row) {
 
 function createBudgetRow(rowData = {}) {
   const row = document.createElement("tr");
+  row.dataset.environmentType = rowData.environmentType || "factory";
   row.innerHTML = `
     <td data-budget-environment></td>
     <td data-budget-column="gross"><input class="money-input" data-budget-field="gross" inputmode="decimal" title="Tambem aceita contas, ex: 1.200,00+350,50" /></td>
@@ -4951,6 +5378,7 @@ function createBudgetRow(rowData = {}) {
     focusBudgetRowField(row, row.querySelector('[data-budget-field="gross"]')?.readOnly ? "factory" : "gross");
   };
   const environmentPicker = createEnvironmentPicker(rowData.name || "", () => {
+    row.dataset.environmentType = budgetEnvironmentHasSpecialPricing(environmentPicker.select.value) ? "cost" : "factory";
     markBudgetDirty();
     syncBudgetRowAssemblyMode(row);
     updateBudgetSummary();
@@ -5320,7 +5748,8 @@ function renderBudget() {
 
 const BUDGET_FINANCIAL_EXPENSES = [
   { key: "factoryFreight", description: "Fábrica + Frete", category: "Fabrica", days: 5 },
-  { key: "leds", description: "LEDS", category: "Fabrica", days: 5, specialEnvironment: "leds" },
+  { key: "environmentCost", description: "Custos de ambientes", category: "Insumos", days: 40 },
+  { key: "leds", description: "LEDS", category: "Insumos", days: 40, specialEnvironment: "leds", assemblyDateField: "assemblyStartDate", syncDueDate: true },
   { key: "ferragensEnvironment", description: "Ferragens", category: "Fabrica", days: 5, specialEnvironment: "ferragens" },
   { key: "hardware", description: "Ferragens", category: "Insumos", days: 40 },
   { key: "release", description: "Liberação", category: "Operação", days: 40 },
@@ -5371,11 +5800,12 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   const issueDate = budget.nobiliaDate || budgetFinancialLocalDate(budget.createdAt);
   const base = { status: "pending", account_id: account.id, client_id: client.id, source_type: "sale", issue_date: issueDate, competence_date: postedDate, paid_at: null };
   const financialDescription = (description) => `${options.simulated ? "Simulado - " : ""}${formatFinancialDescription(description)}`;
-  const planPayments = budget.paymentPlan?.enabled
-    ? calculateBudgetPaymentPlan(budgetTotals(calculated, budget.settings || {}).net, budget.paymentPlan).payments
+  const paymentCalculation = budget.paymentPlan?.enabled
+    ? calculateBudgetPaymentPlan(budgetTotals(calculated, budget.settings || {}).net, budget.paymentPlan)
     : null;
+  const planPayments = paymentCalculation?.payments;
   const payments = planPayments ? planPayments.map((payment) => ({
-    key: payment.key, entry_type: "income", description: financialDescription(payment.key === "plan-entry" ? "Entrada à Vista" : `Financiamento - Parcela ${payment.parcel}`),
+    key: payment.key, entry_type: "income", description: financialDescription(payment.key === "plan-entry" ? "Entrada à Vista" : `${paymentCalculation.cashPayment ? "Pagamento à Vista" : "Financiamento"} - Parcela ${payment.parcel}`),
     amount: payment.amount, category_id: payment.amount ? categoryFor("Receita Venda de Planejados", "income") : null,
     due_date: payment.dueDate || null, ...base, paymentMethod: payment.method,
   })) : (budget.cashPayments || []).map((payment, index) => {
@@ -5389,7 +5819,7 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
   const expenses = BUDGET_FINANCIAL_EXPENSES.map((rule) => {
     const sourceKey = rule.sourceKey || rule.key;
     const sourceTotal = rule.specialEnvironment
-      ? calculated.filter((row) => normalizedMigrationText(row.name) === rule.specialEnvironment).reduce((sum, row) => sum + (Number(row.factory) || 0), 0)
+      ? calculated.filter((row) => normalizedMigrationText(row.name) === rule.specialEnvironment || (rule.specialEnvironment === "leds" && normalizedMigrationText(row.name) === "led")).reduce((sum, row) => sum + (Number(row.factory) || 0), 0)
       : calculated.reduce((sum, row) => sum + (Number(row[sourceKey]) || 0), 0);
     const totalCents = budgetFinancialCents(sourceTotal);
     const amountCents = rule.splitPart === 1 ? Math.floor(totalCents / 2) : rule.splitPart === 2 ? totalCents - Math.floor(totalCents / 2) : totalCents;
@@ -5403,7 +5833,7 @@ function budgetFinancialPlan(budget, client, postedDate, account, categories, op
       category_id: amount ? categoryFor(rule.category, "expense") : null,
       due_date: dueDate, ...base };
   });
-  return [...expenses, ...payments].map(({ paymentMethod, ...item }) => ({ ...item, notes: notesWithFinancialTags(paymentMethod ? `Forma de pagamento: ${paymentMethod}` : "", tags) }));
+  return [...expenses, ...payments].filter((item) => item.key !== "environmentCost" || item.amount > 0).map(({ paymentMethod, ...item }) => ({ ...item, notes: notesWithFinancialTags(paymentMethod ? `Forma de pagamento: ${paymentMethod}` : "", tags) }));
 }
 
 async function budgetFinancialEntryIds(budget) {
@@ -5411,14 +5841,21 @@ async function budgetFinancialEntryIds(budget) {
 }
 
 async function fetchBudgetFinancialEntries(ids) {
-  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.join(",")})&select=*`), () => ({ headers: supabaseHeaders() }));
+  const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${ids.join(",")})&select=*`, "company"), () => ({ headers: supabaseHeaders() }));
   if (!response.ok) throw new Error("Não foi possível consultar os lançamentos vinculados ao orçamento.");
   return response.json();
 }
 
-async function validateBudgetPaymentTransition(budget, previousBudget) {
+async function validateBudgetPaymentTransition(budget, previousBudget, options = {}) {
   if (!previousBudget?.financialLaunchedAt && !previousBudget?.financialSimulationAt) return;
   const pairs = await budgetFinancialEntryIds(budget);
+  const simulation = options.simulation ?? Boolean(previousBudget.financialSimulationAt && !previousBudget.financialLaunchedAt);
+  if (simulation) {
+    const paid = (await fetchBudgetFinancialEntries(pairs.map(([, id]) => id))).filter((entry) => entry.status === "paid");
+    if (paid.some((entry) => !/^simulado\s*-\s*/i.test(String(entry.description || "")))) throw new Error("Existem transações pagas de lançamento final. O ajuste da simulação foi cancelado para proteger o financeiro.");
+    if (paid.length && !confirm(`Esta simulação possui ${paid.length} transação(ões) paga(s) ou recebida(s). O ajuste poderá alterar valores e vencimentos ou excluir parcelas substituídas, afetando os saldos. Deseja continuar?`)) throw new Error("Ajuste da simulação cancelado. Nenhuma alteração foi salva.");
+    return paid.map((entry) => entry.id);
+  }
   const activeKeys = budget.paymentPlan?.enabled
     ? new Set([...(budget.paymentPlan.entry > 0 ? ["plan-entry"] : []), ...Array.from({ length: budget.paymentPlan.months }, (_, index) => `plan-income-${index + 1}`)])
     : new Set(["income-1", "income-2", "income-3"]);
@@ -5429,16 +5866,21 @@ async function validateBudgetPaymentTransition(budget, previousBudget) {
 }
 
 async function reconcileBudgetFinancialStatus(clientId, budget) {
-  if (!budget || (!budget.financialLaunchedAt && !budget.financialSimulationAt)) return false;
+  if (!budget?.id) return false;
+  const hasFinancialStatus = Boolean(budget.financialLaunchedAt || budget.financialSimulationAt);
+  if (!hasFinancialStatus && (!remoteDatabaseEnabled() || !currentUserId())) return false;
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("Conecte o CRM ao banco para conferir o lançamento financeiro do orçamento.");
   const pairs = await budgetFinancialEntryIds(budget);
   const entries = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
   if (!Array.isArray(entries)) throw new Error("Não foi possível conferir o lançamento financeiro do orçamento.");
-  if (entries.length) return false;
+  if (entries.length && hasFinancialStatus) return false;
+  if (!entries.length && !hasFinancialStatus) return false;
+  const simulated = entries.length > 0 && entries.every((entry) => /^simulado\s*-\s*/i.test(String(entry.description || "")));
+  const restoredAt = entries.length ? new Date().toISOString() : "";
   const client = state.clients.find((item) => item.id === clientId);
   if (!client) return false;
   const clearStatus = (item) => budgetIdentity(item) === budgetIdentity(budget)
-    ? { ...item, financialLaunchedAt: "", financialSimulationAt: "" }
+    ? { ...item, financialLaunchedAt: simulated ? "" : restoredAt, financialSimulationAt: simulated ? restoredAt : "" }
     : item;
   state.clients = state.clients.map((item) => item.id === clientId
     ? { ...item, budget: item.budget ? clearStatus(item.budget) : item.budget, budgets: (item.budgets || []).map(clearStatus) }
@@ -5446,19 +5888,19 @@ async function reconcileBudgetFinancialStatus(clientId, budget) {
   if (!(await saveClients([clientId]))) {
     state.clients = state.clients.map((item) => item.id === clientId ? client : item);
     await saveClients();
-    throw new Error("As transações não existem mais, mas não foi possível confirmar a atualização do orçamento. Reabra o orçamento para conferir novamente.");
+    throw new Error("Não foi possível confirmar a atualização da referência financeira do orçamento. Reabra o orçamento para conferir novamente.");
   }
   return true;
 }
 
-async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = "effective") {
+async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = "effective", options = {}) {
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("O financeiro precisa estar conectado ao banco para lançar o orçamento.");
   const pairs = await budgetFinancialEntryIds(budget);
   const idByKey = new Map(pairs);
   const existing = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
   if (!createIfMissing && !existing.length) return { created: 0, updated: 0, deleted: 0, paid: 0, linked: false };
   if (!budgetFinancialStatusAllowed(budget.status)) return { created: 0, updated: 0, deleted: 0, paid: 0, linked: true, excluded: true };
-  await loadFinancialRegisters();
+  await loadFinancialRegisters("company");
   const account = state.financialAccounts.find((item) => item.active && item.account_type === "bank" && normalizedMigrationText(`${item.name} ${item.institution || ""}`).includes("mercado pago"));
   if (!account) throw new Error("Cadastre e ative a conta bancária Mercado Pago antes de lançar no financeiro.");
   const postedDate = budgetFinancialLocalDate();
@@ -5466,10 +5908,14 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
   const current = new Map(existing.map((entry) => [entry.id, entry]));
   const plannedKeys = new Set(plan.map((item) => item.key));
   const obsoletePayments = pairs.filter(([key, id]) => /^(income-|plan-)/.test(key) && !plannedKeys.has(key) && current.has(id));
-  if (obsoletePayments.some(([, id]) => current.get(id).status === "paid")) throw new Error("Existem parcelas recebidas no plano anterior. Não é possível trocar o modelo ou remover essas parcelas do financiamento.");
+  const canAdjustPaid = (entry) => mode === "simulation" && !budget.financialLaunchedAt && /^simulado\s*-\s*/i.test(String(entry?.description || ""));
+  if (obsoletePayments.some(([, id]) => current.get(id).status === "paid" && !canAdjustPaid(current.get(id)))) throw new Error("Existem parcelas recebidas no plano anterior. Não é possível trocar o modelo ou remover essas parcelas do financiamento.");
+  const approvedPaidIds = new Set(options.approvedPaidIds || []);
+  const unapprovedPaid = existing.filter((entry) => entry.status === "paid" && canAdjustPaid(entry) && !approvedPaidIds.has(entry.id));
+  if (unapprovedPaid.length && !confirm(`Esta simulação possui ${unapprovedPaid.length} transação(ões) paga(s) ou recebida(s). O ajuste poderá alterar valores e vencimentos ou excluir parcelas substituídas, afetando os saldos. Deseja continuar?`)) throw new Error("Ajuste da simulação cancelado.");
   const originalAssembly = current.get(idByKey.get("assembly"));
   const plannedAssembly = plan.find((item) => item.key === "assembly");
-  const legacyPaidAssembly = originalAssembly?.status === "paid"
+  const legacyPaidAssembly = !canAdjustPaid(originalAssembly) && originalAssembly?.status === "paid"
     && !current.has(idByKey.get("assemblyFinal"))
     && budgetFinancialCents(originalAssembly.amount) !== budgetFinancialCents(plannedAssembly?.amount);
   const result = { created: 0, updated: 0, deleted: 0, paid: 0, linked: true };
@@ -5477,17 +5923,17 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     if (item.key === "assemblyFinal" && legacyPaidAssembly) continue;
     const id = idByKey.get(item.key);
     const previous = current.get(id);
-    if (previous?.status === "paid") { result.paid++; continue; }
+    if (previous?.status === "paid" && !canAdjustPaid(previous)) { result.paid++; continue; }
     if (!item.amount) {
       if (previous) {
-        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`, "company"), () => ({ method: "DELETE", headers: supabaseHeaders() }));
         if (!response.ok) throw new Error(`Não foi possível excluir ${item.description} do financeiro.`);
         result.deleted++;
       }
       continue;
     }
     const { key, ...payload } = item;
-    if (!previous) { await postFinancialRows("crm_financial_entries", [{ id, ...payload }]); result.created++; continue; }
+    if (!previous) { await postFinancialRows("crm_financial_entries", [{ id, ...payload }], "return=representation", "company"); result.created++; continue; }
     const amountChanged = budgetFinancialCents(previous.amount) !== budgetFinancialCents(item.amount);
     const noteText = amountChanged ? `${financialEntryNotes(previous)}\nValor atualizado pelo orçamento ${budget.code}: ${BRL.format(Number(previous.amount))} → ${BRL.format(item.amount)} em ${postedDate}.`.trim() : financialEntryNotes(previous);
     const paymentNote = String(financialEntryNotes(item) || "");
@@ -5498,15 +5944,15 @@ async function syncBudgetFinancialEntries(budget, client, createIfMissing = fals
     if (BUDGET_FINANCIAL_EXPENSES.find((rule) => rule.key === item.key)?.syncDueDate) changes.due_date = item.due_date;
     if (item.key.startsWith("plan-")) changes.due_date = item.due_date;
     if (!amountChanged && previous.category_id === changes.category_id && previous.description === changes.description && previous.notes === changes.notes && (!Object.hasOwn(changes, "due_date") || previous.due_date === changes.due_date)) continue;
-    await saveFinancialRecord("crm_financial_entries", id, changes);
+    await saveFinancialRecord("crm_financial_entries", id, changes, "company");
     result.updated++;
   }
   for (const [, id] of obsoletePayments) {
-    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=eq.${id}`, "company"), () => ({ method: "DELETE", headers: supabaseHeaders() }));
     if (!response.ok) throw new Error("Não foi possível remover uma parcela substituída pelo novo plano.");
     result.deleted++;
   }
-  await loadFinancialRegisters();
+  await loadFinancialRegisters("company");
   return result;
 }
 
@@ -5519,10 +5965,10 @@ async function deleteBudgetFinancialSimulation(budget) {
     throw new Error("Existem lançamentos efetivos vinculados a este orçamento. A exclusão do simulado foi cancelada para proteger o financeiro.");
   }
   if (existing.length) {
-    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${existing.map((entry) => entry.id).join(",")})`), () => ({ method: "DELETE", headers: supabaseHeaders() }));
+    const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", `?id=in.(${existing.map((entry) => entry.id).join(",")})`, "company"), () => ({ method: "DELETE", headers: supabaseHeaders() }));
     if (!response.ok) throw new Error("Não foi possível excluir as transações simuladas.");
   }
-  await loadFinancialRegisters();
+  await loadFinancialRegisters("company");
   return { deleted: existing.length };
 }
 
@@ -5618,7 +6064,8 @@ async function saveBudget(options = {}) {
     try { calculateBudgetPaymentPlan(budgetTotals(calculateBudgetRows(rows, settings), settings).net, budgetPayload.paymentPlan); }
     catch (error) { alert(error.message); return false; }
   }
-  try { await validateBudgetPaymentTransition(budgetPayload, previousBudget); }
+  let approvedPaidIds = [];
+  try { approvedPaidIds = await validateBudgetPaymentTransition(budgetPayload, previousBudget, { simulation: !effectiveFinancialAction && !deleteSimulationAction && !previousBudget?.financialLaunchedAt && Boolean(simulationFinancialAction || previousBudget?.financialSimulationAt) }) || []; }
   catch (error) { alert(error.message); return false; }
   if (financialAction && !deleteSimulationAction) {
     if (!budgetFinancialStatusAllowed(budgetStatus)) { alert("O financeiro não pode ser lançado ou simulado para orçamento Novo, Recusado ou Finalizado."); return false; }
@@ -5674,7 +6121,7 @@ async function saveBudget(options = {}) {
   let financialError = null;
   try {
     if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "effective");
-    else if (budgetPayload.financialSimulationAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "simulation");
+    else if (budgetPayload.financialSimulationAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "simulation", { approvedPaidIds });
   }
   catch (error) { financialError = error; }
   refreshEnvironmentCatalog(rows.map((row) => row.name));
@@ -6373,7 +6820,7 @@ async function fetchSupabaseTableBackup({ name: table, key }) {
   while (true) {
     const query = new URLSearchParams({ select: "*", order: `${key}.asc`, limit: String(pageSize) });
     if (cursor !== null) query.set(key, `gt.${cursor}`);
-    const response = await authorizedFetch(supabaseTableEndpoint(table, `?${query}`), () => ({
+    const response = await authorizedFetch(supabaseTableEndpoint(table, `?${query}`, "company"), () => ({
       headers: supabaseHeaders(expectedCount === null ? "count=exact" : "return=minimal"),
     }));
     if (!response.ok) {
@@ -6393,7 +6840,7 @@ async function fetchSupabaseTableBackup({ name: table, key }) {
   }
 
   const countQuery = new URLSearchParams({ select: key, limit: "1" });
-  const countResponse = await authorizedFetch(supabaseTableEndpoint(table, `?${countQuery}`), () => ({ headers: supabaseHeaders("count=exact") }));
+  const countResponse = await authorizedFetch(supabaseTableEndpoint(table, `?${countQuery}`, "company"), () => ({ headers: supabaseHeaders("count=exact") }));
   if (!countResponse.ok) throw new Error(`Nao foi possivel validar a tabela ${table}.`);
   const finalCount = backupResponseCount(countResponse, table);
   if (rows.length !== expectedCount || rows.length !== finalCount) throw new Error(`A tabela ${table} mudou durante o backup (${rows.length}/${expectedCount}/${finalCount}). Tente novamente.`);
@@ -6564,13 +7011,24 @@ function reportSelectOptions(select, options, fallbackLabel) {
 }
 
 function renderReportsView() {
+  const personal = state.financialScope === "braga";
+  const kindSelect = document.querySelector("#reportsKind");
+  if (personal) kindSelect.value = "transactions";
+  kindSelect.disabled = personal;
+  const reportTitle = document.querySelector("#reportsView h1");
+  if (reportTitle) reportTitle.textContent = personal ? "Financeiro Braga · Relatórios" : "Relatórios";
+  const reportDescription = document.querySelector("#reportsView .page-header p");
+  if (reportDescription) reportDescription.textContent = personal ? "Exporte suas transações pessoais em planilhas XLSX." : "Exporte cadastros, orçamentos e transações em planilhas XLSX.";
+  document.querySelector("#reportsClientField").hidden = personal;
+  if (personal) document.querySelector("#reportsClient").value = "";
+  if (state.financialScopeError) document.querySelector("#reportsStatusMessage").textContent = state.financialScopeError;
   const kind = document.querySelector("#reportsKind")?.value || "clients";
   const dateField = document.querySelector("#reportsDateField");
   if (!dateField) return;
   const previousDate = dateField.value;
   dateField.replaceChildren(...REPORT_DATE_FIELDS[kind].map(([value, label]) => new Option(label, value)));
   dateField.value = REPORT_DATE_FIELDS[kind].some(([value]) => value === previousDate) ? previousDate : REPORT_DATE_FIELDS[kind][0][0];
-  reportSelectOptions(document.querySelector("#reportsClient"), [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")).map((client) => [client.id, client.name || client.id]), "Todos os clientes");
+  reportSelectOptions(document.querySelector("#reportsClient"), (personal ? [] : [...state.clients]).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")).map((client) => [client.id, client.name || client.id]), "Todos os clientes");
   const statuses = kind === "clients" ? STATUS.filter((status) => status !== "Todos") : kind === "budgets" ? BUDGET_STATUS : ["pending", "paid", "overdue", "cancelled"];
   reportSelectOptions(document.querySelector("#reportsStatus"), [...new Set(statuses.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")).map((value) => [value, kind === "transactions" ? ({ pending: "Pendente", paid: "Pago", overdue: "Vencido", cancelled: "Cancelado" }[value] || value) : value]), "Todos os status");
   reportSelectOptions(document.querySelector("#reportsAccount"), state.financialAccounts.map((account) => [account.id, account.name]), "Todas as contas");
@@ -6680,10 +7138,12 @@ function reportTransactionRows(entries, accounts, categories, clients, filters) 
 
 async function exportReport(event) {
   event.preventDefault();
-  if (!isAdmin()) return alert("Acesso restrito a administradores.");
+  if (!canAccessFinancialScope()) return alert("Acesso não autorizado ao relatório financeiro.");
+  const personal = state.financialScope === "braga";
   const filters = reportFilters();
+  if (personal) { filters.kind = "transactions"; filters.clientId = ""; }
   if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) return alert("A data inicial deve ser anterior ou igual à data final.");
-  const fileName = `crm-${filters.kind}-${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`;
+  const fileName = `crm-${personal ? "braga-" : ""}${filters.kind}-${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`;
   const button = document.querySelector("#reportsExportBtn");
   const message = document.querySelector("#reportsStatusMessage");
   button.disabled = true;
@@ -6693,9 +7153,10 @@ async function exportReport(event) {
     let rows;
     if (filters.kind === "transactions") {
       message.textContent = "Consultando transações...";
+      const prefix = personal ? "crm_braga_financial_" : "crm_financial_";
       const [entries, accounts, categories, clients] = await Promise.all([
-        fetchSupabaseTableBackup({ name: "crm_financial_entries", key: "id" }), fetchSupabaseTableBackup({ name: "crm_financial_accounts", key: "id" }),
-        fetchSupabaseTableBackup({ name: "crm_financial_categories", key: "id" }), reportClientsFromDatabase(),
+        fetchSupabaseTableBackup({ name: `${prefix}entries`, key: "id" }), fetchSupabaseTableBackup({ name: `${prefix}accounts`, key: "id" }),
+        fetchSupabaseTableBackup({ name: `${prefix}categories`, key: "id" }), personal ? Promise.resolve([]) : reportClientsFromDatabase(),
       ]);
       rows = reportTransactionRows(entries.rows, accounts.rows, categories.rows, clients, filters);
     } else {
@@ -7275,7 +7736,7 @@ async function syncLiveData() {
         clientsChanged = true;
       }
     }
-    if (isAdmin() && !liveFinancialRefreshBlocked()) {
+    if (canAccessFinancialScope() && !liveFinancialRefreshBlocked() && !state.financialNavigationPending && !state.financialOperations) {
       const previousSignature = liveFinancialSignature();
       await loadFinancialRegisters();
       financialChanged = liveFinancialSignature() !== previousSignature;
@@ -7450,10 +7911,25 @@ elements.logoutBtn.addEventListener("click", async () => {
   signOut();
 });
 elements.sidebarToggle?.addEventListener("click", toggleSidebar);
+document.querySelector("#configNavToggle")?.addEventListener("click", () => {
+  const toggle = document.querySelector("#configNavToggle");
+  const expanded = toggle.getAttribute("aria-expanded") === "true";
+  toggle.setAttribute("aria-expanded", String(!expanded));
+  document.querySelector("#configSubmenu").hidden = expanded;
+});
+
 elements.financialNavToggle?.addEventListener("click", () => {
   const expanded = elements.financialNavToggle.getAttribute("aria-expanded") === "true";
   elements.financialNavToggle.setAttribute("aria-expanded", String(!expanded));
   elements.financialSubmenu.hidden = expanded;
+});
+
+document.querySelector("#bragaFinancialNavToggle")?.addEventListener("click", () => {
+  if (!canAccessBragaFinance()) return;
+  const toggle = document.querySelector("#bragaFinancialNavToggle");
+  const expanded = toggle.getAttribute("aria-expanded") === "true";
+  toggle.setAttribute("aria-expanded", String(!expanded));
+  document.querySelector("#bragaFinancialSubmenu").hidden = expanded;
 });
 
 elements.navItems.forEach((item) => {
@@ -7469,24 +7945,7 @@ elements.navItems.forEach((item) => {
         alert(error.message || "Nao foi possivel carregar os usuarios.");
       }
     }
-    if (isFinanceModuleView(item.dataset.view) && isAdmin()) {
-      try {
-        await loadFinancialRegisters();
-      } catch (error) {
-        console.warn(error);
-        alert(error.message);
-      }
-    }
-    if (item.dataset.view === "reports" && isAdmin()) {
-      try {
-        state.clients = await loadClients();
-        await loadFinancialRegisters();
-      } catch (error) {
-        console.warn(error);
-        alert(error.message || "Não foi possível atualizar os filtros dos relatórios.");
-      }
-    }
-    await showView(item.dataset.view);
+    await showView(item.dataset.view, undefined, item.dataset.financialScope || "company");
   });
 });
 
@@ -7526,8 +7985,21 @@ document.querySelector("#financialTagManagerList")?.addEventListener("keydown", 
 });
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
+document.querySelector("#financialAccountsTypeFilter")?.addEventListener("change", (event) => {
+  state.financialAccountTypeFilter = event.target.value;
+  renderFinancialAccounts();
+});
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; state.financialEntryPage = 1; renderFinancialEntries(); });
-document.querySelector("#financialEntryShowDailyBalance")?.addEventListener("change", (event) => { state.financialEntryShowDailyBalance = event.target.checked; renderFinancialDailyBalanceBreaks(elements.financialEntryRows?.closest("table")); });
+document.querySelector("#financialColumnPicker")?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-financial-column]");
+  if (!input) return;
+  const visibility = financialTransactionColumnVisibility();
+  if (!Object.hasOwn(visibility, input.dataset.financialColumn)) return;
+  visibility[input.dataset.financialColumn] = input.checked;
+  setAppPreference(state.financialScope === "braga" ? "bragaFinancialTransactionColumns" : "financialTransactionColumns", visibility);
+  applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table"));
+});
+document.querySelector("#financialEntryShowDailyBalance")?.addEventListener("change", (event) => { state.financialEntryShowDailyBalance = event.target.checked; renderFinancialDailyBalanceBreaks(elements.financialEntryRows?.closest("table")); applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table")); });
 document.querySelectorAll("[data-financial-month-step]").forEach((button) => button.addEventListener("click", () => stepFinancialEntryMonth(Number(button.dataset.financialMonthStep))));
 document.querySelector("#financialEvolutionAccount")?.addEventListener("change", (event) => { state.financialEvolutionAccountId = event.target.value; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionYear")?.addEventListener("change", (event) => { state.financialEvolutionYear = Number(event.target.value); renderFinancialEvolution(); });
@@ -7637,6 +8109,29 @@ function closeFinancialEntryMenus(except = null) {
     menu.closest(".financial-entry-actions")?.querySelector("[data-financial-entry-menu]")?.setAttribute("aria-expanded", "false");
   });
 }
+
+elements.financialEntryRows?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-select-financial-entry]");
+  if (!input || state.financialDeletingEntries) return;
+  if (input.checked) state.financialSelectedEntryIds.add(input.dataset.selectFinancialEntry);
+  else state.financialSelectedEntryIds.delete(input.dataset.selectFinancialEntry);
+  updateFinancialEntrySelection();
+});
+document.querySelector("#selectAllFinancialEntries")?.addEventListener("change", (event) => {
+  if (state.financialDeletingEntries) return;
+  elements.financialEntryRows.querySelectorAll("[data-select-financial-entry]").forEach((input) => {
+    if (event.target.checked) state.financialSelectedEntryIds.add(input.dataset.selectFinancialEntry);
+    else state.financialSelectedEntryIds.delete(input.dataset.selectFinancialEntry);
+  });
+  updateFinancialEntrySelection();
+});
+document.querySelector("#clearFinancialEntrySelection")?.addEventListener("click", () => {
+  state.financialSelectedEntryIds.clear();
+  updateFinancialEntrySelection();
+});
+document.querySelector("#deleteSelectedFinancialEntries")?.addEventListener("click", () => {
+  deleteSelectedFinancialEntries().catch((error) => alert(error.message));
+});
 
 elements.financialEntryRows?.addEventListener("click", (event) => {
   const menuButton = event.target.closest("[data-financial-entry-menu]");
@@ -7748,7 +8243,7 @@ elements.environmentForm?.addEventListener("submit", (event) => {
   const typedName = elements.environmentNameInput?.value || "";
   const normalizedName = normalizeEnvironmentName(typedName);
   const alreadyExists = state.environments.includes(normalizedName);
-  const added = addEnvironmentToCatalog(typedName);
+  const added = addEnvironmentToCatalog(typedName, document.querySelector("#environmentTypeInput")?.value || "factory");
   if (added && elements.environmentNameInput) {
     elements.environmentNameInput.value = "";
   }
@@ -7978,11 +8473,32 @@ document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("input", (ev
   if (event.target.matches("[data-budget-payment-due], #budgetPaymentRate")) return;
   updateBudgetSummary();
 });
-document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("change", () => { markBudgetDirty(); updateBudgetSummary(); });
+document.querySelector("#budgetPaymentPlanPanel")?.addEventListener("change", (event) => {
+  markBudgetDirty();
+  if (event.target.matches("[data-budget-payment-due]")) return;
+  updateBudgetSummary();
+});
 document.querySelector("#budgetPaymentEntry")?.addEventListener("blur", (event) => {
   event.currentTarget.value = formatMoneyInput(parseMoney(event.currentTarget.value));
   updateBudgetSummary();
 });
+document.querySelector("#budgetPaymentCreditAmount")?.addEventListener("blur", (event) => {
+  if (event.currentTarget.value.trim()) event.currentTarget.value = formatMoneyInput(parseMoney(event.currentTarget.value));
+  updateBudgetSummary();
+});
+document.querySelector("#budgetPaymentMethod")?.addEventListener("change", (event) => {
+  if (event.currentTarget.value !== "Cartão de Credito") return;
+  updateBudgetSummary();
+  const creditInput = document.querySelector("#budgetPaymentCreditAmount");
+  creditInput.focus();
+  creditInput.select();
+});
+document.querySelector("#budgetBankAccountSelect")?.addEventListener("change", (event) => {
+  const account = documentBankAccounts().find((item) => item.id === event.target.value);
+  writeDocumentBankAccount(account || {});
+  markBudgetDirty();
+});
+document.querySelector("#budgetBankRegister")?.addEventListener("click", registerDocumentBankAccount);
 [
   "#budgetCreatedAt",
   "#budgetSaleAt",
@@ -8207,8 +8723,14 @@ async function startApp() {
   refreshEnvironmentCatalog();
   state.selectedId = state.clients[0]?.id || null;
   const initialView = startsInFinanceTransactions() ? "financeTransactions" : isAdmin() ? "budget" : "clients";
+  if (startsInFinanceTransactions()) {
+    for (const [toggleId, submenuId] of [["financialNavToggle", "financialSubmenu"], ["bragaFinancialNavToggle", "bragaFinancialSubmenu"]]) {
+      document.querySelector(`#${toggleId}`).setAttribute("aria-expanded", "false");
+      document.querySelector(`#${submenuId}`).hidden = true;
+    }
+  }
   state.view = initialView;
-  await showView(initialView);
+  await showView(initialView, undefined, canAccessBragaFinance() && !isAdmin() ? "braga" : "company");
   render();
   startLiveSync();
   return true;

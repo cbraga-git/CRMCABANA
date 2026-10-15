@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="referrer" content="no-referrer" />
     <title>CRM Cabana | Moveis Planejados</title>
-    <link rel="stylesheet" href="styles.css?v=108" />
+    <link rel="stylesheet" href="styles.css?v=111" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -53,22 +53,6 @@
             <span class="nav-icon">#</span>
             <span class="nav-label">Pedido</span>
           </button>
-          <button class="nav-item" type="button" data-view="environments" title="Ambientes">
-            <span class="nav-icon">[]</span>
-            <span class="nav-label">Ambientes</span>
-          </button>
-          <button class="nav-item" id="usersNavItem" type="button" data-view="users" title="Usuarios" hidden>
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3Zm-8 0c1.7 0 3-1.3 3-3S9.7 5 8 5 5 6.3 5 8s1.3 3 3 3Zm0 2c-2.7 0-5 1.4-5 3.2V18h10v-1.8C13 14.4 10.7 13 8 13Zm8 0c-.5 0-1 .1-1.5.2 1 .8 1.5 1.8 1.5 3V18h5v-1.8c0-1.8-2.3-3.2-5-3.2Z" />
-              </svg>
-            </span>
-            <span class="nav-label">Usuarios</span>
-          </button>
-          <button class="nav-item" id="budgetStatusesNavItem" type="button" data-view="budgetStatuses" title="Status" hidden>
-            <span class="nav-icon">✓</span>
-            <span class="nav-label">Status</span>
-          </button>
           <div class="nav-group" id="financialNavGroup" hidden>
             <button class="nav-parent" id="financialNavToggle" type="button" aria-expanded="false" aria-controls="financialSubmenu" title="Financeiro">
               <span class="nav-icon">$</span>
@@ -106,14 +90,74 @@
               </button>
             </div>
           </div>
+          <div class="nav-group" id="bragaFinancialNavGroup" hidden>
+            <button class="nav-parent" id="bragaFinancialNavToggle" type="button" aria-expanded="false" aria-controls="bragaFinancialSubmenu" title="Financeiro Braga">
+              <span class="nav-icon">$</span>
+              <span class="nav-label">Financeiro Braga</span>
+              <span class="nav-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="nav-submenu" id="bragaFinancialSubmenu" hidden>
+              <button class="nav-item nav-subitem" id="bragaFinancialOverviewNavItem" type="button" data-view="financeOverview" data-financial-scope="braga" title="Visão geral">
+                <span class="nav-icon" aria-hidden="true">•</span>
+                <span class="nav-label">Visão geral</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeAccounts" data-financial-scope="braga" title="Contas">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Contas</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeTransactions" data-financial-scope="braga" title="Transações">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Transações</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financePayable" data-financial-scope="braga" title="Contas a pagar" hidden>
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Contas a pagar</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeReceivable" data-financial-scope="braga" title="Contas a receber" hidden>
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Contas a receber</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeImport" data-financial-scope="braga" title="Importar extrato">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Importar extrato</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financeCategories" data-financial-scope="braga" title="Categorias">
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Categorias</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="financePlanning" data-financial-scope="braga" title="Planejamento" hidden>
+                <span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Planejamento</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="reports" data-financial-scope="braga" title="Relatórios"><span class="nav-icon" aria-hidden="true">•</span><span class="nav-label">Relatórios</span></button>
+            </div>
+          </div>
           <button class="nav-item" id="reportsNavItem" type="button" data-view="reports" title="Relatórios" hidden>
             <span class="nav-icon" aria-hidden="true">▤</span>
             <span class="nav-label">Relatórios</span>
           </button>
-          <button class="nav-item" id="maintenanceNavItem" type="button" data-view="maintenance" title="Manutenção" hidden>
-            <span class="nav-icon">!</span>
-            <span class="nav-label">Manutenção</span>
-          </button>
+          <div class="nav-group" id="configNavGroup">
+            <button class="nav-parent" id="configNavToggle" type="button" aria-expanded="false" aria-controls="configSubmenu" title="Config">
+              <span class="nav-icon" aria-hidden="true">&#9881;</span>
+              <span class="nav-label">Config</span>
+              <span class="nav-chevron" aria-hidden="true">&#8964;</span>
+            </button>
+            <div class="nav-submenu" id="configSubmenu" hidden>
+              <button class="nav-item nav-subitem" id="usersNavItem" type="button" data-view="users" title="Usuarios" hidden>
+                <span class="nav-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M16 11c1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3 1.3 3 3 3Zm-8 0c1.7 0 3-1.3 3-3S9.7 5 8 5 5 6.3 5 8s1.3 3 3 3Zm0 2c-2.7 0-5 1.4-5 3.2V18h10v-1.8C13 14.4 10.7 13 8 13Zm8 0c-.5 0-1 .1-1.5.2 1 .8 1.5 1.8 1.5 3V18h5v-1.8c0-1.8-2.3-3.2-5-3.2Z" />
+                  </svg>
+                </span>
+                <span class="nav-label">Usuarios</span>
+              </button>
+              <button class="nav-item nav-subitem" type="button" data-view="environments" title="Ambientes">
+                <span class="nav-icon">[]</span>
+                <span class="nav-label">Ambientes</span>
+              </button>
+              <button class="nav-item nav-subitem" id="budgetStatusesNavItem" type="button" data-view="budgetStatuses" title="Status" hidden>
+                <span class="nav-icon">✓</span>
+                <span class="nav-label">Status</span>
+              </button>
+              <button class="nav-item nav-subitem" id="maintenanceNavItem" type="button" data-view="maintenance" title="Manutenção" hidden>
+                <span class="nav-icon">!</span>
+                <span class="nav-label">Manutenção</span>
+              </button>
+            </div>
+          </div>
         </nav>
 
         <div class="app-version" title="Versao publicada">
@@ -245,6 +289,7 @@
                 <span>Ambiente</span>
                 <input id="environmentNameInput" type="text" placeholder="Nome do ambiente" autocomplete="off" />
               </label>
+              <label class="search-box"><span>Classificação</span><select id="environmentTypeInput"><option value="factory">Fábrica</option><option value="cost">Custo</option></select></label>
               <button class="button primary" type="submit">
                 <span class="button-icon">+</span>
                 Adicionar
@@ -257,6 +302,7 @@
               <thead>
                 <tr>
                   <th>Ambiente</th>
+                  <th>Classificação</th>
                   <th>Acoes</th>
                 </tr>
               </thead>
@@ -491,25 +537,45 @@
               <section class="budget-panel budget-payment-plan" id="budgetPaymentPlanPanel" aria-label="Novo modelo de pagamentos">
                 <h2>Plano de pagamento</h2>
                 <label class="budget-payment-enabled"><input id="budgetPaymentEnabled" type="checkbox" /> Usar este plano no financeiro e nos documentos</label>
+                <details class="budget-bank-details">
+                  <summary>Dados bancários da Cabana para os documentos</summary>
+                  <div class="budget-finance-grid">
+                    <label>Conta cadastrada<select id="budgetBankAccountSelect"></select></label>
+                    <label>Nome para identificar a conta<input id="budgetBankLabel" maxlength="120" /></label>
+                    <label>Banco<input id="budgetBankName" maxlength="80" /></label>
+                    <label>Código do banco<input id="budgetBankCode" inputmode="numeric" maxlength="3" placeholder="341" /></label>
+                    <label>Agência<input id="budgetBankAgency" maxlength="30" /></label>
+                    <label>Conta com dígito<input id="budgetBankNumber" maxlength="40" /></label>
+                    <label>Titular<input id="budgetBankHolder" maxlength="160" /></label>
+                    <label>CPF/CNPJ do titular<input id="budgetBankDocument" maxlength="30" /></label>
+                    <label>Chave PIX<input id="budgetBankPix" maxlength="160" /></label>
+                  </div>
+                  <button id="budgetBankRegister" type="button" class="secondary-button">Cadastrar / atualizar conta</button>
+                  <p id="budgetBankMessage" class="budget-payment-hint" role="status">Os dados preenchidos serão usados no orçamento, pedido e contrato ao salvar o documento.</p>
+                </details>
                 <div class="budget-finance-grid">
                   <div><span>Valor líquido do orçamento</span><strong id="budgetPaymentNet">R$ 0,00</strong></div>
                   <label>Entrada à vista<input id="budgetPaymentEntry" class="money-input" inputmode="decimal" /></label>
                   <label>Forma de pagamento da entrada<select id="budgetPaymentEntryMethod"><option>PIX</option><option>Dinheiro</option><option>Cartão de Credito</option><option>Boleto</option></select></label>
                   <label>Data da entrada<input id="budgetPaymentEntryDate" type="date" /></label>
                   <label>Quantidade de parcelas<select id="budgetPaymentMonths"></select></label>
-                  <label>Taxa de juros mensal<select id="budgetPaymentRate"><option value="">Sugerida pela matriz Cabana</option><option value="0">Sem juros</option><option value="1">1,0% a.m.</option><option value="1.1">1,1% a.m.</option><option value="1.2">1,2% a.m.</option><option value="1.3">1,3% a.m.</option><option value="1.4">1,4% a.m.</option><option value="1.5">1,5% a.m.</option><option value="1.6">1,6% a.m.</option><option value="1.7">1,7% a.m.</option><option value="1.8">1,8% a.m.</option><option value="1.9">1,9% a.m.</option><option value="2">2,0% a.m.</option><option value="2.1">2,1% a.m.</option><option value="2.2">2,2% a.m.</option><option value="2.3">2,3% a.m.</option><option value="2.4">2,4% a.m.</option><option value="2.5">2,5% a.m.</option><option value="2.6">2,6% a.m.</option><option value="2.7">2,7% a.m.</option><option value="2.8">2,8% a.m.</option><option value="3">3,0% a.m.</option><option value="3.1">3,1% a.m.</option><option value="3.2">3,2% a.m.</option><option value="3.3">3,3% a.m.</option><option value="custom">Taxa personalizada</option></select></label>
                   <label>Forma de pagamento das parcelas<select id="budgetPaymentMethod"><option>PIX</option><option>Dinheiro</option><option>Cartão de Credito</option><option>Boleto</option></select></label>
+                  <label id="budgetPaymentRateField">Taxa de juros mensal<select id="budgetPaymentRate"><option value="">Sugerida pela matriz Cabana</option><option value="0">Sem juros</option><option value="1">1,0% a.m.</option><option value="1.1">1,1% a.m.</option><option value="1.2">1,2% a.m.</option><option value="1.3">1,3% a.m.</option><option value="1.4">1,4% a.m.</option><option value="1.5">1,5% a.m.</option><option value="1.6">1,6% a.m.</option><option value="1.7">1,7% a.m.</option><option value="1.8">1,8% a.m.</option><option value="1.9">1,9% a.m.</option><option value="2">2,0% a.m.</option><option value="2.1">2,1% a.m.</option><option value="2.2">2,2% a.m.</option><option value="2.3">2,3% a.m.</option><option value="2.4">2,4% a.m.</option><option value="2.5">2,5% a.m.</option><option value="2.6">2,6% a.m.</option><option value="2.7">2,7% a.m.</option><option value="2.8">2,8% a.m.</option><option value="3">3,0% a.m.</option><option value="3.1">3,1% a.m.</option><option value="3.2">3,2% a.m.</option><option value="3.3">3,3% a.m.</option><option value="custom">Taxa personalizada</option></select></label>
+                  <label id="budgetPaymentCreditField" hidden>Valor do crédito<input id="budgetPaymentCreditAmount" type="text" class="money-input" inputmode="decimal" autocomplete="off" title="Digite o valor total a parcelar no cartão de crédito" /></label>
                   <label>Primeiro vencimento<input id="budgetPaymentFirstDueDate" type="date" /></label>
+                </div>
+                <div class="budget-finance-grid budget-payment-summary">
                   <div><span>Saldo a financiar</span><strong id="budgetPaymentBalance">R$ 0,00</strong></div>
                   <div><span>Valor da parcela</span><strong id="budgetPaymentInstallment">R$ 0,00</strong></div>
                   <div><span>Total de juros</span><strong id="budgetPaymentInterest">R$ 0,00</strong></div>
+                  <div><span>Total financiado + juros</span><strong id="budgetPaymentFinancedTotal">R$ 0,00</strong></div>
                   <div><span>Total com entrada</span><strong id="budgetPaymentTotal">R$ 0,00</strong></div>
                 </div>
                 <p id="budgetPaymentHint" class="budget-payment-hint"></p>
                 <p id="budgetPaymentError" class="budget-payment-error" role="alert" hidden></p>
                 <details><summary>Ver parcelas</summary><div class="table-wrap"><table class="cash-payment-table"><thead><tr><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Forma de pagamento</th></tr></thead><tbody id="budgetPaymentSchedule"></tbody></table></div></details>
               </section>
-              <section class="payments-grid" aria-label="Pagamentos">
+              <section class="payments-grid" id="budgetLegacyPayments" aria-label="Pagamentos">
                 <article class="budget-panel cash-payment-card">
                   <h2>Pagamento a vista</h2>
                   <table class="cash-payment-table">
@@ -613,6 +679,7 @@
           <header class="page-header">
             <div>
               <h1 id="financialModuleTitle">Visão geral</h1>
+              <p id="financialScopeMessage" class="financial-scope-message" role="status" hidden></p>
               <p id="financialModuleDescription">Acompanhe o fluxo financeiro da empresa.</p>
             </div>
             <label class="financial-period-filter" id="financialPeriodFilter">Período<input id="financialDashboardMonth" type="month" /></label>
@@ -638,7 +705,7 @@
           </section>
 
           <section class="financial-accounts-view" id="financialAccountsPanel" hidden>
-            <header class="financial-accounts-header"><div><h2>Gestão de contas</h2><p>Saldos e lançamentos de cada conta.</p></div><div class="financial-accounts-header-actions"><label class="financial-period-filter">Período<input id="financialAccountsMonth" type="month" /></label><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></div></header>
+            <header class="financial-accounts-header"><div><h2>Gestão de contas</h2><p>Saldos e lançamentos de cada conta.</p></div><div class="financial-accounts-header-actions"><label class="financial-period-filter">Mostrar<select id="financialAccountsTypeFilter"><option value="all">Todas as contas</option><option value="bank">Somente contas bancárias</option><option value="other">Somente outras contas</option></select></label><label class="financial-period-filter">Período<input id="financialAccountsMonth" type="month" /></label><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></div></header>
             <div class="financial-accounts-layout">
               <div class="financial-account-cards" id="financialAccountRows"></div>
               <aside class="financial-accounts-summary" aria-label="Resumo das contas"><article class="stat-card"><span class="stat-icon teal">$</span><div><span>Saldo atual</span><strong id="financialAccountsBalance">R$ 0,00</strong></div></article><article class="stat-card"><span class="stat-icon orange">↗</span><div><span>Saldo previsto</span><strong id="financialAccountsProjected">R$ 0,00</strong></div></article></aside>
@@ -670,8 +737,9 @@
               <label>Até<input id="financialEntryFilterEnd" type="date" /></label>
               <button class="button secondary" id="clearFinancialEntryFilters" type="button">Limpar</button>
             </div>
-            <div class="financial-entry-balance-controls" id="financialEntryBalanceControls"><label title="Mostra o saldo previsto no fim de cada dia, considerando as contas selecionadas no filtro."><input id="financialEntryShowDailyBalance" type="checkbox" checked /> Mostrar saldo do dia</label></div>
-            <div class="table-wrap financial-entry-table-wrap"><table class="financial-entry-table" data-financial-sortable><thead><tr><th data-sort-type="text" aria-label="Status">Status</th><th data-sort-type="date">Vencimento</th><th data-sort-type="text">Descrição</th><th data-sort-type="text">Observações</th><th data-sort-type="text">Categoria</th><th data-sort-type="text">Conta</th><th data-sort-type="number">Valor</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
+            <div class="financial-entry-balance-controls" id="financialEntryBalanceControls"><details class="financial-column-picker" id="financialColumnPicker"><summary>Campos visíveis</summary><div class="financial-column-options"><label><input type="checkbox" data-financial-column="status" /> Status</label><label><input type="checkbox" data-financial-column="dueDate" /> Vencimento</label><label><input type="checkbox" data-financial-column="description" /> Descrição</label><label><input type="checkbox" data-financial-column="notes" /> Observações</label><label><input type="checkbox" data-financial-column="category" /> Categoria</label><label><input type="checkbox" data-financial-column="account" /> Conta</label><label><input type="checkbox" data-financial-column="amount" /> Valor</label></div></details><label title="Mostra o saldo previsto no fim de cada dia, considerando as contas selecionadas no filtro."><input id="financialEntryShowDailyBalance" type="checkbox" checked /> Mostrar saldo do dia</label></div>
+            <div id="financialEntrySelectionActions" class="financial-entry-selection-actions" hidden><span id="financialEntrySelectionCount" role="status" aria-live="polite"></span><button class="button secondary" id="clearFinancialEntrySelection" type="button">Limpar seleção</button><button class="button secondary danger" id="deleteSelectedFinancialEntries" type="button">Excluir selecionadas</button></div>
+            <div class="table-wrap financial-entry-table-wrap"><table class="financial-entry-table" data-financial-sortable><thead><tr><th data-sort-type="text" aria-label="Status"><input id="selectAllFinancialEntries" type="checkbox" aria-label="Selecionar todas as transações filtradas" title="Selecionar todas as transações filtradas" /> Status</th><th data-sort-type="date">Vencimento</th><th data-sort-type="text">Descrição</th><th data-sort-type="text">Observações</th><th data-sort-type="text">Categoria</th><th data-sort-type="text">Conta</th><th data-sort-type="number">Valor</th><th>Ações</th></tr></thead><tbody id="financialEntryRows"></tbody></table></div>
           </section>
 
           <section class="financial-register" id="financialImportPanel" hidden>
@@ -799,7 +867,7 @@
               <label>Data considerada<select id="reportsDateField"></select></label>
               <label>Data inicial<input id="reportsStartDate" type="date" /></label>
               <label>Data final<input id="reportsEndDate" type="date" /></label>
-              <label>Cliente<select id="reportsClient"><option value="">Todos os clientes</option></select></label>
+              <label id="reportsClientField">Cliente<select id="reportsClient"><option value="">Todos os clientes</option></select></label>
               <label>Status<select id="reportsStatus"><option value="">Todos os status</option></select></label>
               <label id="reportsAccountField" hidden>Conta<select id="reportsAccount"><option value="">Todas as contas</option></select></label>
               <label id="reportsTypeField" hidden>Tipo<select id="reportsType"><option value="">Todos os tipos</option><option value="income">Receita</option><option value="expense">Despesa</option><option value="transfer">Transferência</option></select></label>
@@ -997,9 +1065,9 @@
           <label id="financialEntryTransferField" hidden>Conta de destino *<select id="financialEntryTransferAccount"></select></label>
           <label id="financialEntryCategoryField">Categoria<select id="financialEntryCategory"><option value="">Sem categoria</option></select></label>
           <div class="span-2 financial-entry-tags-field"><div class="financial-entry-tags-heading"><label for="financialEntryTagInput">Tags</label><button class="link-button" id="manageFinancialTagsBtn" type="button">Gerenciar tags</button></div><div class="financial-entry-tag-control"><input id="financialEntryTagInput" list="financialEntryTagSuggestions" maxlength="60" placeholder="Digite ou selecione uma tag" /><datalist id="financialEntryTagSuggestions"></datalist><button class="button secondary" id="addFinancialEntryTagBtn" type="button">Adicionar</button></div><div class="financial-entry-tag-chips" id="financialEntryTagChips"></div></div>
-          <label>Emissão<input id="financialEntryIssueDate" type="date" required /></label>
-          <label>Competência<input id="financialEntryCompetenceDate" type="date" required /></label>
-          <label>Vencimento<input id="financialEntryDueDate" type="date" /></label>
+          <label hidden>Emissão<input id="financialEntryIssueDate" type="date" /></label>
+          <label hidden>Competência<input id="financialEntryCompetenceDate" type="date" /></label>
+          <label>Vencimento<input id="financialEntryDueDate" type="date" required /></label>
           <label id="financialEntryInstallmentField">Parcelado?<select id="financialEntryInstallment"><option value="false">Não</option><option value="true">Sim</option></select></label>
           <label id="financialEntryInstallmentCountField" hidden>Quantidade de parcelas<input id="financialEntryInstallmentCount" type="number" min="2" max="120" value="2" /></label>
           <p class="span-2 financial-installment-hint" id="financialEntryInstallmentHint" hidden>O valor da parcela será repetido e os vencimentos serão criados nos meses seguintes.</p>
@@ -1183,6 +1251,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=162"></script>
+    <script src="app.js?v=176"></script>
   </body>
 </html>

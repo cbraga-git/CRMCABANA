@@ -44,6 +44,12 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
       { id: "1", date: "2026-09-17", status: "paid", entry_type: "income", account_id: "bank", amount: 100 },
       { id: "2", date: "2026-09-16", status: "paid", entry_type: "expense", account_id: "bank", amount: 20 },
       { id: "3", date: "2026-09-16", status: "paid", entry_type: "income", account_id: "other", amount: 5000 },
+      { id: "4", date: "2026-09-15", status: "pending", entry_type: "income", account_id: "bank", amount: 200 },
+      { id: "5", date: "2026-09-17", status: "pending", entry_type: "income", account_id: "bank", amount: 70 },
+      { id: "6", date: "2026-09-17", status: "overdue", entry_type: "expense", account_id: "bank", amount: 30 },
+      { id: "7", date: "2026-09-17", status: "cancelled", entry_type: "income", account_id: "bank", amount: 999 },
+      { id: "8", date: "2026-09-17", status: "pending", entry_type: "income", account_id: "other", amount: 5000 },
+      { id: "9", date: "2026-09-17", status: "pending", entry_type: "transfer", account_id: "bank", transfer_account_id: "other", amount: 10 },
     ],
   };
   const table = makeTable([["1", "2026-09-17"], ["2", "2026-09-16"]]);
@@ -75,7 +81,8 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
   assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia previsto")));
   assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia pendente")));
   assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia realizado")));
-  assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 200")));
+  assert.ok(summaries()[0].innerHTML.includes("Saldo final do dia pendente <strong>R$ 30</strong>"));
+  assert.ok(summaries()[1].innerHTML.includes("Saldo final do dia pendente <strong>R$ 0</strong>"));
   assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 800")));
   assert.ok(summaries().every((row) => !row.innerHTML.includes("R$ 5000")));
 

@@ -40,6 +40,16 @@ function planFor(rows, payments, net = payments.reduce((sum, payment) => sum + N
   return { plan: (options) => budgetFinancialPlan(budget, client, "2026-09-21", { id: "mercado" }, categories, options), budgetFinancialDueDate, budgetFinancialMonthEnd, budgetFinancialStatusAllowed };
 }
 
+test("novos custos de ambientes são lançados em Insumos sem compor fábrica", () => {
+  const { plan } = planFor([{ factoryFreight: 500, environmentCost: 150 }], []);
+  const items = plan();
+  assert.equal(items.find((item) => item.key === "factoryFreight").amount, 500);
+  const cost = items.find((item) => item.key === "environmentCost");
+  assert.equal(cost.amount, 150);
+  assert.equal(cost.due_date, "2026-10-31");
+  assert.equal(cost.category_id, items.find((item) => item.key === "hardware").category_id || categories.find((item) => item.name === "Insumos").id);
+});
+
 test("lancamento usa totais, categorias, tags e vencimentos corretos", () => {
   assert.match(html, /id="budgetLaunchFinancialBtn"[^>]*>Lançar Financeiro/);
   assert.match(html, /id="budgetSimulateFinancialBtn"[^>]*>Simular lançamento/);
@@ -98,7 +108,20 @@ test("LEDS e Ferragens são lançados pelo ambiente, fora de Fábrica + Frete", 
   const items = plan();
   assert.equal(items.find((item) => item.key === "factoryFreight").amount, 100);
   assert.equal(items.find((item) => item.key === "leds").amount, 80);
+  assert.equal(items.find((item) => item.key === "leds").category_id, "category-1");
+  assert.equal(items.find((item) => item.key === "leds").due_date, items.find((item) => item.key === "assembly").due_date);
   assert.equal(items.find((item) => item.key === "ferragensEnvironment").amount, 45);
+});
+
+test("LED usa Insumos e acompanha a data da primeira parcela da montagem", () => {
+  const { plan } = planFor([
+    { name: "LEDS", factory: 80, assembly: 40 },
+  ], [], 0, "", { assemblyStartDate: "2026-11-03", assemblyEndDate: "2026-11-18" });
+  const items = plan();
+  const led = items.find((item) => item.key === "leds");
+  assert.equal(led.category_id, "category-1");
+  assert.equal(led.due_date, "2026-11-03");
+  assert.equal(led.due_date, items.find((item) => item.key === "assembly").due_date);
 });
 
 test("contato vazio nao gera tag adicional", () => {
@@ -148,7 +171,7 @@ test("nao lanca status excluidos e aceita receitas diferentes do liquido", () =>
 });
 
 test("sincronizacao preserva pagos, atualiza pendentes, exclui zeros e nao duplica", async () => {
-  const syncStart = app.indexOf("async function syncBudgetFinancialEntries(budget, client, createIfMissing = false, mode = \"effective\") {");
+  const syncStart = app.indexOf("async function syncBudgetFinancialEntries(budget, client,");
   const syncEnd = app.indexOf("\nasync function saveBudget(options = {})", syncStart);
   assert.ok(syncStart >= 0 && syncEnd > syncStart);
   const writes = [];
