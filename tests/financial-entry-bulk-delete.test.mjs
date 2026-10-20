@@ -14,12 +14,12 @@ function setup({ confirmed = true, ok = true } = {}) {
     state, confirm: () => confirmed, updateFinancialEntrySelection() {}, renderFinancialEntries() {},
     encodeURIComponent, supabaseHeaders: () => ({}), supabaseTableEndpoint: (table, query) => table + query,
     authorizedFetch: async (url, options) => { calls.push([url, options().method]); return { ok, json: async () => ({ message: "Falha" }) }; },
-    clientBudgetHistory: () => [{ financialLaunchedAt: "date" }], budgetFinancialEntryIds: async () => [["income-1", "a"]],
+    clientBudgetHistory: () => [{ financialSimulationAt: "date" }], budgetFinancialEntryIds: async () => [["income-1", "a"]],
     reconcileBudgetFinancialStatus: async (id) => calls.push(["reconcile", id]), loadFinancialRegisters: async () => calls.push(["reload"]),
   });
   return { state, calls, remove };
 }
-test("exclusão em lote remove somente os selecionados e reconcilia o orçamento", async () => {
+test("exclusÃ£o em lote remove somente os selecionados e reconcilia o orÃ§amento", async () => {
   const { state, calls, remove } = setup();
   await remove();
   assert.deepEqual(calls, [["crm_financial_entries?id=in.(a,b)", "DELETE"], ["reconcile", "client"], ["reload"]]);
@@ -27,7 +27,7 @@ test("exclusão em lote remove somente os selecionados e reconcilia o orçamento
   assert.equal(state.financialSelectedEntryIds.size, 0);
   assert.equal(state.financialDeletingEntries, false);
 });
-test("cancelar não envia exclusão nem perde a seleção", async () => {
+test("cancelar nÃ£o envia exclusÃ£o nem perde a seleÃ§Ã£o", async () => {
   const { state, calls, remove } = setup({ confirmed: false });
   await remove();
   assert.equal(calls.length, 0);
@@ -40,7 +40,7 @@ test("falha no servidor preserva os registros e permite tentar novamente", async
   assert.equal(state.financialSelectedEntryIds.size, 2);
   assert.equal(state.financialDeletingEntries, false);
 });
-test("exclusão em andamento bloqueia nova solicitação", async () => {
+test("exclusÃ£o em andamento bloqueia nova solicitaÃ§Ã£o", async () => {
   const { state, calls, remove } = setup();
   state.financialDeletingEntries = true;
   await remove();

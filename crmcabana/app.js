@@ -2087,7 +2087,7 @@ async function deleteFinancialRecord(table, id, label) {
     if (table === "crm_financial_entries" && state.financialScope !== "braga") {
       for (const client of state.clients) {
         for (const budget of clientBudgetHistory(client)) {
-          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          if (budget.financialLaunchedAt || !budget.financialSimulationAt) continue;
           const pairs = await budgetFinancialEntryIds(budget);
           if (pairs.some(([, entryId]) => entryId === id)) await reconcileBudgetFinancialStatus(client.id, budget);
         }
@@ -2139,7 +2139,7 @@ async function deleteSelectedFinancialEntries() {
       renderFinancialEntries();
       for (const client of state.financialScope === "braga" ? [] : state.clients) {
         for (const budget of clientBudgetHistory(client)) {
-          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          if (budget.financialLaunchedAt || !budget.financialSimulationAt) continue;
           const pairs = await budgetFinancialEntryIds(budget);
           if (pairs.some(([, id]) => deletedIds.has(id))) await reconcileBudgetFinancialStatus(client.id, budget);
         }
@@ -3919,6 +3919,7 @@ function updateBudgetFinancialButton() {
   const budget = !state.budgetIsNew && state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
   button.textContent = budget?.financialSimulationAt ? "Simulado" : budget?.financialLaunchedAt ? "Lançado" : "Lançar Financeiro";
+  button.disabled = Boolean(budget?.financialLaunchedAt && !budget?.financialSimulationAt);
   button.title = budget?.financialSimulationAt
     ? "Abrir opções da simulação financeira"
     : budget?.financialLaunchedAt
@@ -5852,7 +5853,7 @@ async function fetchBudgetFinancialEntries(ids) {
 }
 
 async function validateBudgetPaymentTransition(budget, previousBudget, options = {}) {
-  if (!previousBudget?.financialLaunchedAt && !previousBudget?.financialSimulationAt) return;
+  if (previousBudget?.financialLaunchedAt || !previousBudget?.financialSimulationAt) return;
   const pairs = await budgetFinancialEntryIds(budget);
   const simulation = options.simulation ?? Boolean(previousBudget.financialSimulationAt && !previousBudget.financialLaunchedAt);
   if (simulation) {
@@ -5871,7 +5872,7 @@ async function validateBudgetPaymentTransition(budget, previousBudget, options =
 }
 
 async function reconcileBudgetFinancialStatus(clientId, budget) {
-  if (!budget?.id) return false;
+  if (!budget?.id || budget.financialLaunchedAt) return false;
   const hasFinancialStatus = Boolean(budget.financialLaunchedAt || budget.financialSimulationAt);
   if (!hasFinancialStatus && (!remoteDatabaseEnabled() || !currentUserId())) return false;
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("Conecte o CRM ao banco para conferir o lançamento financeiro do orçamento.");
@@ -6039,7 +6040,7 @@ async function saveBudget(options = {}) {
   if (!validateBudgetAssemblyDetails(budgetStatus, settings)) return false;
   if (!validateBudgetLedAssembly(rows)) return false;
   const previousBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
-  const financialAction = options.financialAction || (options.launchFinancial ? "launch" : "");
+  const financialAction = previousBudget?.financialLaunchedAt ? "" : options.financialAction || (options.launchFinancial ? "launch" : "");
   const effectiveFinancialAction = financialAction === "launch" || financialAction === "finalizeSimulation";
   const simulationFinancialAction = financialAction === "simulate";
   const deleteSimulationAction = financialAction === "deleteSimulation";
@@ -6125,7 +6126,7 @@ async function saveBudget(options = {}) {
   let financialResult = null;
   let financialError = null;
   try {
-    if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "effective");
+    if (effectiveFinancialAction) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "effective");
     else if (budgetPayload.financialSimulationAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "simulation", { approvedPaidIds });
   }
   catch (error) { financialError = error; }
@@ -8425,6 +8426,7 @@ function openBudgetFinancialDialog() {
   const savedBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   const hasSimulation = Boolean(savedBudget?.financialSimulationAt);
   const hasEffectiveLaunch = Boolean(savedBudget?.financialLaunchedAt);
+  if (hasEffectiveLaunch && !hasSimulation) return;
   document.querySelector("#budgetSimulateFinancialBtn").hidden = hasSimulation || hasEffectiveLaunch;
   document.querySelector("#budgetPostFinancialBtn").hidden = hasSimulation;
   document.querySelector("#budgetDeleteSimulationBtn").hidden = !hasSimulation;
