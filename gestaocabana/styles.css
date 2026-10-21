@@ -871,7 +871,7 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 .financial-entry-filters label[hidden] { display: none; }
 .financial-entry-filters .financial-filter-field { display: grid; gap: 5px; min-width: 0; color: var(--muted); font-size: 11px; font-weight: 800; }
 .financial-entry-filters .financial-filter-field[hidden] { display: none; }
-.financial-multi-filter { position: relative; min-width: 0; color: var(--ink); font-weight: 400; }
+.financial-multi-filter { position: relative; min-width: 0; color: var(--text); font-weight: 400; }
 .financial-multi-filter summary { min-height: 38px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card, #fff); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .financial-multi-filter[open] { z-index: 20; }
 .financial-multi-options { position: absolute; top: 100%; left: 0; width: max-content; min-width: 100%; max-width: min(320px, 85vw); max-height: 280px; overflow: auto; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card, #fff); box-shadow: 0 6px 18px #0002; }
@@ -3890,3 +3890,5 @@ body[data-financial-scope="braga"] :is(.financial-daily-balance-row span, .finan
 body[data-financial-scope="braga"] :is(.financial-positive, .financial-entry-value.income) { color: #67dc94; }
 body[data-financial-scope="braga"] :is(.financial-negative, .financial-entry-value.expense) { color: #ff9085; }
 body[data-financial-scope="braga"] .financial-scope-message { background: #291713; color: #ffb6a7; border-color: #784338; }
+
+#financialEntriesPanel { overflow: visible; }
