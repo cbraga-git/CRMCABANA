@@ -37,3 +37,5 @@ check(json_encode($rows[0]['data']) === '{"settings":{},"rows":[]}', 'JSON preci
 check($rows[0]['active'] === true, 'Booleanos PostgreSQL.');
 check(preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/D', uuid()) === 1, 'UUID válido.');
 echo "API PHP: autorização, isolamento, SQL parametrizado, filtros, JSON e UUID validados.\n";
+check(databaseReadinessError(new RuntimeException('server does not support SSL, but SSL was required')) === 'server_ssl_unavailable', 'Diagnóstico SSL sem credenciais.');
+check(databaseReadinessError(new RuntimeException('password authentication failed for user private')) === 'database_credentials_rejected', 'Diagnóstico de autenticação sem usuário/senha.');
