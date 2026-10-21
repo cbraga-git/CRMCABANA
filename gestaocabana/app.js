@@ -632,7 +632,7 @@ function applyBudgetStatusConfig(rows) {
   BUDGET_STATUS = state.budgetStatuses.filter((status) => status.budget).map((status) => status.name);
   ORDER_STATUS = state.budgetStatuses.filter((status) => status.order).map((status) => status.name);
   if (!BUDGET_STATUS.length) BUDGET_STATUS = [DEFAULT_BUDGET_STATUSES[0].name];
-  state.budgetSelectedStatuses = state.budgetSelectedStatuses.filter((status) => status === "Todos" || BUDGET_STATUS.includes(status));
+  state.budgetSelectedStatuses = state.budgetSelectedStatuses.filter((status) => status === "Todos" || status === "Todos Ativos" || BUDGET_STATUS.includes(status));
   if (!state.budgetSelectedStatuses.length) state.budgetSelectedStatuses = ["Todos"];
   refreshBudgetStatusSelect();
 }
@@ -2092,7 +2092,7 @@ async function deleteFinancialRecord(table, id, label) {
     if (table === "crm_financial_entries" && state.financialScope !== "braga") {
       for (const client of state.clients) {
         for (const budget of clientBudgetHistory(client)) {
-          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          if (budget.financialLaunchedAt || !budget.financialSimulationAt) continue;
           const pairs = await budgetFinancialEntryIds(budget);
           if (pairs.some(([, entryId]) => entryId === id)) await reconcileBudgetFinancialStatus(client.id, budget);
         }
@@ -2144,7 +2144,7 @@ async function deleteSelectedFinancialEntries() {
       renderFinancialEntries();
       for (const client of state.financialScope === "braga" ? [] : state.clients) {
         for (const budget of clientBudgetHistory(client)) {
-          if (!budget.financialLaunchedAt && !budget.financialSimulationAt) continue;
+          if (budget.financialLaunchedAt || !budget.financialSimulationAt) continue;
           const pairs = await budgetFinancialEntryIds(budget);
           if (pairs.some(([, id]) => deletedIds.has(id))) await reconcileBudgetFinancialStatus(client.id, budget);
         }
@@ -2193,6 +2193,7 @@ function financialAccountFilterMovement(entry, accountId, bankAccountIds) {
 
 function renderFinancialMultiFilter(select, value) {
   if (!select) return;
+  select.multiple = true;
   const selected = financialFilterValues(value);
   const options = Array.from(select.options);
   options.forEach((option) => { option.selected = option.value ? selected.includes(option.value) : !selected.length; });
@@ -3099,8 +3100,8 @@ async function migrateMobillsWorkbook(file) {
 }
 
 function nextSelectedStatuses(selected, status, additive) {
-  if (!additive || status === "Todos") return [status];
-  const current = selected.filter((item) => item !== "Todos");
+  if (!additive || status === "Todos" || status === "Todos Ativos") return [status];
+  const current = selected.filter((item) => item !== "Todos" && item !== "Todos Ativos");
   const next = current.includes(status) ? current.filter((item) => item !== status) : [...current, status];
   return next.length ? next : ["Todos"];
 }
@@ -3285,7 +3286,7 @@ function budgetSortValue(item, key) {
   const values = {
     code: formatBudgetCodeForList(item.budget.code),
     client: item.client.name || "",
-    contact: item.budget.contact ?? item.client.contact ?? "",
+    contact: item.budget.contact || item.client.contact || "",
     seller: responsibleSeller(item.client),
     status: item.budget.status || "",
     gross: totals.gross,
@@ -3347,7 +3348,7 @@ function budgetStatusCounts() {
   const budgets = state.clients
     .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
     .filter(({ client, budget }) => {
-      const budgetContact = budget.contact ?? client.contact;
+      const budgetContact = budget.contact || client.contact;
       const searchableValues = orderMode ? [client.name, budgetContact] : [budget.code, budget.status, client.name, budgetContact, client.status, responsibleSeller(client), client.id];
       const search = state.budgetSearch.toLowerCase();
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
@@ -3356,7 +3357,7 @@ function budgetStatusCounts() {
     });
 
   const statusNames = orderMode ? ORDER_STATUS : BUDGET_STATUS;
-  const counts = { Todos: budgets.length };
+  const counts = { Todos: budgets.length, "Todos Ativos": budgets.filter(({ budget }) => !["Novo", "Finalizado", "Recusado"].includes(budget.status)).length };
   statusNames.forEach((status) => {
     counts[status] = budgets.filter(({ budget }) => budget.status === status).length;
   });
@@ -3368,7 +3369,9 @@ function renderStatusFilters(container, activeStatus, group) {
   container.innerHTML = "";
 
   const documentStatuses = group === "budget" && state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
-  const statuses = group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
+  const statuses = group === "budget" && state.view === "budget"
+    ? ["Todos", "Todos Ativos", ...documentStatuses.filter((status) => status !== "Finalizado" && status !== "Recusado"), ...["Finalizado", "Recusado"].filter((status) => documentStatuses.includes(status))]
+    : group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
   const statusCounts = group === "budget" || group === "financial" ? budgetStatusCounts() : {};
   const showCounts = state.appPreferences?.showStatusCounts !== false;
 
@@ -3953,6 +3956,7 @@ function updateBudgetFinancialButton() {
   const budget = !state.budgetIsNew && state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
   button.textContent = budget?.financialSimulationAt ? "Simulado" : budget?.financialLaunchedAt ? "Lançado" : "Lançar Financeiro";
+  button.disabled = Boolean(budget?.financialLaunchedAt && !budget?.financialSimulationAt);
   button.title = budget?.financialSimulationAt
     ? "Abrir opções da simulação financeira"
     : budget?.financialLaunchedAt
@@ -4110,7 +4114,7 @@ function clientBudget(client) {
     status,
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     saleAt: saved.saleAt || "",
-    contact: Object.hasOwn(saved, "contact") ? saved.contact || "" : client?.contact || "",
+    contact: saved.contact || client?.contact || "",
     nobiliaId: saved.nobiliaId || "",
     nobiliaDate: saved.nobiliaDate || "",
     settings: normalizeBudgetSettings(saved.settings, rows),
@@ -5500,7 +5504,7 @@ function fillBudgetForm(client) {
   const documentLabel = state.view === "order" ? "Pedido" : "Orçamento";
   document.querySelector("#budgetEditorTitle").textContent = documentLabel;
   renderBudgetSeller(targetClient);
-  if (elements.budgetContact) elements.budgetContact.value = budget.contact ?? targetClient?.contact ?? "";
+  if (elements.budgetContact) elements.budgetContact.value = budget.contact || targetClient?.contact || "";
   document.querySelector("#budgetEditClientBtn").disabled = false;
   document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";
   document.querySelector("#budgetEditClientBtn").setAttribute("aria-label", targetClient ? "Editar cliente" : "Cadastrar cliente");
@@ -5628,7 +5632,7 @@ function filteredBudgets() {
   const budgets = state.clients
     .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
     .filter(({ client, budget }) => {
-      const budgetContact = budget.contact ?? client.contact;
+      const budgetContact = budget.contact || client.contact;
       const searchableValues = orderMode ? [client.name, budgetContact] : [budget.code, budget.status, client.name, budgetContact, client.status, responsibleSeller(client), client.id];
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
       const matchesStatus = state.view === "financial"
@@ -5640,7 +5644,9 @@ function filteredBudgets() {
           ? ORDER_STATUS.includes(budget.status)
           : budget.status === state.budgetStatus
         : state.budgetSelectedStatuses.includes("Todos")
-        ? budget.status !== "Recusado" && budget.status !== "Finalizado"
+        ? true
+        : state.budgetSelectedStatuses.includes("Todos Ativos")
+        ? !["Novo", "Finalizado", "Recusado"].includes(budget.status)
         : state.budgetSelectedStatuses.includes(budget.status);
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
@@ -5724,7 +5730,7 @@ function renderBudgetList() {
     [
       combinedCodeValue,
       client.name,
-      budget.contact ?? client.contact,
+      budget.contact || client.contact,
       budget.status || "Negociação",
     ].forEach((value) => {
       const cell = document.createElement("td");
@@ -5886,7 +5892,7 @@ async function fetchBudgetFinancialEntries(ids) {
 }
 
 async function validateBudgetPaymentTransition(budget, previousBudget, options = {}) {
-  if (!previousBudget?.financialLaunchedAt && !previousBudget?.financialSimulationAt) return;
+  if (previousBudget?.financialLaunchedAt || !previousBudget?.financialSimulationAt) return;
   const pairs = await budgetFinancialEntryIds(budget);
   const simulation = options.simulation ?? Boolean(previousBudget.financialSimulationAt && !previousBudget.financialLaunchedAt);
   if (simulation) {
@@ -5905,7 +5911,7 @@ async function validateBudgetPaymentTransition(budget, previousBudget, options =
 }
 
 async function reconcileBudgetFinancialStatus(clientId, budget) {
-  if (!budget?.id) return false;
+  if (!budget?.id || budget.financialLaunchedAt) return false;
   const hasFinancialStatus = Boolean(budget.financialLaunchedAt || budget.financialSimulationAt);
   if (!hasFinancialStatus && (!remoteDatabaseEnabled() || !currentUserId())) return false;
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("Conecte o CRM ao banco para conferir o lançamento financeiro do orçamento.");
@@ -6073,7 +6079,7 @@ async function saveBudget(options = {}) {
   if (!validateBudgetAssemblyDetails(budgetStatus, settings)) return false;
   if (!validateBudgetLedAssembly(rows)) return false;
   const previousBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
-  const financialAction = options.financialAction || (options.launchFinancial ? "launch" : "");
+  const financialAction = previousBudget?.financialLaunchedAt ? "" : options.financialAction || (options.launchFinancial ? "launch" : "");
   const effectiveFinancialAction = financialAction === "launch" || financialAction === "finalizeSimulation";
   const simulationFinancialAction = financialAction === "simulate";
   const deleteSimulationAction = financialAction === "deleteSimulation";
@@ -6159,7 +6165,7 @@ async function saveBudget(options = {}) {
   let financialResult = null;
   let financialError = null;
   try {
-    if (budgetPayload.financialLaunchedAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "effective");
+    if (effectiveFinancialAction) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "effective");
     else if (budgetPayload.financialSimulationAt) financialResult = await syncBudgetFinancialEntries(budgetPayload, client, true, "simulation", { approvedPaidIds });
   }
   catch (error) { financialError = error; }
@@ -8472,6 +8478,7 @@ function openBudgetFinancialDialog() {
   const savedBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   const hasSimulation = Boolean(savedBudget?.financialSimulationAt);
   const hasEffectiveLaunch = Boolean(savedBudget?.financialLaunchedAt);
+  if (hasEffectiveLaunch && !hasSimulation) return;
   document.querySelector("#budgetSimulateFinancialBtn").hidden = hasSimulation || hasEffectiveLaunch;
   document.querySelector("#budgetPostFinancialBtn").hidden = hasSimulation;
   document.querySelector("#budgetDeleteSimulationBtn").hidden = !hasSimulation;

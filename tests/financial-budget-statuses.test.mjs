@@ -86,7 +86,9 @@ test("demonstrativo soma apenas os orçamentos dos status combinados", () => {
   state.budgetSelectedStatuses = ["Novo", "Recusado"];
   assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Novo", "Recusado"]);
   state.budgetSelectedStatuses = ["Todos"];
-  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Novo", "Aprovado"]);
+  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Novo", "Aprovado", "Recusado", "Finalizado"]);
+  state.budgetSelectedStatuses = ["Todos Ativos"];
+  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Aprovado"]);
 
   state.view = "order";
   state.budgetStatus = "Aprovado";

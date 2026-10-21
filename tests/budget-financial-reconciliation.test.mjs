@@ -29,7 +29,7 @@ function harness({ entries = [], simulated = false, fetchError = false, saveOk =
   return { budget, other, state, saved, queried, context, reconcile };
 }
 
-for (const simulated of [false, true]) {
+for (const simulated of [true]) {
   test(`última transação excluída limpa marca ${simulated ? "simulada" : "efetiva"} nas duas cópias do orçamento`, async () => {
     const h = harness({ simulated });
     assert.equal(await h.reconcile("client-1", h.budget), true);
@@ -48,7 +48,7 @@ for (const simulated of [false, true]) {
 test("exclusão parcial mantém marca enquanto houver transação vinculada", async () => {
   const h = harness({ entries: [{ id: "tax-id", status: "paid" }] });
   assert.equal(await h.reconcile("client-1", h.budget), false);
-  assert.equal(h.state.clients[0].budget.financialLaunchedAt, "2026-09-26");
+  assert.equal(h.state.clients[0].budget.financialLaunchedAt || h.state.clients[0].budget.financialSimulationAt, "2026-09-26");
   assert.equal(h.saved.length, 0);
 });
 
@@ -78,20 +78,20 @@ test("orçamento sem marca e sem lançamentos não precisa ser salvo", async () 
 });
 
 test("erro de consulta não é interpretado como ausência de transações", async () => {
-  const h = harness({ fetchError: true });
+  const h = harness({ fetchError: true, simulated: true });
   await assert.rejects(h.reconcile("client-1", h.budget), /Falha de conexão/);
-  assert.equal(h.state.clients[0].budget.financialLaunchedAt, "2026-09-26");
+  assert.equal(h.state.clients[0].budget.financialLaunchedAt || h.state.clients[0].budget.financialSimulationAt, "2026-09-26");
   assert.equal(h.saved.length, 0);
 });
 
 test("erro ao persistir preserva marca local para permitir nova conferência", async () => {
-  const h = harness({ saveOk: false });
+  const h = harness({ saveOk: false, simulated: true });
   await assert.rejects(h.reconcile("client-1", h.budget), /não foi possível confirmar/i);
-  assert.equal(h.state.clients[0].budget.financialLaunchedAt, "2026-09-26");
+  assert.equal(h.state.clients[0].budget.financialLaunchedAt || h.state.clients[0].budget.financialSimulationAt, "2026-09-26");
 });
 
 test("exclusão em transações confere orçamento correspondente após excluir no banco", async () => {
-  const h = harness();
+  const h = harness({ simulated: true });
   let deleted = false;
   Object.assign(h.context, {
     confirm: () => true,
@@ -122,4 +122,12 @@ test("exclusão de transação sem vínculo não altera orçamento", async () =>
   await remove("crm_financial_entries", "unrelated-id", "este lançamento");
   assert.equal(h.saved.length, 0);
   assert.equal(h.queried.length, 0);
+});
+
+test("effective launch keeps its mark without querying financial entries", async () => {
+ const h = harness({ fetchError: true });
+ assert.equal(await h.reconcile("client-1", h.budget), false);
+ assert.equal(h.state.clients[0].budget.financialLaunchedAt, "2026-09-26");
+ assert.equal(h.queried.length, 0);
+ assert.equal(h.saved.length, 0);
 });

@@ -48,9 +48,9 @@ test("canceling simulation prevents all financial writes", async () => {
   assert.equal(h.writes.length, 0);
   await assert.rejects(h.api.validateBudgetPaymentTransition(h.budget, h.budget), /Nenhuma alteração/);
 });
-test("effective launch still blocks removal of received installments without confirmation", async () => {
+test("effective budget edits skip financial payment validation", async () => {
   const h = harness(true, "effective");
-  await assert.rejects(h.api.validateBudgetPaymentTransition(h.budget, h.budget), /parcelas recebidas/);
+  await h.api.validateBudgetPaymentTransition(h.budget, h.budget);
   await assert.rejects(h.api.syncBudgetFinancialEntries(h.budget, {}, true, "effective"), /parcelas recebidas/);
   assert.equal(h.prompts.length, 0);
   assert.equal(h.writes.length, 0);
