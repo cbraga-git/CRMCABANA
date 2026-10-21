@@ -1883,6 +1883,13 @@ function financialAccountBrand(accountOrName, large = false) {
   const name = typeof accountOrName === "string" ? accountOrName : `${accountOrName?.name || ""} ${accountOrName?.institution || ""}`;
   const normalized = String(name).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
   let brand = "default"; let mark = "$";
+  const institutionIcons = [
+    ["asaas", "asaas"], ["nubank", "nubank"],
+    ["mercado pago", "mercado-pago"], ["mercadopago", "mercado-pago"],
+    ["santander", "santander"],
+  ];
+  const institution = institutionIcons.find(([label]) => normalized.includes(label));
+  if (institution) return `<span class="financial-bank-logo institution-icon ${institution[1]} ${large ? "large" : ""}" aria-hidden="true"><img src="assets/institutions/${institution[1]}.svg" alt="" /></span>`;
   if (normalized.includes("mercado pago")) { brand = "mercado-pago"; mark = "MP"; }
   else if (normalized.includes("itau")) { brand = "itau"; mark = "Itaú"; }
   else if (normalized.includes("santander")) { brand = "santander"; mark = "S"; }

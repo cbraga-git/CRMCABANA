@@ -3892,3 +3892,6 @@ body[data-financial-scope="braga"] :is(.financial-negative, .financial-entry-val
 body[data-financial-scope="braga"] .financial-scope-message { background: #291713; color: #ffb6a7; border-color: #784338; }
 
 #financialEntriesPanel { overflow: visible; }
+
+.financial-bank-logo.institution-icon { overflow: hidden; border-radius: 8px; background: transparent; }
+.financial-bank-logo.institution-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }

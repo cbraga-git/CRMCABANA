@@ -3878,3 +3878,6 @@ body[data-financial-scope="braga"] :is(.financial-daily-balance-row span, .finan
 body[data-financial-scope="braga"] :is(.financial-positive, .financial-entry-value.income) { color: #67dc94; }
 body[data-financial-scope="braga"] :is(.financial-negative, .financial-entry-value.expense) { color: #ff9085; }
 body[data-financial-scope="braga"] .financial-scope-message { background: #291713; color: #ffb6a7; border-color: #784338; }
+
+.financial-bank-logo.institution-icon { overflow: hidden; border-radius: 8px; background: transparent; }
+.financial-bank-logo.institution-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
