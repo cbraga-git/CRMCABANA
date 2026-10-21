@@ -3286,7 +3286,7 @@ function budgetSortValue(item, key) {
   const values = {
     code: formatBudgetCodeForList(item.budget.code),
     client: item.client.name || "",
-    contact: item.budget.contact ?? item.client.contact ?? "",
+    contact: item.budget.contact || item.client.contact || "",
     seller: responsibleSeller(item.client),
     status: item.budget.status || "",
     gross: totals.gross,
@@ -3348,7 +3348,7 @@ function budgetStatusCounts() {
   const budgets = state.clients
     .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
     .filter(({ client, budget }) => {
-      const budgetContact = budget.contact ?? client.contact;
+      const budgetContact = budget.contact || client.contact;
       const searchableValues = orderMode ? [client.name, budgetContact] : [budget.code, budget.status, client.name, budgetContact, client.status, responsibleSeller(client), client.id];
       const search = state.budgetSearch.toLowerCase();
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
@@ -4114,7 +4114,7 @@ function clientBudget(client) {
     status,
     createdAt: saved.createdAt || saved.updatedAt || new Date().toISOString(),
     saleAt: saved.saleAt || "",
-    contact: Object.hasOwn(saved, "contact") ? saved.contact || "" : client?.contact || "",
+    contact: saved.contact || client?.contact || "",
     nobiliaId: saved.nobiliaId || "",
     nobiliaDate: saved.nobiliaDate || "",
     settings: normalizeBudgetSettings(saved.settings, rows),
@@ -5504,7 +5504,7 @@ function fillBudgetForm(client) {
   const documentLabel = state.view === "order" ? "Pedido" : "Orçamento";
   document.querySelector("#budgetEditorTitle").textContent = documentLabel;
   renderBudgetSeller(targetClient);
-  if (elements.budgetContact) elements.budgetContact.value = budget.contact ?? targetClient?.contact ?? "";
+  if (elements.budgetContact) elements.budgetContact.value = budget.contact || targetClient?.contact || "";
   document.querySelector("#budgetEditClientBtn").disabled = false;
   document.querySelector("#budgetEditClientBtn").title = targetClient ? "Editar cliente" : "Cadastrar cliente";
   document.querySelector("#budgetEditClientBtn").setAttribute("aria-label", targetClient ? "Editar cliente" : "Cadastrar cliente");
@@ -5632,7 +5632,7 @@ function filteredBudgets() {
   const budgets = state.clients
     .flatMap((client) => clientBudgetHistory(client).map((budget) => ({ client, budget })))
     .filter(({ client, budget }) => {
-      const budgetContact = budget.contact ?? client.contact;
+      const budgetContact = budget.contact || client.contact;
       const searchableValues = orderMode ? [client.name, budgetContact] : [budget.code, budget.status, client.name, budgetContact, client.status, responsibleSeller(client), client.id];
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
       const matchesStatus = state.view === "financial"
@@ -5730,7 +5730,7 @@ function renderBudgetList() {
     [
       combinedCodeValue,
       client.name,
-      budget.contact ?? client.contact,
+      budget.contact || client.contact,
       budget.status || "Negociação",
     ].forEach((value) => {
       const cell = document.createElement("td");
