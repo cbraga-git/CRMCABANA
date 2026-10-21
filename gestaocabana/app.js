@@ -632,7 +632,7 @@ function applyBudgetStatusConfig(rows) {
   BUDGET_STATUS = state.budgetStatuses.filter((status) => status.budget).map((status) => status.name);
   ORDER_STATUS = state.budgetStatuses.filter((status) => status.order).map((status) => status.name);
   if (!BUDGET_STATUS.length) BUDGET_STATUS = [DEFAULT_BUDGET_STATUSES[0].name];
-  state.budgetSelectedStatuses = state.budgetSelectedStatuses.filter((status) => status === "Todos" || status === "Todos, exceto finalizados e recusados" || BUDGET_STATUS.includes(status));
+  state.budgetSelectedStatuses = state.budgetSelectedStatuses.filter((status) => status === "Todos" || status === "Todos Ativos" || BUDGET_STATUS.includes(status));
   if (!state.budgetSelectedStatuses.length) state.budgetSelectedStatuses = ["Todos"];
   refreshBudgetStatusSelect();
 }
@@ -3100,8 +3100,8 @@ async function migrateMobillsWorkbook(file) {
 }
 
 function nextSelectedStatuses(selected, status, additive) {
-  if (!additive || status === "Todos" || status === "Todos, exceto finalizados e recusados") return [status];
-  const current = selected.filter((item) => item !== "Todos" && item !== "Todos, exceto finalizados e recusados");
+  if (!additive || status === "Todos" || status === "Todos Ativos") return [status];
+  const current = selected.filter((item) => item !== "Todos" && item !== "Todos Ativos");
   const next = current.includes(status) ? current.filter((item) => item !== status) : [...current, status];
   return next.length ? next : ["Todos"];
 }
@@ -3357,7 +3357,7 @@ function budgetStatusCounts() {
     });
 
   const statusNames = orderMode ? ORDER_STATUS : BUDGET_STATUS;
-  const counts = { Todos: budgets.length, "Todos, exceto finalizados e recusados": budgets.filter(({ budget }) => budget.status !== "Finalizado" && budget.status !== "Recusado").length };
+  const counts = { Todos: budgets.length, "Todos Ativos": budgets.filter(({ budget }) => !["Novo", "Finalizado", "Recusado"].includes(budget.status)).length };
   statusNames.forEach((status) => {
     counts[status] = budgets.filter(({ budget }) => budget.status === status).length;
   });
@@ -3370,7 +3370,7 @@ function renderStatusFilters(container, activeStatus, group) {
 
   const documentStatuses = group === "budget" && state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
   const statuses = group === "budget" && state.view === "budget"
-    ? ["Todos", "Todos, exceto finalizados e recusados", ...documentStatuses.filter((status) => status !== "Finalizado" && status !== "Recusado"), ...["Finalizado", "Recusado"].filter((status) => documentStatuses.includes(status))]
+    ? ["Todos", "Todos Ativos", ...documentStatuses.filter((status) => status !== "Finalizado" && status !== "Recusado"), ...["Finalizado", "Recusado"].filter((status) => documentStatuses.includes(status))]
     : group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
   const statusCounts = group === "budget" || group === "financial" ? budgetStatusCounts() : {};
   const showCounts = state.appPreferences?.showStatusCounts !== false;
@@ -5645,8 +5645,8 @@ function filteredBudgets() {
           : budget.status === state.budgetStatus
         : state.budgetSelectedStatuses.includes("Todos")
         ? true
-        : state.budgetSelectedStatuses.includes("Todos, exceto finalizados e recusados")
-        ? budget.status !== "Recusado" && budget.status !== "Finalizado"
+        : state.budgetSelectedStatuses.includes("Todos Ativos")
+        ? !["Novo", "Finalizado", "Recusado"].includes(budget.status)
         : state.budgetSelectedStatuses.includes(budget.status);
       const matchesDate = dateInRange(budgetDateValue(budget), state.budgetStartDate, state.budgetEndDate);
       return matchesSearch && matchesStatus && matchesDate;
