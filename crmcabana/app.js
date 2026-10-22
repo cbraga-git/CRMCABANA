@@ -2124,6 +2124,11 @@ function updateFinancialEntrySelection() {
   const count = document.querySelector("#financialEntrySelectionCount");
   if (count) count.textContent = `${state.financialSelectedEntryIds.size} selecionada(s)`;
   document.querySelectorAll("#financialEntrySelectionActions button").forEach((button) => { button.disabled = state.financialDeletingEntries; });
+  if (!state.financialEntryShowDailyBalance) {
+    const table = elements.financialEntryRows?.closest("table");
+    renderFinancialDailyBalanceBreaks(table);
+    applyFinancialTransactionColumns(table);
+  }
 }
 
 async function deleteSelectedFinancialEntries() {
@@ -2483,7 +2488,7 @@ function renderFinancialDailyBalanceBreaks(table) {
     });
     return;
   }
-  if (hasExplicitFilter) {
+  if (hasExplicitFilter || !state.financialEntryShowDailyBalance) {
     const accountId = state.financialEntryAccountFilter || filters.accountId;
     const visibleIds = new Set(allRows.map((row) => row.dataset.financialEntryId));
     const dailyMovements = new Map();
@@ -2492,6 +2497,10 @@ function renderFinancialDailyBalanceBreaks(table) {
       const date = financialEntryDate(entry);
       dailyMovements.set(date, (dailyMovements.get(date) || 0) + movement);
     });
+    const selectedBalance = state.financialEntries
+      .filter((entry) => visibleIds.has(entry.id) && state.financialSelectedEntryIds?.has(entry.id) && entry.status !== "cancelled")
+      .reduce((sum, entry) => sum + financialAccountFilterMovement(entry, accountId, bankAccountIds), 0);
+    const hasSelection = allRows.some((row) => state.financialSelectedEntryIds?.has(row.dataset.financialEntryId));
     let balance = 0;
     const balanceByDate = new Map();
     Array.from(dailyMovements.keys()).sort().forEach((date) => {
@@ -2501,7 +2510,7 @@ function renderFinancialDailyBalanceBreaks(table) {
     if (!state.financialEntryShowDailyBalance && rows.length) {
       const summary = document.createElement("tr");
       summary.className = "financial-filter-balance-row";
-      summary.innerHTML = `<td colspan="8"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span></td>`;
+      summary.innerHTML = `<td colspan="8"><div class="financial-daily-balance-values"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span>${hasSelection ? `<span>Saldo das transa??es selecionadas <strong>${BRL.format(selectedBalance)}</strong></span>` : ""}</div></td>`;
       body.appendChild(summary);
     }
     if (state.financialEntryShowDailyBalance) rows.forEach((row, index) => {
