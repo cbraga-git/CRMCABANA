@@ -2510,7 +2510,7 @@ function renderFinancialDailyBalanceBreaks(table) {
     if (!state.financialEntryShowDailyBalance && rows.length) {
       const summary = document.createElement("tr");
       summary.className = "financial-filter-balance-row";
-      summary.innerHTML = `<td colspan="8"><div class="financial-daily-balance-values"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span>${hasSelection ? `<span>Saldo das transa??es selecionadas <strong>${BRL.format(selectedBalance)}</strong></span>` : ""}</div></td>`;
+      summary.innerHTML = `<td colspan="8"><div class="financial-daily-balance-values"><span>Saldo total do filtro <strong>${BRL.format(balance)}</strong></span>${hasSelection ? `<span>Saldo das transações selecionadas <strong>${BRL.format(selectedBalance)}</strong></span>` : ""}</div></td>`;
       body.appendChild(summary);
     }
     if (state.financialEntryShowDailyBalance) rows.forEach((row, index) => {

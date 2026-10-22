@@ -95,14 +95,14 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
   assert.equal(summaries().filter((row) => row.className === "financial-daily-balance-row").length, 0);
   assert.equal(summaries().filter((row) => row.className === "financial-filter-balance-row").length, 1);
   assert.ok(summaries()[0].innerHTML.includes("R$ 80"));
-  assert.ok(!summaries()[0].innerHTML.includes("Saldo das transa??es selecionadas"));
+  assert.ok(!summaries()[0].innerHTML.includes("Saldo das transações selecionadas"));
   state.financialSelectedEntryIds = new Set(["2", "3", "7"]);
   render(table);
   assert.ok(summaries()[0].innerHTML.includes("Saldo total do filtro <strong>R$ 80</strong>"));
-  assert.ok(summaries()[0].innerHTML.includes("Saldo das transa??es selecionadas <strong>R$ -20</strong>"));
+  assert.ok(summaries()[0].innerHTML.includes("Saldo das transações selecionadas <strong>R$ -20</strong>"));
   state.financialSelectedEntryIds.clear();
   render(table);
-  assert.ok(!summaries()[0].innerHTML.includes("Saldo das transa??es selecionadas"));
+  assert.ok(!summaries()[0].innerHTML.includes("Saldo das transações selecionadas"));
 });
 
 test("filtro apenas de data também usa o saldo filtrado; sem filtro mantém saldo da conta", () => {
