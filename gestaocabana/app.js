@@ -2512,7 +2512,8 @@ function renderFinancialDailyBalanceBreaks(table) {
         .reduce((sum, entry) => sum + filteredAccounts.reduce((movement, account) => movement + financialAccountFilterMovement(entry, account.id, bankAccountIds), 0), 0);
       const summary = document.createElement("tr");
       summary.className = "financial-daily-balance-row";
-      summary.innerHTML = `<td colspan="7"><div class="financial-daily-balance-values"><span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span><span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span></div></td>`;
+      const visibility = state.appPreferences?.[state.financialScope === "braga" ? "bragaDailyBalances" : "financialDailyBalances"] || {};
+      summary.innerHTML = `<td colspan="7"><div class="financial-daily-balance-values">${visibility.pending ? `<span class="financial-daily-balance-value">Saldo final do dia pendente <strong>${BRL.format(pendingBalance)}</strong></span>` : ""}<span class="financial-daily-balance-value">Saldo final do dia previsto <strong>${BRL.format(projectedBalance)}</strong></span>${visibility.realized ? `<span class="financial-daily-balance-value">Saldo final do dia realizado <strong>${BRL.format(realizedBalance)}</strong></span>` : ""}</div></td>`;
       row.after(summary);
     });
     return;
@@ -2629,6 +2630,8 @@ function renderFinancialEntries(view = state.view) {
   if (balanceControls) balanceControls.hidden = view !== "financeTransactions";
   const dailyBalanceToggle = document.querySelector("#financialEntryShowDailyBalance");
   if (dailyBalanceToggle) dailyBalanceToggle.checked = state.financialEntryShowDailyBalance;
+  const balanceVisibility = state.appPreferences?.[state.financialScope === "braga" ? "bragaDailyBalances" : "financialDailyBalances"] || {};
+  document.querySelectorAll("[data-financial-balance]").forEach((input) => { input.checked = Boolean(balanceVisibility[input.dataset.financialBalance]); });
   document.querySelector("#financialEntryFilterStart").value = state.financialEntryMonthFilter && !hasGlobalFilter ? start : filters.startDate;
   document.querySelector("#financialEntryFilterEnd").value = state.financialEntryMonthFilter && !hasGlobalFilter ? end : filters.endDate;
   document.querySelector("#financialEntryFilterStart").disabled = Boolean(state.financialEntryMonthFilter && !hasGlobalFilter);
@@ -8050,6 +8053,15 @@ document.querySelector("#financialColumnPicker")?.addEventListener("change", (ev
   visibility[input.dataset.financialColumn] = input.checked;
   setAppPreference(state.financialScope === "braga" ? "bragaFinancialTransactionColumns" : "financialTransactionColumns", visibility);
   applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table"));
+});
+document.querySelector("#financialBalancePicker")?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-financial-balance]");
+  if (!input || !["pending", "realized"].includes(input.dataset.financialBalance)) return;
+  const key = state.financialScope === "braga" ? "bragaDailyBalances" : "financialDailyBalances";
+  setAppPreference(key, { ...state.appPreferences?.[key], [input.dataset.financialBalance]: input.checked });
+  const table = elements.financialEntryRows?.closest("table");
+  renderFinancialDailyBalanceBreaks(table);
+  applyFinancialTransactionColumns(table);
 });
 document.querySelector("#financialEntryShowDailyBalance")?.addEventListener("change", (event) => { state.financialEntryShowDailyBalance = event.target.checked; renderFinancialDailyBalanceBreaks(elements.financialEntryRows?.closest("table")); applyFinancialTransactionColumns(elements.financialEntryRows?.closest("table")); });
 document.querySelectorAll("[data-financial-month-step]").forEach((button) => button.addEventListener("click", () => stepFinancialEntryMonth(Number(button.dataset.financialMonthStep))));

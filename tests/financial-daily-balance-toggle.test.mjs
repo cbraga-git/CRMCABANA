@@ -79,6 +79,10 @@ test("saldo diário acumula somente os lançamentos filtrados, sem total redunda
   assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 900")));
   assert.ok(summaries().some((row) => row.innerHTML.includes("R$ 1000")));
   assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia previsto")));
+  assert.ok(summaries().every((row) => !row.innerHTML.includes("Saldo final do dia pendente")));
+  assert.ok(summaries().every((row) => !row.innerHTML.includes("Saldo final do dia realizado")));
+  state.appPreferences = { financialDailyBalances: { pending: true, realized: true } };
+  render(table);
   assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia pendente")));
   assert.ok(summaries().every((row) => row.innerHTML.includes("Saldo final do dia realizado")));
   assert.ok(summaries()[0].innerHTML.includes("Saldo final do dia pendente <strong>R$ 30</strong>"));
