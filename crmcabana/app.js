@@ -2378,7 +2378,7 @@ function stepFinancialEntryMonth(step) {
 }
 
 function renderFinancialTransactionSummary(start, end) {
-  const budgetFilter = view === "financeTransactions" && state.financialScope === "company" ? state.financialBudgetFilter : null;
+  const budgetFilter = state.view === "financeTransactions" && state.financialScope === "company" ? state.financialBudgetFilter : null;
   const budgetContext = document.querySelector("#financialBudgetFilterContext");
   if (budgetContext) {
     budgetContext.hidden = !budgetFilter;
@@ -2572,7 +2572,9 @@ function renderFinancialEntries(view = state.view) {
   const hasGlobalFilter = Boolean(filters.search || (view === "financeTransactions" && filters.type) || (filters.accountId && filters.accountId !== FINANCIAL_BANK_ACCOUNTS_FILTER) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
   const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
   if (view === "financeTransactions") renderFinancialTransactionSummary(start, end);
+  const budgetFilter = view === "financeTransactions" && state.financialScope === "company" ? state.financialBudgetFilter : null;
   const entries = state.financialEntries.filter((entry) => {
+    if (budgetFilter && !budgetFilter.ids.has(entry.id)) return false;
     if (filterType && entry.entry_type !== filterType) return false;
     if (view === "financeTransactions" && filters.type && entry.entry_type !== filters.type) return false;
     const entryDate = financialEntryDate(entry);

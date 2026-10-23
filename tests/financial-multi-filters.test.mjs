@@ -32,7 +32,7 @@ test('transactions combine alternatives within each field and intersect differen
   const filters = {type: 'income|expense', accountId: 'bank-a|bank-b', categoryId: 'sale|cost', status: 'paid|pending'};
   const result = runInNewContext(`${helpers}\n${app.slice(start, end)}\nentries.map(entry => entry.id)`, {
     ...context, state: {financialEntries: entries}, view: 'financeTransactions', filterType: null,
-    filters, bankAccountIds, financialEntryDate: () => '2026-10-15', hasGlobalFilter: true,
+    filters, bankAccountIds, budgetFilter: null, financialEntryDate: () => '2026-10-15', hasGlobalFilter: true,
   });
   assert.deepEqual(Array.from(result), ['income', 'expense']);
   assert.equal(api.financialFilterMatches('anything', ''), true);

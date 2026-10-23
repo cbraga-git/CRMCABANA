@@ -30,3 +30,26 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     assert.equal(renders, 1);
   });
 }
+
+for (const app of ["crmcabana", "gestaocabana"]) {
+  const source = await readFile(new URL(`../${app}/app.js`, import.meta.url), "utf8");
+  test(`${app}: summary and actual transaction filter run without undefined variables`, () => {
+    const state = { view: "financeTransactions", financialScope: "company", financialBudgetFilter: { ids: new Set(["linked"]), label: "Budget" }, financialEntryFilters: {}, financialAccounts: [], financialEntries: [
+      { id: "linked", entry_type: "income", amount: 50, status: "pending", date: "2026-10-22" },
+      { id: "other", entry_type: "income", amount: 999, status: "pending", date: "2026-10-22" },
+    ] };
+    const nodes = new Map();
+    const context = { state, document: { querySelector: (id) => { if (!nodes.has(id)) nodes.set(id, { querySelector: () => ({}) }); return nodes.get(id); } }, BRL: { format: String }, financialEntryDate: (entry) => entry.date,
+      financialAccountBalance: () => 0, financialEntryViewType: () => "", financialMonthBounds: () => ({ start: "2026-10-01", end: "2026-10-31" }), financialAccountFilterMatches: () => true, FINANCIAL_BANK_ACCOUNTS_FILTER: "__bank_accounts__" };
+    const start = source.indexOf("function renderFinancialTransactionSummary(");
+    const end = source.indexOf("const financialTableSorts", start);
+    const summary = source.slice(start, end);
+    const listStart = source.indexOf("function renderFinancialEntries(view = state.view)");
+    const listEnd = source.indexOf("  const eligibleIds =", listStart);
+    const render = runInNewContext(`${summary}\n${source.slice(listStart, listEnd)} return entries; }\nrenderFinancialEntries`, context);
+    assert.deepEqual(Array.from(render(), (entry) => entry.id), ["linked"]);
+    assert.equal(nodes.get("#financialTransactionIncome").textContent, "50");
+    state.financialBudgetFilter = null;
+    assert.equal(render().length, 2);
+  });
+}
