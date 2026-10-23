@@ -72,3 +72,29 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     assert.deepEqual(opened, ["client2", "budget3"]);
   });
 }
+
+const gestao = await readFile(new URL("../gestaocabana/app.js", import.meta.url), "utf8");
+test("gestaocabana: linked transactions remain accessible for finalized budgets without enabling launches", () => {
+  const start = gestao.indexOf("function updateBudgetFinancialButton()");
+  const end = gestao.indexOf("function normalizeBudgetAssistances", start);
+  const nodes = { "#budgetLaunchFinancialBtn": {}, "#budgetViewTransactionsBtn": {} };
+  let budget = { id: "legacy-budget", financialLinkedEntryIds: ["legacy-entry"] };
+  const state = { budgetEditingId: budget.id, budgetIsNew: false };
+  const update = runInNewContext(`${gestao.slice(start, end)};updateBudgetFinancialButton`, {
+    state, document: { querySelector: (id) => nodes[id] },
+    sourceBudgetClient: () => ({}), budgetForEditing: () => budget,
+    budgetInputValue: () => "Finalizado", budgetFinancialStatusAllowed: () => false,
+  });
+  update();
+  assert.equal(nodes["#budgetViewTransactionsBtn"].hidden, false);
+  assert.equal(nodes["#budgetLaunchFinancialBtn"].hidden, true);
+  budget = { id: "unlinked-budget" };
+  update();
+  assert.equal(nodes["#budgetViewTransactionsBtn"].hidden, true);
+  budget.financialSimulationAt = "2026-10-23";
+  update();
+  assert.equal(nodes["#budgetViewTransactionsBtn"].hidden, false);
+  state.budgetIsNew = true;
+  update();
+  assert.equal(nodes["#budgetViewTransactionsBtn"].hidden, true);
+});

@@ -3983,6 +3983,8 @@ function updateBudgetFinancialButton() {
   const button = document.querySelector("#budgetLaunchFinancialBtn");
   if (!button) return;
   const budget = !state.budgetIsNew && state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
+  const transactionsButton = document.querySelector("#budgetViewTransactionsBtn");
+  if (transactionsButton) transactionsButton.hidden = !budget || !(budget.financialLinkedEntryIds?.length || budget.financialLaunchedAt || budget.financialSimulationAt);
   button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
   button.textContent = budget?.financialSimulationAt ? "Simulado" : budget?.financialLaunchedAt ? "Lançado" : "Lançar Financeiro";
   button.disabled = false;
@@ -8876,6 +8878,7 @@ async function init() {
 init();
 
 document.querySelector("#budgetFinancialTransactionsBtn")?.addEventListener("click", (event) => openBudgetFinancialTransactions(event.currentTarget));
+document.querySelector("#budgetViewTransactionsBtn")?.addEventListener("click", (event) => openBudgetFinancialTransactions(event.currentTarget));
 
 document.querySelector("#clearFinancialBudgetFilter")?.addEventListener("click", () => {
   state.financialBudgetFilter = null;
