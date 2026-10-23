@@ -10,7 +10,7 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     const state = { budgetEditingId: "b1", financialSelectedEntryIds: new Set(["old"]), financialScope: "braga" };
     let renders = 0;
     const open = runInNewContext(`${source.slice(start, end)};openBudgetFinancialTransactions`, {
-      state, sourceBudgetClient: () => ({ name: "Client" }),
+      state, sourceBudgetClient: () => ({ id: "client1", name: "Client" }),
       budgetForEditing: () => ({ id: "b1", code: "B1" }),
       budgetFinancialEntryIds: async () => [["income-1", "entry-1"], ["cost", "entry-2"]],
       document: { querySelector: () => ({ close() {} }) },
@@ -22,6 +22,8 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     assert.equal(state.view, "financeTransactions");
     assert.equal(state.financialScope, "company");
     assert.deepEqual([...state.financialBudgetFilter.ids], ["entry-1", "entry-2"]);
+    assert.equal(state.financialBudgetFilter.origin.clientId, "client1");
+    assert.equal(state.financialBudgetFilter.origin.budgetId, "b1");
     assert.equal(state.financialEntryFilters.accountId, "");
     assert.equal(state.financialEntryMonthFilter, "");
     assert.equal(state.financialEntryShowDailyBalance, false);
@@ -51,5 +53,22 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     assert.equal(nodes.get("#financialTransactionIncome").textContent, "50");
     state.financialBudgetFilter = null;
     assert.equal(render().length, 2);
+  });
+}
+
+for (const app of ["crmcabana", "gestaocabana"]) {
+  const source = await readFile(new URL(`../${app}/app.js`, import.meta.url), "utf8");
+  test(`${app}: returns to the original budget and client`, async () => {
+    const state = { view: "financeTransactions", financialBudgetFilter: { origin: { view: "budget", clientId: "client2", budgetId: "budget3" } } };
+    let opened;
+    const start = source.indexOf("async function returnToFinancialBudget()");
+    const end = source.indexOf('document.querySelector("#returnToFinancialBudget")', start);
+    const back = runInNewContext(`${source.slice(start, end)};returnToFinancialBudget`, { state,
+      showView: async (view) => { state.view = view; },
+      openBudgetEditor: async (clientId, options) => { opened = [clientId, options.budgetId]; },
+    });
+    await back();
+    assert.equal(state.view, "budget");
+    assert.deepEqual(opened, ["client2", "budget3"]);
   });
 }

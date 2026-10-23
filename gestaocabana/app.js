@@ -2672,7 +2672,7 @@ function renderFinancialEntries(view = state.view) {
     const notes = financialEntryNotes(entry);
     const tags = financialEntryTags(entry);
     const tagList = tags.length ? `<div class="financial-entry-list-tags">${tags.map((tag) => `<span class="financial-entry-tag-chip"><span>${escapeHtml(tag)}</span></span>`).join("")}</div>` : "";
-    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><div class="financial-entry-status-selection">${view === "financeTransactions" ? `<input type="checkbox" data-select-financial-entry="${entry.id}" aria-label="Selecionar ${escapeHtml(formatFinancialDescription(entry.description))}" />` : ""}<span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></div></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(entry.description))}</strong>${budgetFilter ? `<small>${/^simulado\s*-\s*/i.test(String(entry.description || "")) ? "Simulado" : "Definitivo"}</small>` : ""}${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td class="financial-entry-notes" data-sort-value="${escapeHtml(notes)}">${notes ? escapeHtml(notes) : "—"}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
+    return `<tr class="${entry.status === "paid" ? "financial-entry-paid" : ""}" data-financial-entry-id="${entry.id}" data-financial-entry-date="${financialEntryDate(entry)}"><td data-sort-value="${escapeHtml(statusLabel)}"><div class="financial-entry-status-selection">${view === "financeTransactions" ? `<input type="checkbox" data-select-financial-entry="${entry.id}" aria-label="Selecionar ${escapeHtml(formatFinancialDescription(entry.description))}" />` : ""}<span class="financial-entry-status-icon ${entry.status}" role="img" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">${statusIcon}</span></div></td><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td><strong>${escapeHtml(formatFinancialDescription(budgetFilter ? String(entry.description || "").replace(/^simulado\s*-\s*/i, "") : entry.description))}</strong>${entry.installment_count ? `<small class="financial-installment-label">Parcela ${entry.installment_number}/${entry.installment_count}</small>` : ""}</td><td class="financial-entry-notes" data-sort-value="${escapeHtml(notes)}">${notes ? escapeHtml(notes) : "—"}</td><td data-sort-value="${escapeHtml(categoryLabel)}">${escapeHtml(categoryLabel)}${tagList}</td><td data-sort-value="${escapeHtml(accountLabel)}"><span class="financial-entry-account-display">${accountDisplay}</span></td><td class="financial-entry-value ${entry.entry_type}">${BRL.format(Number(entry.amount) || 0)}</td><td><div class="financial-entry-actions"><button class="financial-entry-menu-button" type="button" data-financial-entry-menu="${entry.id}" aria-label="Ações de ${escapeHtml(formatFinancialDescription(entry.description))}" aria-haspopup="menu" aria-expanded="false">⋮</button><div class="financial-entry-actions-menu" role="menu" hidden><button type="button" role="menuitem" data-edit-financial-entry="${entry.id}"><span class="financial-entry-action-icon">✎</span>Editar</button><button type="button" role="menuitem" data-duplicate-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⧉</span>Duplicar</button><button class="danger" type="button" role="menuitem" data-delete-financial-entry="${entry.id}"><span class="financial-entry-action-icon">⌫</span>Excluir</button></div></div></td></tr>`;
   }).join("") : '<tr><td colspan="8" class="empty-table-cell">Nenhum lançamento encontrado para esta conta no período.</td></tr>';
   const entryTable = elements.financialEntryRows.closest("table");
   if (!financialTableSorts.has(entryTable)) {
@@ -8521,11 +8521,12 @@ async function openBudgetFinancialTransactions(button) {
   try {
     const pairs = await budgetFinancialEntryIds(budget);
     const ids = new Set(pairs.map(([, id]) => id));
-    const label = `Orçamento ${budget.code || ""} · ${client.name || ""}`;
+    const label = `Orçamento ${budget.code || ""} · ${client.name || ""} · ${budget.financialSimulationAt ? "Simulado" : budget.financialLaunchedAt ? "Definitivo" : "Sem lançamento"}`;
+    const origin = { clientId: client.id, budgetId: budget.id, view: state.view === "order" ? "order" : "budget" };
     document.querySelector("#budgetFinancialDialog")?.close();
     await showView("financeTransactions", undefined, "company");
     if (state.view !== "financeTransactions" || state.financialScope !== "company") return;
-    state.financialBudgetFilter = { ids, label };
+    state.financialBudgetFilter = { ids, label, origin };
     state.financialEntryFilters = { search: "", type: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" };
     state.financialEntryAccountFilter = "";
     state.financialEntryMonthFilter = "";
@@ -8877,4 +8878,15 @@ document.querySelector("#budgetFinancialTransactionsBtn")?.addEventListener("cli
 document.querySelector("#clearFinancialBudgetFilter")?.addEventListener("click", () => {
   state.financialBudgetFilter = null;
   renderFinancialEntries();
+});
+
+async function returnToFinancialBudget() {
+  const origin = state.financialBudgetFilter?.origin;
+  if (!origin) return;
+  await showView(origin.view, origin.clientId);
+  if (state.view !== origin.view) return;
+  await openBudgetEditor(origin.clientId, { budgetId: origin.budgetId });
+}
+document.querySelector("#returnToFinancialBudget")?.addEventListener("click", () => {
+  returnToFinancialBudget().catch((error) => alert(error.message));
 });
