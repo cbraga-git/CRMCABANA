@@ -3940,7 +3940,7 @@ function updateBudgetFinancialButton() {
   const budget = !state.budgetIsNew && state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   button.hidden = !budgetFinancialStatusAllowed(budgetInputValue("budgetStatus"));
   button.textContent = budget?.financialSimulationAt ? "Simulado" : budget?.financialLaunchedAt ? "Lançado" : "Lançar Financeiro";
-  button.disabled = Boolean(budget?.financialLaunchedAt && !budget?.financialSimulationAt);
+  button.disabled = false;
   button.title = budget?.financialSimulationAt
     ? "Abrir opções da simulação financeira"
     : budget?.financialLaunchedAt
@@ -8453,14 +8453,57 @@ document.querySelector("#budgetSaveBtn")?.addEventListener("click", async (event
     button.textContent = originalLabel;
   }
 });
+
+function budgetFinancialReportHtml(budget, client, entries, accounts, categories) {
+  const names = (items) => new Map(items.map((item) => [item.id, item.name]));
+  const accountNames = names(accounts), categoryNames = names(categories);
+  const active = entries.filter((entry) => entry.status !== "cancelled");
+  const movement = (entry) => entry.entry_type === "income" ? Number(entry.amount) || 0 : entry.entry_type === "expense" ? -(Number(entry.amount) || 0) : 0;
+  const total = (items) => BRL.format(items.reduce((sum, entry) => sum + movement(entry), 0));
+  const statuses = { paid: "Pago / recebido", pending: "Pendente", overdue: "Vencido", cancelled: "Cancelado" };
+  const types = { income: "Receita", expense: "Despesa", transfer: "Transferência" };
+  const rows = [...entries].sort((a, b) => String(a.due_date || a.competence_date || "").localeCompare(String(b.due_date || b.competence_date || ""))).map((entry) => {
+    const simulated = /^simulado\s*-\s*/i.test(String(entry.description || ""));
+    return `<tr><td>${escapeHtml(formatFinancialDate(entry.due_date || entry.competence_date))}</td><td>${escapeHtml(entry.description || "")}<small>${escapeHtml(entry.notes || "")}</small></td><td>${escapeHtml(types[entry.entry_type] || entry.entry_type)}</td><td>${simulated ? "Simulado" : "Definitivo"}</td><td>${escapeHtml(statuses[entry.status] || entry.status)}</td><td>${escapeHtml(accountNames.get(entry.account_id) || "—")}</td><td>${escapeHtml(categoryNames.get(entry.category_id) || "—")}</td><td>${BRL.format(Number(entry.amount) || 0)}</td></tr>`;
+  }).join("");
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Financeiro do orçamento ${escapeHtml(budget.code || "")}</title><style>body{font:14px Arial,sans-serif;color:#222;margin:28px}h1{font-size:23px}table{border-collapse:collapse;width:100%;margin-top:20px}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5efd9}small{display:block;color:#666;margin-top:4px}.balances{display:flex;gap:20px;flex-wrap:wrap;margin:20px 0}.balances p{padding:12px;background:#f5efd9}button{padding:10px;cursor:pointer}@media print{button{display:none}body{margin:0;font-size:11px}thead{display:table-header-group}tr{break-inside:avoid}}@page{size:A4 landscape;margin:12mm}</style></head><body><button id="printReport" type="button">Imprimir / Salvar PDF</button><h1>Financeiro do orçamento ${escapeHtml(budget.code || "")}</h1><p>Cliente: ${escapeHtml(client.name || "")} · Emissão: ${escapeHtml(new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }))}</p><p>Dados dos lançamentos gravados no financeiro. Cancelados não compõem os saldos. Saldo = receitas menos despesas; transferências não alteram o total.</p><div class="balances"><p>Saldo realizado: <strong>${total(active.filter((entry) => entry.status === "paid"))}</strong></p><p>Saldo pendente: <strong>${total(active.filter((entry) => entry.status !== "paid"))}</strong></p><p>Saldo previsto: <strong>${total(active)}</strong></p><p>Definitivo (previsto): <strong>${total(active.filter((entry) => !/^simulado\s*-\s*/i.test(String(entry.description || ""))))}</strong></p><p>Simulado (previsto): <strong>${total(active.filter((entry) => /^simulado\s*-\s*/i.test(String(entry.description || ""))))}</strong></p></div><table><thead><tr><th>Vencimento</th><th>Descrição / observações</th><th>Tipo</th><th>Lançamento</th><th>Status</th><th>Conta</th><th>Categoria</th><th>Valor</th></tr></thead><tbody>${rows || '<tr><td colspan="8">Nenhum lançamento vinculado a este orçamento.</td></tr>'}</tbody></table></body></html>`;
+}
+
+async function openBudgetFinancialReport(button) {
+  const client = sourceBudgetClient();
+  const budget = !state.budgetIsNew && state.budgetEditingId ? budgetForEditing(client) : null;
+  if (!budget?.id) { alert("Salve o orçamento antes de consultar o relatório financeiro."); return; }
+  const report = window.open("", "_blank");
+  if (!report) { alert("Permita abrir a nova janela para visualizar o relatório."); return; }
+  report.opener = null;
+  report.document.body.textContent = "Carregando relatório financeiro...";
+  button.disabled = true;
+  try {
+    const pairs = await budgetFinancialEntryIds(budget);
+    const fetchRegisters = async (table) => {
+      const response = await authorizedFetch(supabaseTableEndpoint(table, "?select=id,name", "company"), () => ({ headers: supabaseHeaders() }));
+      if (!response.ok) throw new Error("Não foi possível carregar os dados do relatório financeiro.");
+      return response.json();
+    };
+    const [entries, accounts, categories] = await Promise.all([fetchBudgetFinancialEntries(pairs.map(([, id]) => id)), fetchRegisters("crm_financial_accounts"), fetchRegisters("crm_financial_categories")]);
+    if (report.closed) return;
+    report.document.open();
+    report.document.write(budgetFinancialReportHtml(budget, client, entries, accounts, categories));
+    report.document.close();
+    report.document.querySelector("#printReport")?.addEventListener("click", () => report.print());
+  } catch (error) {
+    if (!report.closed) report.document.body.textContent = error.message;
+  } finally { button.disabled = false; }
+}
+
 function openBudgetFinancialDialog() {
   const dialog = document.querySelector("#budgetFinancialDialog");
   const savedBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
   const hasSimulation = Boolean(savedBudget?.financialSimulationAt);
   const hasEffectiveLaunch = Boolean(savedBudget?.financialLaunchedAt);
-  if (hasEffectiveLaunch && !hasSimulation) return;
+
   document.querySelector("#budgetSimulateFinancialBtn").hidden = hasSimulation || hasEffectiveLaunch;
-  document.querySelector("#budgetPostFinancialBtn").hidden = hasSimulation;
+  document.querySelector("#budgetPostFinancialBtn").hidden = hasSimulation || hasEffectiveLaunch;
   document.querySelector("#budgetDeleteSimulationBtn").hidden = !hasSimulation;
   document.querySelector("#budgetFinalizeSimulationBtn").hidden = !hasSimulation;
   document.querySelector("#budgetPostFinancialBtn").textContent = hasEffectiveLaunch ? "Atualizar lançamento" : "Lançar";
@@ -8788,3 +8831,5 @@ async function init() {
 }
 
 init();
+
+document.querySelector("#budgetFinancialReportBtn")?.addEventListener("click", (event) => openBudgetFinancialReport(event.currentTarget));
