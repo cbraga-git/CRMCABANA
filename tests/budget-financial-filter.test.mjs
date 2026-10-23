@@ -11,7 +11,7 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     let renders = 0;
     const open = runInNewContext(`${source.slice(start, end)};openBudgetFinancialTransactions`, {
       state, sourceBudgetClient: () => ({ id: "client1", name: "Client" }),
-      budgetForEditing: () => ({ id: "b1", code: "B1" }),
+      budgetForEditing: () => ({ id: "b1", code: "B1", ...(app === "gestaocabana" ? { financialLinkedEntryIds: ["legacy-entry", "entry-1"] } : {}) }),
       budgetFinancialEntryIds: async () => [["income-1", "entry-1"], ["cost", "entry-2"]],
       document: { querySelector: () => ({ close() {} }) },
       showView: async (view, id, scope) => { state.view = view; state.financialScope = scope; },
@@ -21,7 +21,7 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     await open(button);
     assert.equal(state.view, "financeTransactions");
     assert.equal(state.financialScope, "company");
-    assert.deepEqual([...state.financialBudgetFilter.ids], ["entry-1", "entry-2"]);
+    assert.deepEqual([...state.financialBudgetFilter.ids], app === "gestaocabana" ? ["entry-1", "entry-2", "legacy-entry"] : ["entry-1", "entry-2"]);
     assert.equal(state.financialBudgetFilter.origin.clientId, "client1");
     assert.equal(state.financialBudgetFilter.origin.budgetId, "b1");
     assert.equal(state.financialEntryFilters.accountId, "");

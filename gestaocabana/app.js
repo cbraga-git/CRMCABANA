@@ -4155,6 +4155,7 @@ function clientBudget(client) {
     assistances: normalizeBudgetAssistances(saved.assistances),
     financialLaunchedAt: saved.financialLaunchedAt || "",
     financialSimulationAt: saved.financialSimulationAt || "",
+    financialLinkedEntryIds: Array.isArray(saved.financialLinkedEntryIds) ? saved.financialLinkedEntryIds : [],
     notes: saved.notes || "",
   };
 }
@@ -5742,7 +5743,7 @@ function renderBudgetList() {
     folderCell.className = "folder-column";
     folderButton.className = "folder-button";
     folderButton.type = "button";
-    const financialStatus = !budgetFinancialStatusAllowed(budget.status) ? "" : budget.financialSimulationAt ? "simulation" : budget.financialLaunchedAt ? "launched" : "";
+    const financialStatus = budget.financialLinkedEntryIds?.length ? "launched" : !budgetFinancialStatusAllowed(budget.status) ? "" : budget.financialSimulationAt ? "simulation" : budget.financialLaunchedAt ? "launched" : "";
     if (financialStatus) folderButton.dataset.financialStatus = financialStatus;
     const financialStatusLabel = financialStatus === "simulation" ? "Simulado no financeiro" : financialStatus === "launched" ? "Lançado no financeiro" : "";
     folderButton.title = `Abrir ${documentLabel}${financialStatusLabel ? ` — ${financialStatusLabel}` : ""}`;
@@ -5945,7 +5946,7 @@ async function reconcileBudgetFinancialStatus(clientId, budget) {
   if (!hasFinancialStatus && (!remoteDatabaseEnabled() || !currentUserId())) return false;
   if (!remoteDatabaseEnabled() || !currentUserId()) throw new Error("Conecte o CRM ao banco para conferir o lançamento financeiro do orçamento.");
   const pairs = await budgetFinancialEntryIds(budget);
-  const entries = await fetchBudgetFinancialEntries(pairs.map(([, id]) => id));
+  const entries = await fetchBudgetFinancialEntries([...new Set([...pairs.map(([, id]) => id), ...(budget.financialLinkedEntryIds || [])])]);
   if (!Array.isArray(entries)) throw new Error("Não foi possível conferir o lançamento financeiro do orçamento.");
   if (entries.length && hasFinancialStatus) return false;
   if (!entries.length && !hasFinancialStatus) return false;
@@ -6129,6 +6130,7 @@ async function saveBudget(options = {}) {
     cashPayments: readCashPaymentRows(),
     assistances: normalizeBudgetAssistances(state.budgetAssistanceDrafts),
     financialLaunchedAt: effectiveFinancialAction ? previousBudget?.financialLaunchedAt || financialActionAt : deleteSimulationAction || simulationFinancialAction ? "" : previousBudget?.financialLaunchedAt || "",
+    financialLinkedEntryIds: previousBudget?.financialLinkedEntryIds || [],
     paymentPlan: readBudgetPaymentPlan(),
     financialSimulationAt: simulationFinancialAction ? previousBudget?.financialSimulationAt || financialActionAt : effectiveFinancialAction || deleteSimulationAction ? "" : previousBudget?.financialSimulationAt || "",
     notes: document.querySelector("#budgetNotes")?.value.trim() || "",
@@ -8520,7 +8522,7 @@ async function openBudgetFinancialTransactions(button) {
   button.disabled = true;
   try {
     const pairs = await budgetFinancialEntryIds(budget);
-    const ids = new Set(pairs.map(([, id]) => id));
+    const ids = new Set([...pairs.map(([, id]) => id), ...(budget.financialLinkedEntryIds || [])]);
     const label = `Orçamento ${budget.code || ""} · ${client.name || ""} · ${budget.financialSimulationAt ? "Simulado" : budget.financialLaunchedAt ? "Definitivo" : "Sem lançamento"}`;
     const origin = { clientId: client.id, budgetId: budget.id, view: state.view === "order" ? "order" : "budget" };
     document.querySelector("#budgetFinancialDialog")?.close();
