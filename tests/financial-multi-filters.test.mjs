@@ -38,19 +38,25 @@ test('transactions combine alternatives within each field and intersect differen
   assert.equal(api.financialFilterMatches('anything', ''), true);
 });
 
-test('checkboxes add and remove choices and All clears the field', () => {
+test('account checkboxes expand groups so individual exceptions can be unchecked', () => {
   let handler;
-  const state = {financialEntryFilters: {accountId: '__bank_accounts__'}};
+  const state = {financialEntryFilters: {accountId: '__bank_accounts__'}, financialAccounts: [
+    {id: 'bank-a', account_type: 'bank', active: true}, {id: 'bank-b', account_type: 'bank', active: true}, {id: 'cash', account_type: 'cash', active: true},
+  ]};
   const start = app.indexOf('document.querySelector("#financialEntryFilters")?.addEventListener("input"');
   const end = app.indexOf('\ndocument.querySelector("#clearFinancialEntryFilters")', start);
   runInNewContext(`${helpers}\n${app.slice(start, end)}`, {
-    ...context, state, document: {querySelector: () => ({addEventListener: (_, fn) => {handler = fn;}})}, renderFinancialEntries() {},
+    ...context, state, document: {querySelector: () => ({options: ['', '__bank_accounts__', 'bank-a', 'bank-b', 'cash'].map(value => ({value})), addEventListener: (_, fn) => {handler = fn;}})}, renderFinancialEntries() {},
   });
   const choose = (value, checked) => handler({target: {dataset: {financialMultiFilter: 'financialEntryFilterAccount'}, value, checked}});
   choose('cash', true);
-  assert.equal(state.financialEntryFilters.accountId, '__bank_accounts__|cash');
-  choose('__bank_accounts__', false);
-  assert.equal(state.financialEntryFilters.accountId, 'cash');
+  assert.equal(state.financialEntryFilters.accountId, '');
+  choose('bank-a', false);
+  assert.equal(state.financialEntryFilters.accountId, 'bank-b|cash');
   choose('', true);
   assert.equal(state.financialEntryFilters.accountId, '');
+  choose('', false);
+  assert.equal(state.financialEntryFilters.accountId, '__none__');
+  choose('cash', true);
+  assert.equal(state.financialEntryFilters.accountId, 'cash');
 });

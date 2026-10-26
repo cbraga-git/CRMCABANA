@@ -2233,12 +2233,39 @@ function financialAccountFilterMovement(entry, accountId, bankAccountIds) {
     - (financialAccountSelected(entry.account_id, accountId, bankAccountIds) ? amount : 0);
 }
 
+function financialAccountPickerIds(select, value) {
+  const ids = Array.from(select.options).map((option) => option.value).filter((id) => id && id !== FINANCIAL_BANK_ACCOUNTS_FILTER);
+  const choices = financialFilterValues(value);
+  return ids.filter((id) => !choices.length || choices.includes(id) || (choices.includes(FINANCIAL_BANK_ACCOUNTS_FILTER) && state.financialAccounts.some((account) => account.id === id && account.account_type === "bank")));
+}
+
+function financialAccountPickerSelection(select, value, input) {
+  if (!input.value) return input.checked ? "" : "__none__";
+  const ids = new Set(financialAccountPickerIds(select, value));
+  const changed = input.value === FINANCIAL_BANK_ACCOUNTS_FILTER
+    ? state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id)
+    : [input.value];
+  changed.forEach((id) => input.checked ? ids.add(id) : ids.delete(id));
+  const available = Array.from(select.options).map((option) => option.value).filter((id) => id && id !== FINANCIAL_BANK_ACCOUNTS_FILTER);
+  const selected = available.filter((id) => ids.has(id));
+  return selected.length === available.length ? "" : selected.join("|") || "__none__";
+}
+
 function renderFinancialMultiFilter(select, value) {
   if (!select) return;
   select.multiple = true;
   const selected = financialFilterValues(value);
   const options = Array.from(select.options);
   options.forEach((option) => { option.selected = option.value ? selected.includes(option.value) : !selected.length; });
+  const accountPicker = ["financialDashboardAccountFilter", "financialEntryFilterAccount"].includes(select.id);
+  if (accountPicker) {
+    const selectedIds = new Set(financialAccountPickerIds(select, value));
+    const bankIds = options.map((option) => option.value).filter((id) => state.financialAccounts.some((account) => account.id === id && account.account_type === "bank"));
+    options.forEach((option) => {
+      option.selected = !option.value ? !value : option.value === FINANCIAL_BANK_ACCOUNTS_FILTER
+        ? bankIds.length > 0 && bankIds.every((id) => selectedIds.has(id)) : selectedIds.has(option.value);
+    });
+  }
   select.hidden = true;
   let picker = select.nextElementSibling;
   if (!picker?.classList.contains("financial-multi-filter")) {
@@ -2247,7 +2274,7 @@ function renderFinancialMultiFilter(select, value) {
     select.after(picker);
   }
   const labels = options.filter((option) => option.value && selected.includes(option.value)).map((option) => option.textContent);
-  const summary = labels.length ? labels.join(", ") : options[0]?.textContent || "Todas";
+  const summary = accountPicker && !value ? options[0]?.textContent || "Todas" : value === "__none__" ? "Nenhuma conta" : labels.length ? labels.join(", ") : options[0]?.textContent || "Todas";
   const focusedValue = picker.contains(document.activeElement) ? document.activeElement.value : null;
   picker.innerHTML = `<summary title="${escapeHtml(summary)}">${escapeHtml(summary)}</summary><div class="financial-multi-options">${options.map((option) => `<label><input type="checkbox" data-financial-multi-filter="${select.id}" value="${escapeHtml(option.value)}" ${option.selected ? "checked" : ""} ${select.disabled ? "disabled" : ""} /><span>${escapeHtml(option.textContent)}</span></label>`).join("")}</div>`;
   if (focusedValue != null) Array.from(picker.querySelectorAll("input")).find((input) => input.value === focusedValue)?.focus();
@@ -8093,11 +8120,7 @@ document.querySelector("#financialTagManagerList")?.addEventListener("keydown", 
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
 document.querySelector("#financialOverviewFilters")?.addEventListener("input", (event) => {
   if (event.target.dataset.financialMultiFilter !== "financialDashboardAccountFilter" || event.target.disabled) return;
-  const current = financialFilterValues(state.financialDashboardAccountFilter);
-  const choice = event.target.value;
-  state.financialDashboardAccountFilter = !choice ? "" : event.target.checked
-    ? [...new Set([...current, choice])].join("|")
-    : current.filter((value) => value !== choice).join("|");
+  state.financialDashboardAccountFilter = financialAccountPickerSelection(document.querySelector("#financialDashboardAccountFilter"), state.financialDashboardAccountFilter, event.target);
   renderFinancialDashboard();
 });
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
@@ -8168,6 +8191,12 @@ document.querySelector("#financialEntryFilters")?.addEventListener("input", (eve
   const key = keys[pickerId || event.target.id];
   if (!key || event.target.disabled) return;
   if (pickerId) {
+    if (pickerId === "financialEntryFilterAccount") {
+      state.financialEntryFilters[key] = financialAccountPickerSelection(document.querySelector("#financialEntryFilterAccount"), state.financialEntryFilters[key], event.target);
+      state.financialEntryPage = 1;
+      renderFinancialEntries();
+      return;
+    }
     const current = financialFilterValues(state.financialEntryFilters[key]);
     const choice = event.target.value;
     state.financialEntryFilters[key] = !choice ? "" : event.target.checked
