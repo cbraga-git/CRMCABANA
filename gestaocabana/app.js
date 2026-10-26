@@ -228,6 +228,7 @@ const state = {
   financialCategoryTargetItemId: null,
   financialCategoryTargetEntry: false,
   financialDashboardMonth: new Date().toISOString().slice(0, 7),
+  financialDashboardAccountFilter: "",
   financialEvolutionYear: new Date().getFullYear(),
   financialEvolutionView: "chart",
   financialEvolutionAccountId: "",
@@ -1127,7 +1128,7 @@ function resetFinancialScopeData() {
     financialEntryAccountFilter: "", financialEvolutionAccountId: "", financialSelectedEntryIds: new Set(),
     financialEntryFilters: { search: "", type: "", accountId: "__bank_accounts__", categoryId: "", status: "", startDate: "", endDate: "" },
     financialEntryMonthFilter: new Date().toISOString().slice(0, 7), financialEntryPage: 1,
-    financialDashboardMonth: new Date().toISOString().slice(0, 7), financialEvolutionYear: new Date().getFullYear(),
+    financialDashboardMonth: new Date().toISOString().slice(0, 7), financialDashboardAccountFilter: "", financialEvolutionYear: new Date().getFullYear(),
     financialEvolutionView: "chart", financialEntryShowDailyBalance: true, financialScopeError: "",
   });
   document.querySelector("#financialImportAccount").value = "";
@@ -1786,6 +1787,7 @@ function renderFinanceModuleView(view) {
   if (elements.financialImportPanel) elements.financialImportPanel.hidden = !showingImport;
   const dashboardContent = document.querySelector("#financialDashboardContent"); if (dashboardContent) dashboardContent.hidden = !showingDashboard;
   const periodFilter = document.querySelector("#financialPeriodFilter"); if (periodFilter) periodFilter.hidden = !showingDashboard;
+  const overviewFilters = document.querySelector("#financialOverviewFilters"); if (overviewFilters) overviewFilters.hidden = !showingDashboard;
   if (elements.financialModuleEmpty) elements.financialModuleEmpty.hidden = showingDashboard || showingAccounts || showingCategories || showingEntries || showingImport;
   if (elements.financialModuleStats) elements.financialModuleStats.hidden = !showingDashboard;
   if (showingDashboard) renderFinancialDashboard();
@@ -1842,7 +1844,8 @@ function renderFinancialDonut(canvasId, legendId, data) {
 const FINANCIAL_BANK_ACCOUNTS_FILTER = "__bank_accounts__";
 
 function financialEvolutionAccounts() {
-  return state.financialAccounts.filter((account) => account.active && (
+  const bankIds = new Set(state.financialAccounts.filter((account) => account.account_type === "bank").map((account) => account.id));
+  return state.financialAccounts.filter((account) => account.active && financialAccountSelected(account.id, state.financialDashboardAccountFilter, bankIds) && (
     !state.financialEvolutionAccountId ||
     (state.financialEvolutionAccountId === FINANCIAL_BANK_ACCOUNTS_FILTER && account.account_type === "bank") ||
     account.id === state.financialEvolutionAccountId
@@ -1882,7 +1885,13 @@ function renderFinancialEvolution() {
 }
 
 function renderFinancialDashboard() {
-  const input = document.querySelector("#financialDashboardMonth"); if (!input) return; input.value = state.financialDashboardMonth; const { start, end } = financialMonthBounds(state.financialDashboardMonth); const monthEntries = state.financialEntries.filter((entry) => { const date = financialEntryDate(entry); return date >= start && date <= end; }); const accountPriority = ["mercado pago", "itau", "santander"]; const normalizedAccountName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR"); const accounts = state.financialAccounts.filter((account) => account.active).sort((first, second) => { const firstName = normalizedAccountName(first.name); const secondName = normalizedAccountName(second.name); const firstPriority = accountPriority.findIndex((name) => firstName.includes(name)); const secondPriority = accountPriority.findIndex((name) => secondName.includes(name)); const firstRank = firstPriority < 0 ? accountPriority.length : firstPriority; const secondRank = secondPriority < 0 ? accountPriority.length : secondPriority; return firstRank - secondRank || first.name.localeCompare(second.name, "pt-BR", { sensitivity: "base", numeric: true }); });
+  const accountSelect = document.querySelector("#financialDashboardAccountFilter");
+  if (accountSelect) {
+    accountSelect.innerHTML = `<option value="">Todas as contas</option><option value="${FINANCIAL_BANK_ACCOUNTS_FILTER}">Contas bancárias</option>` + state.financialAccounts.filter((account) => account.active).map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`).join("");
+    renderFinancialMultiFilter(accountSelect, state.financialDashboardAccountFilter);
+  }
+  const bankIds = new Set(state.financialAccounts.filter((account) => account.account_type === "bank").map((account) => account.id));
+  const input = document.querySelector("#financialDashboardMonth"); if (!input) return; input.value = state.financialDashboardMonth; const { start, end } = financialMonthBounds(state.financialDashboardMonth); const monthEntries = state.financialEntries.filter((entry) => { const date = financialEntryDate(entry); return date >= start && date <= end && financialAccountFilterMatches(entry, state.financialDashboardAccountFilter, bankIds); }); const accountPriority = ["mercado pago", "itau", "santander"]; const normalizedAccountName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR"); const accounts = state.financialAccounts.filter((account) => account.active && financialAccountSelected(account.id, state.financialDashboardAccountFilter, bankIds)).sort((first, second) => { const firstName = normalizedAccountName(first.name); const secondName = normalizedAccountName(second.name); const firstPriority = accountPriority.findIndex((name) => firstName.includes(name)); const secondPriority = accountPriority.findIndex((name) => secondName.includes(name)); const firstRank = firstPriority < 0 ? accountPriority.length : firstPriority; const secondRank = secondPriority < 0 ? accountPriority.length : secondPriority; return firstRank - secondRank || first.name.localeCompare(second.name, "pt-BR", { sensitivity: "base", numeric: true }); });
   const income = monthEntries.filter((entry) => entry.entry_type === "income" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const expense = monthEntries.filter((entry) => entry.entry_type === "expense" && entry.status !== "cancelled").reduce((sum, entry) => sum + Number(entry.amount), 0); const balance = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, false), 0); const projected = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0);
   document.querySelector("#financialDashboardBalance").textContent = BRL.format(balance); document.querySelector("#financialDashboardIncome").textContent = BRL.format(income); document.querySelector("#financialDashboardExpense").textContent = BRL.format(expense); document.querySelector("#financialDashboardProjected").textContent = BRL.format(projected);
   renderFinancialDonut("financialExpenseChart", "financialExpenseLegend", financialCategorySummary(monthEntries, "expense")); renderFinancialDonut("financialIncomeChart", "financialIncomeLegend", financialCategorySummary(monthEntries, "income"));
@@ -8082,6 +8091,15 @@ document.querySelector("#financialTagManagerList")?.addEventListener("keydown", 
   document.querySelector("#financialTagManagerList [data-save-financial-tag]")?.click();
 });
 document.querySelector("#financialDashboardMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialDashboard(); } });
+document.querySelector("#financialOverviewFilters")?.addEventListener("input", (event) => {
+  if (event.target.dataset.financialMultiFilter !== "financialDashboardAccountFilter" || event.target.disabled) return;
+  const current = financialFilterValues(state.financialDashboardAccountFilter);
+  const choice = event.target.value;
+  state.financialDashboardAccountFilter = !choice ? "" : event.target.checked
+    ? [...new Set([...current, choice])].join("|")
+    : current.filter((value) => value !== choice).join("|");
+  renderFinancialDashboard();
+});
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
 document.querySelector("#financialAccountsTypeFilter")?.addEventListener("change", (event) => {
   state.financialAccountTypeFilter = event.target.value;
