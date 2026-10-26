@@ -1983,7 +1983,7 @@ function renderFinancialAccounts() {
     selectAll.disabled = accounts.length === 0;
   }
   const count = document.querySelector("#financialAccountsSelectionCount");
-  if (count) count.textContent = selected.size ? `${selected.size} conta(s) selecionada(s)` : "Todas as contas vis?veis";
+  if (count) count.textContent = selected.size ? `${selected.size} conta(s) selecionada(s)` : "Todas as contas visíveis";
   const clear = document.querySelector("#clearFinancialAccountsSelection");
   if (clear) clear.hidden = !selected.size;
   const activeAccounts = accounts.filter((account) => account.active && (!selected.size || selected.has(account.id)));
