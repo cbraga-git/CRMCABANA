@@ -201,6 +201,7 @@ const state = {
   budgetStatuses: DEFAULT_BUDGET_STATUSES.map((status) => ({ ...status })),
   financialAccounts: [],
   financialAccountTypeFilter: "all",
+  financialAccountsSelectedFilter: "",
   financialScope: "company",
   financialOperations: 0,
   financialNavigationPending: false,
@@ -1113,7 +1114,7 @@ function financialScopeBusy() {
 function resetFinancialScopeData() {
   state.financialBudgetFilter = null;
   Object.assign(state, {
-    financialAccounts: [], financialAccountTypeFilter: "all", financialCategories: [], financialEntries: [], financialImports: [], financialStatementItems: [],
+    financialAccounts: [], financialAccountTypeFilter: "all", financialAccountsSelectedFilter: "", financialCategories: [], financialEntries: [], financialImports: [], financialStatementItems: [],
     financialEditingAccountId: null, financialEditingCategoryId: null, financialEditingEntryId: null,
     financialEntryDraftTags: [], financialTagEntries: null, financialTagEditingName: null,
     financialSelectedImportId: null, financialCategoryTargetItemId: null, financialCategoryTargetEntry: false,
@@ -1955,7 +1956,12 @@ function renderFinancialAccounts() {
   const normalizedName = (value) => String(value || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt-BR");
   const accountTypeFilter = state.financialAccountTypeFilter || "all";
   document.querySelector("#financialAccountsTypeFilter").value = accountTypeFilter;
-  const accounts = state.financialAccounts.filter((account) => accountTypeFilter === "bank" ? account.account_type === "bank" : accountTypeFilter === "other" ? account.account_type !== "bank" : true).sort((first, second) => {
+  const accountFilter = document.querySelector("#financialAccountsSelectedFilter");
+  if (accountFilter) {
+    accountFilter.innerHTML = '<option value="">Todas as contas</option>' + state.financialAccounts.map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}${account.active ? "" : " (Inativa)"}</option>`).join("");
+    renderFinancialMultiFilter(accountFilter, state.financialAccountsSelectedFilter);
+  }
+  const accounts = state.financialAccounts.filter((account) => financialFilterMatches(account.id, state.financialAccountsSelectedFilter) && (accountTypeFilter === "bank" ? account.account_type === "bank" : accountTypeFilter === "other" ? account.account_type !== "bank" : true)).sort((first, second) => {
     if (state.financialScope === "braga") {
       const prefix = (account) => {
         const digits = String(account.name || "").match(/^\d{2}/);
@@ -8065,6 +8071,16 @@ document.querySelector("#financialDashboardMonth")?.addEventListener("change", (
 document.querySelector("#financialAccountsMonth")?.addEventListener("change", (event) => { if (event.target.value) { state.financialDashboardMonth = event.target.value; renderFinancialAccounts(); } });
 document.querySelector("#financialAccountsTypeFilter")?.addEventListener("change", (event) => {
   state.financialAccountTypeFilter = event.target.value;
+  renderFinancialAccounts();
+});
+
+document.querySelector("#financialAccountsPanel")?.addEventListener("input", (event) => {
+  if (event.target.dataset.financialMultiFilter !== "financialAccountsSelectedFilter" || event.target.disabled) return;
+  const current = financialFilterValues(state.financialAccountsSelectedFilter);
+  const choice = event.target.value;
+  state.financialAccountsSelectedFilter = !choice ? "" : event.target.checked
+    ? [...new Set([...current, choice])].join("|")
+    : current.filter((value) => value !== choice).join("|");
   renderFinancialAccounts();
 });
 document.querySelector("#financialEntryMonth")?.addEventListener("change", (event) => { state.financialEntryMonthFilter = event.target.value; state.financialEntryPage = 1; renderFinancialEntries(); });

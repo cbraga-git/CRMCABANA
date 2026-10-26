@@ -875,8 +875,8 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 .financial-multi-filter summary { min-height: 38px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card, #fff); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .financial-multi-filter[open] { z-index: 20; }
 .financial-multi-options { position: absolute; top: 100%; left: 0; width: max-content; min-width: 100%; max-width: min(320px, 85vw); max-height: 280px; overflow: auto; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card, #fff); box-shadow: 0 6px 18px #0002; }
-.financial-entry-filters .financial-multi-options label { display: flex; align-items: center; gap: 8px; padding: 7px; font-weight: 400; cursor: pointer; }
-.financial-entry-filters .financial-multi-options input { width: 16px; min-height: 16px; height: 16px; flex: 0 0 16px; margin: 0; }
+.financial-entry-filters .financial-multi-options label, .financial-accounts-header-actions .financial-multi-options label { display: flex; align-items: center; gap: 8px; padding: 7px; font-weight: 400; cursor: pointer; }
+.financial-entry-filters .financial-multi-options input, .financial-accounts-header-actions .financial-multi-options input { width: 16px; min-height: 16px; height: 16px; flex: 0 0 16px; margin: 0; }
 .financial-multi-filter.is-disabled { opacity: .65; pointer-events: none; }
 .financial-entry-filters input, .financial-entry-filters select { width: 100%; min-width: 0; min-height: 38px; }
 .financial-entry-balance-controls { display: flex; justify-content: flex-end; padding: 9px 22px; border-bottom: 1px solid var(--line); background: #fffdf7; }
@@ -3895,3 +3895,6 @@ body[data-financial-scope="braga"] .financial-scope-message { background: #29171
 
 .financial-bank-logo.institution-icon { overflow: hidden; border-radius: 8px; background: transparent; }
 .financial-bank-logo.institution-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+.financial-accounts-header-actions { flex-wrap: wrap; }
+.financial-accounts-header-actions .financial-period-filter { min-width: 160px; max-width: 240px; }
