@@ -143,7 +143,13 @@ const DEFAULT_ENVIRONMENTS = [
   "PAINEL",
   "ESCRITORIO",
 ];
-const CONFIG = window.CRM_CONFIG || {};
+const CONFIG = {
+  supabaseUrl: new URL("api/index.php", window.location.href).href.replace(/\/$/, ""),
+  supabaseAnonKey: "gestaocabana-local-api",
+  clientsTable: "crm_clients",
+  profilesTable: "crm_profiles",
+  ...(window.CRM_CONFIG || {}),
+};
 
 const FINANCE_MODULE_VIEWS = {
   financeOverview: ["Visão geral", "Acompanhe o fluxo financeiro da empresa.", "Módulo financeiro iniciado", "Cadastre contas e importe um extrato para começar."],
