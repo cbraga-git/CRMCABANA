@@ -819,7 +819,7 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 .financial-account-card { display: flex; flex-direction: column; padding: 18px 18px 0; }
 .financial-account-card.inactive { opacity: .68; }
 .financial-account-card > header { display: flex; align-items: center; gap: 11px; }
-.financial-account-card > header > div:nth-child(2) { min-width: 0; }
+.financial-account-card > header > .financial-account-identity { min-width: 0; }
 .financial-account-card h3 { margin: 0; overflow: hidden; color: var(--text); font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .financial-account-card small { color: var(--muted); font-size: 11px; }
 .financial-account-card dl { display: grid; gap: 15px; margin: 24px 0; }
@@ -3898,3 +3898,9 @@ body[data-financial-scope="braga"] .financial-scope-message { background: #29171
 
 .financial-accounts-header-actions { flex-wrap: wrap; }
 .financial-accounts-header-actions .financial-period-filter { min-width: 160px; max-width: 240px; }
+
+.financial-accounts-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.financial-accounts-selection label { display: inline-flex; align-items: center; gap: 8px; }
+.financial-accounts-selection input, .financial-account-select { width: 18px; height: 18px; min-height: 18px; flex: 0 0 18px; margin: 0; accent-color: #aa8e34; }
+.financial-accounts-selection > span { color: var(--muted); font-size: 13px; }
+.financial-account-card.selected { outline: 2px solid #aa8e34; outline-offset: -2px; }

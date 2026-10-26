@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="referrer" content="no-referrer" />
     <title>Gestão Cabana | Validação PostgreSQL</title>
-    <link rel="stylesheet" href="styles.css?v=20261026-accounts-filter" />
+    <link rel="stylesheet" href="styles.css?v=20261026-account-card-selection" />
   </head>
   <body>
     <section class="auth-screen" id="authScreen" hidden>
@@ -162,7 +162,7 @@
 
         <div class="app-version" title="Versao publicada">
           <span class="app-version-label">Versao</span>
-          <strong>Build 26/10/2026 13:22 · fd222c2</strong>
+          <strong>Build 26/10/2026 13:41 · 5bf825f</strong>
         </div>
 
         <div class="app-version sync-pending-chip" id="syncPendingChip" hidden title="Ha alteracoes locais aguardando sincronizacao com o servidor">
@@ -706,7 +706,8 @@
           </section>
 
           <section class="financial-accounts-view" id="financialAccountsPanel" hidden>
-            <header class="financial-accounts-header"><div><h2>Gestão de contas</h2><p>Saldos e lançamentos de cada conta.</p></div><div class="financial-accounts-header-actions"><div class="financial-period-filter"><span>Contas</span><select id="financialAccountsSelectedFilter" aria-label="Selecionar contas"><option value="">Todas as contas</option></select></div><label class="financial-period-filter">Mostrar<select id="financialAccountsTypeFilter"><option value="all">Todas as contas</option><option value="bank">Somente contas bancárias</option><option value="other">Somente outras contas</option></select></label><label class="financial-period-filter">Período<input id="financialAccountsMonth" type="month" /></label><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></div></header>
+            <header class="financial-accounts-header"><div><h2>Gestão de contas</h2><p>Saldos e lançamentos de cada conta.</p></div><div class="financial-accounts-header-actions"><label class="financial-period-filter">Mostrar<select id="financialAccountsTypeFilter"><option value="all">Todas as contas</option><option value="bank">Somente contas bancárias</option><option value="other">Somente outras contas</option></select></label><label class="financial-period-filter">Período<input id="financialAccountsMonth" type="month" /></label><button class="button primary" id="newFinancialAccountBtn" type="button">+ Nova conta</button></div></header>
+            <div class="financial-accounts-selection"><label><input id="financialAccountsSelectAll" type="checkbox" /> Selecionar todas</label><span id="financialAccountsSelectionCount" aria-live="polite">Todas as contas vis?veis</span><button class="button secondary" id="clearFinancialAccountsSelection" type="button" hidden>Limpar sele??o</button></div>
             <div class="financial-accounts-layout">
               <div class="financial-account-cards" id="financialAccountRows"></div>
               <aside class="financial-accounts-summary" aria-label="Resumo das contas"><article class="stat-card"><span class="stat-icon teal">$</span><div><span>Saldo atual</span><strong id="financialAccountsBalance">R$ 0,00</strong></div></article><article class="stat-card"><span class="stat-icon orange">↗</span><div><span>Saldo previsto</span><strong id="financialAccountsProjected">R$ 0,00</strong></div></article></aside>
@@ -1254,6 +1255,6 @@
     <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=20261026-accounts-filter"></script>
+    <script src="app.js?v=20261026-account-card-selection"></script>
   </body>
 </html>
