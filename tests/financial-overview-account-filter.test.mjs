@@ -38,4 +38,10 @@ test("overview selection applies to balances, monthly entries, category charts a
   state.financialDashboardAccountFilter = "";
   render();
   assert.equal(nodes.get("#financialDashboardBalance").textContent, "420");
+  state.financialEvolutionAccountId = "bank|other";
+  assert.deepEqual(Array.from(annual(), (a) => a.id), ["bank", "other"]);
+  state.financialEvolutionAccountId = "cash";
+  assert.deepEqual(Array.from(annual(), (a) => a.id), ["cash"]);
+  state.financialEvolutionAccountId = "__none__";
+  assert.deepEqual(Array.from(annual(), (a) => a.id), []);
 });
