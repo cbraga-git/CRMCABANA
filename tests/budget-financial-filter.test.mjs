@@ -7,9 +7,17 @@ for (const app of ["crmcabana", "gestaocabana"]) {
   const start = source.indexOf("async function openBudgetFinancialTransactions(");
   const end = source.indexOf("function openBudgetFinancialDialog()", start);
   test(`${app}: opens exact budget entries in company transactions without date or account restrictions`, async () => {
-    const state = { budgetEditingId: "b1", financialSelectedEntryIds: new Set(["old"]), financialScope: "braga" };
+    const state = { budgetEditingId: "b1", financialSelectedEntryIds: new Set(["old"]), financialScope: "braga", financialEntries: [
+      { id: "same-code-simulated", tags: ["b1 123"], description: "Simulado - Entrada", status: "pending" },
+      { id: "same-code-effective", tags: ["b1"], description: "Entrada", status: "paid" },
+      { id: "another-budget", tags: ["b10"] },
+      { id: "entry-1", tags: ["b1"] },
+      { id: "unrelated", tags: ["cliente"] },
+    ] };
     let renders = 0;
     const open = runInNewContext(`${source.slice(start, end)};openBudgetFinancialTransactions`, {
+      normalizeFinancialTag: (value) => String(value || "").trim().toLowerCase(),
+      financialEntryTags: (entry) => entry.tags || [],
       state, sourceBudgetClient: () => ({ id: "client1", name: "Client" }),
       budgetForEditing: () => ({ id: "b1", code: "B1", ...(app === "gestaocabana" ? { financialLinkedEntryIds: ["legacy-entry", "entry-1"] } : {}) }),
       budgetFinancialEntryIds: async () => [["income-1", "entry-1"], ["cost", "entry-2"]],
@@ -21,7 +29,7 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     await open(button);
     assert.equal(state.view, "financeTransactions");
     assert.equal(state.financialScope, "company");
-    assert.deepEqual([...state.financialBudgetFilter.ids], app === "gestaocabana" ? ["entry-1", "entry-2", "legacy-entry"] : ["entry-1", "entry-2"]);
+    assert.deepEqual([...state.financialBudgetFilter.ids], app === "gestaocabana" ? ["entry-1", "entry-2", "legacy-entry", "same-code-simulated", "same-code-effective"] : ["entry-1", "entry-2", "same-code-simulated", "same-code-effective"]);
     assert.equal(state.financialBudgetFilter.origin.clientId, "client1");
     assert.equal(state.financialBudgetFilter.origin.budgetId, "b1");
     assert.equal(state.financialEntryFilters.accountId, "");

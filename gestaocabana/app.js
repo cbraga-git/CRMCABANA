@@ -8621,6 +8621,12 @@ async function openBudgetFinancialTransactions(button) {
     document.querySelector("#budgetFinancialDialog")?.close();
     await showView("financeTransactions", undefined, "company");
     if (state.view !== "financeTransactions" || state.financialScope !== "company") return;
+    const code = normalizeFinancialTag(budget.code);
+    if (code) {
+      for (const entry of state.financialEntries || []) {
+        if (financialEntryTags(entry).some((tag) => tag === code || tag.startsWith(`${code} `))) ids.add(entry.id);
+      }
+    }
     state.financialBudgetFilter = { ids, label, origin };
     state.financialEntryFilters = { search: "", type: "", accountId: "", categoryId: "", status: "", startDate: "", endDate: "" };
     state.financialEntryAccountFilter = "";
