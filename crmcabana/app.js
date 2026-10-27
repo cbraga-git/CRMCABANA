@@ -2788,9 +2788,9 @@ function askFinancialInstallmentChanges(count) {
     dialog.className = "save-choice-dialog";
     dialog.innerHTML = `<form method="dialog" class="save-choice-card">
       <h2>Salvar nas demais parcelas?</h2>
-      <p>Deseja aplicar as altera??es tamb?m ?s outras ${count} parcela(s) pendente(s)?</p>
-      <p>Sim: salva neste registro e nas demais parcelas pendentes. N?o: salva somente neste registro. Parcelas pagas ou canceladas ser?o preservadas.</p>
-      <div class="save-choice-actions"><button class="button secondary" value="no" type="submit">N?o</button><button class="button primary" value="yes" type="submit">Sim</button></div>
+      <p>Deseja aplicar as alterações também às outras ${count} parcela(s) pendente(s)?</p>
+      <p>Sim: salva neste registro e nas demais parcelas pendentes. Não: salva somente neste registro. Parcelas pagas ou canceladas serão preservadas.</p>
+      <div class="save-choice-actions"><button class="button secondary" value="no" type="submit">Não</button><button class="button primary" value="yes" type="submit">Sim</button></div>
     </form>`;
     document.body.appendChild(dialog);
     dialog.addEventListener("cancel", (event) => event.preventDefault());
@@ -2832,9 +2832,9 @@ async function submitFinancialEntry(event) {
         while (true) {
           const query = `?installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&select=*&order=id.asc&limit=1000&offset=${offset}`;
           const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ headers: supabaseHeaders() }));
-          if (!response.ok) throw new Error("N?o foi poss?vel consultar as demais parcelas. Nenhuma altera??o foi salva.");
+          if (!response.ok) throw new Error("Não foi possível consultar as demais parcelas. Nenhuma alteração foi salva.");
           const page = await response.json();
-          if (!Array.isArray(page)) throw new Error("Resposta inv?lida ao consultar as demais parcelas. Nenhuma altera??o foi salva.");
+          if (!Array.isArray(page)) throw new Error("Resposta inválida ao consultar as demais parcelas. Nenhuma alteração foi salva.");
           entries.push(...page.filter((entry) => entry.id !== editedEntry.id && ["pending", "overdue"].includes(entry.status)));
           if (page.length < 1000) break;
           offset += page.length;

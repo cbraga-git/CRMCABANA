@@ -5,6 +5,12 @@ import { runInNewContext } from "node:vm";
 
 for (const name of ["crmcabana", "gestaocabana"]) {
 const app = await readFile(new URL(`../${name}/app.js`, import.meta.url), "utf8");
+test(`${name}: installment dialog preserves Portuguese accents`, () => {
+  const dialog = app.slice(app.indexOf("function askFinancialInstallmentChanges("), app.indexOf("async function submitFinancialEntry("));
+  for (const text of ["altera\u00e7\u00f5es", "tamb\u00e9m", "\u00e0s outras", "N\u00e3o", "ser\u00e3o"]) assert.ok(dialog.includes(text), text);
+  assert.equal(dialog.includes("\ufffd"), false);
+  assert.equal(/altera\?\?|N\?o|tamb\?m|ser\?o/.test(dialog), false);
+});
 const start = app.indexOf("async function submitFinancialEntry(");
 const end = app.indexOf("\nfunction renderFinancialImports(", start);
 const dateStart = app.indexOf("function addMonthsToFinancialDate(");
