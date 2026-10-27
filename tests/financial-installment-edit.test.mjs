@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 
-const app = await readFile(new URL("../crmcabana/app.js", import.meta.url), "utf8");
+for (const name of ["crmcabana", "gestaocabana"]) {
+const app = await readFile(new URL(`../${name}/app.js`, import.meta.url), "utf8");
 const start = app.indexOf("async function submitFinancialEntry(");
 const end = app.indexOf("\nfunction renderFinancialImports(", start);
 const dateStart = app.indexOf("function addMonthsToFinancialDate(");
@@ -19,13 +20,13 @@ for (const scope of ["company", "braga"]) for (const accept of [true, false]) {
     const submit = runInNewContext(`${app.slice(dateStart, dateEnd)}\n${app.slice(start, end)}\nsubmitFinancialEntry`, {
       state, document: { querySelector: (selector) => ({ value: values[selector.slice(1)] || "" }) },
       resolveFinancialEntryAmount: () => 75, normalizeFinancialTag: () => "", formatFinancialDescription: String, notesWithFinancialTags: () => "",
-      confirm: () => { prompts++; return accept; },
+      askFinancialInstallmentChanges: async () => { prompts++; return accept; },
       supabaseTableEndpoint: (_, query, requestedScope) => { assert.equal(requestedScope, scope); return query; }, supabaseHeaders: () => ({}),
       authorizedFetch: async (url, options) => {
         const request = options(); queries.push(url);
         if (request.method === "PATCH") { patches.push({ url, payload: JSON.parse(request.body) }); return { ok: true }; }
-        assert.match(url, /status=in\.\(pending,overdue\)/);
-        return { ok: true, json: async () => [{ id: "earlier", installment_number: 1 }, { id: "later", installment_number: 3 }] };
+        assert.match(url, /installment_group_id=eq.group/);
+        return { ok: true, json: async () => [{ id: "earlier", installment_number: 1, status: "pending" }, { id: "later", installment_number: 3, status: "overdue" }, { ...edited, status: "pending" }, { id: "paid", status: "paid" }, { id: "cancelled", status: "cancelled" }] };
       },
       saveFinancialRecord: async (_, id, payload, requestedScope) => { assert.equal(requestedScope, scope); saved.push({ id, payload }); },
       loadFinancialRegisters: async () => {}, renderFinancialEntries() {}, elements: { financialEntryDialog: { close() {} } },
@@ -40,7 +41,7 @@ for (const scope of ["company", "braga"]) for (const accept of [true, false]) {
       assert.equal(patches[0].payload.due_date, "2026-10-30");
       assert.equal(patches[1].payload.due_date, "2026-12-30");
       for (const { url, payload } of patches) {
-        assert.match(url, /status=in\.\(pending,overdue\)/);
+        assert.match(url, /status=eq\.(pending|overdue)/);
         assert.match(url, /installment_group_id=eq.group/);
         assert.equal(payload.amount, 75);
         assert.equal(payload.issue_date, payload.due_date);
@@ -52,4 +53,6 @@ for (const scope of ["company", "braga"]) for (const accept of [true, false]) {
     }
     assert.equal(state.financialOperations, 0);
   });
+}
+
 }

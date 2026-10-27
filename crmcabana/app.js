@@ -2782,6 +2782,27 @@ function openFinancialEntryDialog(entryId = null, duplicate = false) {
   elements.financialEntryDialog.showModal();
 }
 
+function askFinancialInstallmentChanges(count) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    dialog.className = "save-choice-dialog";
+    dialog.innerHTML = `<form method="dialog" class="save-choice-card">
+      <h2>Salvar nas demais parcelas?</h2>
+      <p>Deseja aplicar as altera??es tamb?m ?s outras ${count} parcela(s) pendente(s)?</p>
+      <p>Sim: salva neste registro e nas demais parcelas pendentes. N?o: salva somente neste registro. Parcelas pagas ou canceladas ser?o preservadas.</p>
+      <div class="save-choice-actions"><button class="button secondary" value="no" type="submit">N?o</button><button class="button primary" value="yes" type="submit">Sim</button></div>
+    </form>`;
+    document.body.appendChild(dialog);
+    dialog.addEventListener("cancel", (event) => event.preventDefault());
+    dialog.addEventListener("close", () => {
+      const accepted = dialog.returnValue === "yes";
+      dialog.remove();
+      resolve(accepted);
+    }, { once: true });
+    dialog.showModal();
+  });
+}
+
 async function submitFinancialEntry(event) {
   state.financialOperations = (state.financialOperations || 0) + 1;
   try {
@@ -2806,11 +2827,19 @@ async function submitFinancialEntry(event) {
       const scope = state.financialScope || "company";
       let pendingInstallments = [];
       if (editedEntry?.installment_group_id) {
-        const query = `?installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&id=neq.${encodeURIComponent(editedEntry.id)}&status=in.(pending,overdue)&select=*`;
-        const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ headers: supabaseHeaders() }));
-        if (!response.ok) throw new Error("Não foi possível consultar as demais parcelas. Nenhuma alteração foi salva.");
-        const entries = await response.json();
-        if (entries.length && confirm(`Deseja aplicar as alterações também às outras ${entries.length} parcela(s) pendente(s)? Cancelar altera somente este registro. Parcelas pagas ou canceladas serão preservadas.`)) pendingInstallments = entries;
+        const entries = [];
+        let offset = 0;
+        while (true) {
+          const query = `?installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&select=*&order=id.asc&limit=1000&offset=${offset}`;
+          const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ headers: supabaseHeaders() }));
+          if (!response.ok) throw new Error("N?o foi poss?vel consultar as demais parcelas. Nenhuma altera??o foi salva.");
+          const page = await response.json();
+          if (!Array.isArray(page)) throw new Error("Resposta inv?lida ao consultar as demais parcelas. Nenhuma altera??o foi salva.");
+          entries.push(...page.filter((entry) => entry.id !== editedEntry.id && ["pending", "overdue"].includes(entry.status)));
+          if (page.length < 1000) break;
+          offset += page.length;
+        }
+        if (entries.length && await askFinancialInstallmentChanges(entries.length)) pendingInstallments = entries;
       }
       await saveFinancialRecord("crm_financial_entries", state.financialEditingEntryId, installmentCount > 1 ? records : records[0], scope);
       for (const entry of pendingInstallments) {
@@ -2825,7 +2854,7 @@ async function submitFinancialEntry(event) {
           Object.assign(changes, { due_date: date, issue_date: date, competence_date: date });
         }
         if (!Object.keys(changes).length) continue;
-        const query = `?id=eq.${encodeURIComponent(entry.id)}&installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&status=in.(pending,overdue)`;
+        const query = `?id=eq.${encodeURIComponent(entry.id)}&installment_group_id=eq.${encodeURIComponent(editedEntry.installment_group_id)}&status=eq.${encodeURIComponent(entry.status)}`;
         const response = await authorizedFetch(supabaseTableEndpoint("crm_financial_entries", query, scope), () => ({ method: "PATCH", headers: supabaseHeaders(), body: JSON.stringify(changes) }));
         if (!response.ok) throw new Error("O registro foi salvo, mas não foi possível atualizar todas as demais parcelas. Confira os lançamentos antes de tentar novamente.");
       }
