@@ -5582,6 +5582,7 @@ async function openBudgetEditor(clientId = state.selectedId, options = {}) {
   state.selectedId = state.budgetIsNew && !clientId ? null : clientId || state.selectedId;
   state.budgetSourceId = state.budgetIsNew ? null : state.selectedId;
   state.budgetEditingId = options.budgetId || null;
+  state.budgetSaveBaseline = undefined;
   if (!state.budgetIsNew) {
     try {
       await reconcileBudgetFinancialStatus(state.budgetSourceId, budgetForEditing(sourceBudgetClient()));
@@ -6040,6 +6041,20 @@ async function deleteBudgetFinancialSimulation(budget) {
   return { deleted: existing.length };
 }
 
+function budgetConflictContent(value) {
+  if (Array.isArray(value)) return value.map(budgetConflictContent);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, budgetConflictContent(value[key])]));
+  }
+  return value;
+}
+
+function sameBudgetConflictContent(first, second) {
+  const { updatedAt: firstUpdatedAt, ...firstContent } = first || {};
+  const { updatedAt: secondUpdatedAt, ...secondContent } = second || {};
+  return JSON.stringify(budgetConflictContent(firstContent)) === JSON.stringify(budgetConflictContent(secondContent));
+}
+
 async function recoverBudgetSaveConflict(clientId, previousBudget, budgetPayload) {
   const response = await authorizedFetch(supabaseEndpoint(`?id=eq.${encodeURIComponent(clientId)}&select=user_id,data,updated_at&limit=1`), () => ({ headers: supabaseHeaders() }));
   if (!response.ok) throw new Error("Não foi possível buscar a versão mais recente do cadastro. O orçamento continua aberto com suas alterações.");
@@ -6049,7 +6064,7 @@ async function recoverBudgetSaveConflict(clientId, previousBudget, budgetPayload
   const identity = budgetIdentity(budgetPayload);
   const remoteBudgets = clientBudgetHistory(remoteClient);
   const remoteBudget = remoteBudgets.find((budget) => budgetIdentity(budget) === identity);
-  if (previousBudget && (!remoteBudget || remoteBudget.updatedAt !== previousBudget.updatedAt)) {
+  if (previousBudget && (!remoteBudget || (remoteBudget.updatedAt !== previousBudget.updatedAt && !sameBudgetConflictContent(remoteBudget, previousBudget)))) {
     throw new Error("Este mesmo orçamento foi alterado em outra aba, dispositivo ou por outro usuário. Suas alterações continuam abertas nesta tela; copie os dados necessários antes de decidir qual versão manter.");
   }
   if (remoteBudgets.some((budget) => budgetIdentity(budget) !== identity && normalizedBudgetCode(budget.code) === normalizedBudgetCode(budgetPayload.code))) {
@@ -6102,6 +6117,9 @@ async function saveBudget(options = {}) {
   if (!validateBudgetAssemblyDetails(budgetStatus, settings)) return false;
   if (!validateBudgetLedAssembly(rows)) return false;
   const previousBudget = state.budgetEditingId ? budgetForEditing(sourceBudgetClient()) : null;
+  if (state.budgetSaveBaseline === undefined) {
+    state.budgetSaveBaseline = previousBudget ? JSON.parse(JSON.stringify(previousBudget)) : null;
+  }
   const financialAction = previousBudget?.financialLaunchedAt ? "" : options.financialAction || (options.launchFinancial ? "launch" : "");
   const effectiveFinancialAction = financialAction === "launch" || financialAction === "finalizeSimulation";
   const simulationFinancialAction = financialAction === "simulate";
@@ -6182,7 +6200,7 @@ async function saveBudget(options = {}) {
   state.selectedId = client.id;
   const changedIds = sourceId && sourceId !== client.id ? [client.id, sourceId] : [client.id];
   const conflictRecovery = changedIds.length === 1
-    ? { onConflict: () => recoverBudgetSaveConflict(client.id, previousBudget, budgetPayload) }
+    ? { onConflict: () => recoverBudgetSaveConflict(client.id, state.budgetSaveBaseline, budgetPayload) }
     : {};
   if (!(await saveClients(changedIds, conflictRecovery))) return false;
   let financialResult = null;

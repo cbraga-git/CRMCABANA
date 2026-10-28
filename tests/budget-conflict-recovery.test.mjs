@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 
-const app = await readFile(new URL("../crmcabana/app.js", import.meta.url), "utf8");
-const start = app.indexOf("async function recoverBudgetSaveConflict(clientId, previousBudget, budgetPayload) {");
+for (const name of ["crmcabana", "gestaocabana"]) {
+const app = await readFile(new URL(`../${name}/app.js`, import.meta.url), "utf8");
+const start = app.indexOf("function budgetConflictContent(");
 const end = app.indexOf("\nasync function saveBudget(options = {})", start);
 assert.ok(start >= 0 && end > start);
 
@@ -40,7 +41,7 @@ test("conflito em outra parte do cliente preserva dados remotos e reaplica somen
 
 test("conflito no próprio orçamento não sobrescreve servidor e mantém editor aberto", async () => {
   const previous = { id: "budget-1", code: "100", updatedAt: "budget-v1" };
-  const remote = { ...previous, updatedAt: "budget-alterado-em-outra-sessao" };
+  const remote = { ...previous, updatedAt: "budget-alterado-em-outra-sessao", notes: "changed remotely" };
   const edited = { ...previous, updatedAt: "budget-v2" };
   const harness = recoveryHarness(remote);
   await assert.rejects(harness.recover("client-1", previous, edited), /Suas alterações continuam abertas/);
@@ -52,3 +53,18 @@ test("salvar orçamento ativa recuperação apenas para conflito de um cliente",
   assert.match(app, /changedIds\.length === 1[\s\S]*?onConflict: \(\) => recoverBudgetSaveConflict/);
   assert.match(app, /const recovered = await options\.onConflict\(error\);[\s\S]*?if \(recovered\)[\s\S]*?return true;/);
 });
+
+test(`${name}: timestamp-only changes do not block saving`, async () => {
+  const previous = { id: "budget-1", code: "100", updatedAt: "v1", settings: { rate: 12 }, rows: [{ gross: 10 }] };
+  const remote = { ...previous, updatedAt: "v2" };
+  const edited = { ...previous, updatedAt: "v3", rows: [{ gross: 20 }] };
+  const harness = recoveryHarness(remote);
+  assert.equal(await harness.recover("client-1", previous, edited), true);
+  assert.deepEqual(harness.saved().budgets[0].rows, [{ gross: 20 }]);
+});
+test(`${name}: retries use the baseline captured before local changes`, () => {
+  assert.match(app, /if \(state\.budgetSaveBaseline === undefined\)/);
+  assert.match(app, /recoverBudgetSaveConflict\(client\.id, state\.budgetSaveBaseline, budgetPayload\)/);
+  assert.match(app, /state\.budgetEditingId = options\.budgetId \|\| null;\s*state\.budgetSaveBaseline = undefined;/);
+});
+}
