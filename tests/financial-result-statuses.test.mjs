@@ -30,15 +30,17 @@ for (const app of ['crmcabana', 'gestaocabana']) {
     state.financialStatuses = ['Aprovado', 'Finalizado'];
     assert.deepEqual(Array.from(api.filteredBudgets(), row => row.budget.status), ['Aprovado', 'Finalizado']);
   });
-  test(`${app}: result filters hide excluded buttons and select all eligible statuses initially`, () => {
+  test(`${app}: result filters offer Todos for eligible statuses only`, () => {
     const container = { innerHTML: '', children: [], appendChild(child) { this.children.push(child); } };
     const render = runInNewContext(`${allowedSource}\n${extract('function renderStatusFilters(', '\nfunction renderDashboard(')}\nrenderStatusFilters`, {
       state: { view: 'financial', financialStatuses: ['Todos'], appPreferences: {} },
-      BUDGET_STATUS: statuses, ORDER_STATUS: [], STATUS: [], budgetStatusCounts: () => ({}), setStatusFilter() {},
+      BUDGET_STATUS: statuses, ORDER_STATUS: [], STATUS: [], budgetStatusCounts: () => ({ Todos: 21, Novo: 1, "Negocia\u00e7\u00e3o": 2, Aprovado: 3, "Em produ\u00e7\u00e3o": 4, Finalizado: 5, Recusado: 6 }), setStatusFilter() {},
       document: { createElement: () => ({ children: [], appendChild(child) { this.children.push(child); }, setAttribute() {}, addEventListener() {} }) },
     });
     render(container, 'Todos', 'financial');
-    assert.deepEqual(container.children.map(button => button.children[0].textContent), statuses.slice(2, 5));
-    assert.ok(container.children.every(button => button.className.includes('active')));
+    assert.deepEqual(container.children.map(button => button.children[0].textContent), ['Todos', ...statuses.slice(2, 5)]);
+    assert.ok(container.children[0].className.includes('active'));
+    assert.ok(container.children.slice(1).every(button => !button.className.includes('active')));
+    assert.equal(container.children[0].children[1].textContent, '12');
   });
 }

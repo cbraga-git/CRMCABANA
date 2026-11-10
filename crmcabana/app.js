@@ -3404,17 +3404,20 @@ function renderStatusFilters(container, activeStatus, group) {
 
   const documentStatuses = group === "budget" && state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
   const statuses = group === "financial"
-    ? documentStatuses.filter(financialResultStatusAllowed)
+    ? ["Todos", ...documentStatuses.filter(financialResultStatusAllowed)]
     : group === "budget" && state.view === "budget"
     ? ["Todos", "Todos Ativos", ...documentStatuses.filter((status) => status !== "Finalizado" && status !== "Recusado"), ...["Finalizado", "Recusado"].filter((status) => documentStatuses.includes(status))]
     : group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
   const statusCounts = group === "budget" || group === "financial" ? budgetStatusCounts() : {};
+  if (group === "financial") {
+    statusCounts.Todos = documentStatuses.filter(financialResultStatusAllowed).reduce((total, status) => total + (statusCounts[status] || 0), 0);
+  }
   const showCounts = state.appPreferences?.showStatusCounts !== false;
 
   statuses.forEach((status) => {
     const button = document.createElement("button");
     const multiSelect = group === "financial" || (group === "budget" && state.view === "budget");
-    const active = group === "financial" ? state.financialStatuses.includes("Todos") || state.financialStatuses.includes(status) : group === "budget" && state.view === "budget" ? state.budgetSelectedStatuses.includes(status) : status === activeStatus;
+    const active = group === "financial" ? state.financialStatuses.includes(status) : group === "budget" && state.view === "budget" ? state.budgetSelectedStatuses.includes(status) : status === activeStatus;
     button.className = `pill ${active ? "active" : ""}`;
     button.type = "button";
     if (multiSelect) {
