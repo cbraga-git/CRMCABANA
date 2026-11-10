@@ -7712,13 +7712,89 @@ function applyPromobEnvironmentToBudgetForm(environment) {
   return "added";
 }
 
+async function nobiliaXmlFiles(file) {
+  if (/\.xml$/i.test(file.name)) return [file];
+  if (!/\.zip$/i.test(file.name)) throw new Error("Selecione um arquivo XML ou ZIP.");
+  const limit = 50 * 1024 * 1024;
+  if (file.size > limit) throw new Error("O ZIP excede o limite de 50 MB.");
+  const buffer = await file.arrayBuffer();
+  const view = new DataView(buffer);
+  const invalid = () => { throw new Error("Arquivo ZIP inválido ou não suportado."); };
+  const check = (offset, length) => { if (offset < 0 || offset + length > view.byteLength) invalid(); };
+  let end = view.byteLength - 22;
+  for (; end >= Math.max(0, view.byteLength - 65557); end--) {
+    if (view.getUint32(end, true) === 0x06054b50 && end + 22 + view.getUint16(end + 20, true) === view.byteLength) break;
+  }
+  if (end < Math.max(0, view.byteLength - 65557)) invalid();
+  if (view.getUint16(end + 4, true) || view.getUint16(end + 6, true)) invalid();
+  const count = view.getUint16(end + 10, true);
+  if (count === 65535 || count !== view.getUint16(end + 8, true)) invalid();
+  let offset = view.getUint32(end + 16, true);
+  const directoryEnd = offset + view.getUint32(end + 12, true);
+  if (directoryEnd > end) invalid();
+  const files = [];
+  let total = 0;
+  for (let index = 0; index < count; index++) {
+    check(offset, 46);
+    if (view.getUint32(offset, true) !== 0x02014b50) invalid();
+    const flags = view.getUint16(offset + 8, true);
+    const method = view.getUint16(offset + 10, true);
+    const crc = view.getUint32(offset + 16, true);
+    const compressedSize = view.getUint32(offset + 20, true);
+    const size = view.getUint32(offset + 24, true);
+    const nameLength = view.getUint16(offset + 28, true);
+    const next = offset + 46 + nameLength + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+    const local = view.getUint32(offset + 42, true);
+    if (next > directoryEnd) invalid();
+    check(offset + 46, nameLength);
+    const name = new TextDecoder().decode(new Uint8Array(buffer, offset + 46, nameLength));
+    offset = next;
+    if (!/\.xml$/i.test(name) || /(^|\/)__MACOSX\/|(^|\/)\._/.test(name)) continue;
+    if (flags & 1) throw new Error("O ZIP contém XML protegido por senha.");
+    total += size;
+    if (total > limit || files.length >= 200) throw new Error("O ZIP excede o limite de 200 XMLs ou 50 MB descompactados.");
+    check(local, 30);
+    if (view.getUint32(local, true) !== 0x04034b50) invalid();
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    check(start, compressedSize);
+    const compressed = new Uint8Array(buffer, start, compressedSize);
+    let bytes;
+    if (method === 0) bytes = compressed;
+    else if (method === 8 && typeof DecompressionStream === "function") {
+      const reader = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+      const chunks = [];
+      let length = 0;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          length += value.length;
+          if (length > size || length > limit) { await reader.cancel(); invalid(); }
+          chunks.push(value);
+        }
+      } finally { reader.releaseLock(); }
+      bytes = new Uint8Array(await new Blob(chunks).arrayBuffer());
+    } else throw new Error("Compressão ZIP não suportada. Use ZIP padrão e Chrome ou Edge atualizado.");
+    if (bytes.length !== size || backupZipCrc32(bytes) !== crc) throw new Error("XML corrompido no ZIP: " + name);
+    files.push(new File([bytes], file.name + " / " + name, { type: "application/xml" }));
+  }
+  if (offset !== directoryEnd) invalid();
+  if (!files.length) throw new Error("Nenhum arquivo XML foi encontrado no ZIP.");
+  return files;
+}
+
 async function importPromobXmlFiles(fileList) {
-  const files = Array.from(fileList || []);
-  if (!files.length) return;
+  const selectedFiles = Array.from(fileList || []);
+  if (!selectedFiles.length) return;
+  const files = [];
+  const failedFiles = [];
+  for (const selected of selectedFiles) {
+    try { files.push(...await nobiliaXmlFiles(selected)); }
+    catch (error) { failedFiles.push(selected.name + ": " + error.message); }
+  }
 
   let added = 0;
   let corrected = 0;
-  const failedFiles = [];
   let clientResolution = null;
 
   for (const file of files) {
@@ -7739,13 +7815,15 @@ async function importPromobXmlFiles(fileList) {
       });
     } catch (error) {
       console.warn(error);
-      failedFiles.push(file.name);
+      failedFiles.push(file.name + ": " + error.message);
     }
   }
 
-  setBudgetTableOrderMode(state.view === "order");
-  markBudgetDirty();
-  updateBudgetSummary();
+  if (added || corrected) {
+    setBudgetTableOrderMode(state.view === "order");
+    markBudgetDirty();
+    updateBudgetSummary();
+  }
 
   const summary = [];
   if (clientResolution?.isNewClient) summary.push(`cliente ${clientResolution.client.name} cadastrado`);

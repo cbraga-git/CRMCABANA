@@ -104,7 +104,7 @@
 
         <div class="app-version" title="Versao publicada">
           <span class="app-version-label">Versao</span>
-          <strong>Build 10/11/2026 15:22 · 364bcb4</strong>
+          <strong>Build 10/11/2026 20:10 · Nobilia XML/ZIP</strong>
         </div>
 
         <div class="app-version sync-pending-chip" id="syncPendingChip" hidden title="Ha alteracoes locais aguardando sincronizacao com o servidor">
@@ -412,7 +412,7 @@
                 <button class="button secondary" id="budgetViewTransactionsBtn" type="button" hidden>Ver transações</button>
                 <button class="button secondary budget-action-button" id="budgetBackToList" type="button" aria-label="Voltar" title="Voltar">←</button>
                 <button class="button secondary budget-action-button" id="budgetEditClientBtn" type="button" aria-label="Editar cliente" title="Editar cliente">👤</button>
-                <button class="button secondary budget-action-button" id="budgetImportPromobBtn" type="button" aria-label="Importar XML do Promob" title="Importar XML do Promob">📥</button>
+                <button class="button secondary budget-action-button" id="budgetImportPromobBtn" type="button" aria-label="Importar XML ou ZIP Nobilia / Promob" title="Importar XML ou ZIP Nobilia / Promob">📥</button>
                 <button class="button secondary budget-action-button" id="budgetPrintOrderBtn" type="button" aria-label="Gerar pedido" title="Gerar pedido">🤝</button>
                 <button class="button secondary budget-action-button" id="budgetPrintQuoteBtn" type="button" aria-label="Gerar orçamento" title="Gerar orçamento">🧾</button>
                 <button class="button secondary budget-action-button danger" id="budgetDeleteBtn" type="button" aria-label="Excluir orçamento" title="Excluir orçamento">🗑</button>
@@ -1252,8 +1252,8 @@
     </dialog>
 
     <input id="leadImportFile" type="file" accept=".csv,text/csv" hidden />
-    <input id="promobImportFile" type="file" accept=".xml,text/xml" multiple hidden />
+    <input id="promobImportFile" type="file" accept=".xml,.zip,text/xml,application/xml,application/zip,application/x-zip-compressed" multiple hidden />
 
-    <script src="app.js?v=20261110-budget-results-all"></script>
+    <script src="app.js?v=20261110-nobilia-zip"></script>
   </body>
 </html>
