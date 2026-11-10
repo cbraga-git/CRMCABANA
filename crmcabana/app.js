@@ -3394,12 +3394,18 @@ function budgetStatusCounts() {
   return counts;
 }
 
+function financialResultStatusAllowed(status) {
+  return !["Todos", "Recusado", "Novo", "Negociação"].includes(status);
+}
+
 function renderStatusFilters(container, activeStatus, group) {
   if (!container) return;
   container.innerHTML = "";
 
   const documentStatuses = group === "budget" && state.view === "order" ? ORDER_STATUS : BUDGET_STATUS;
-  const statuses = group === "budget" && state.view === "budget"
+  const statuses = group === "financial"
+    ? documentStatuses.filter(financialResultStatusAllowed)
+    : group === "budget" && state.view === "budget"
     ? ["Todos", "Todos Ativos", ...documentStatuses.filter((status) => status !== "Finalizado" && status !== "Recusado"), ...["Finalizado", "Recusado"].filter((status) => documentStatuses.includes(status))]
     : group === "budget" || group === "financial" ? ["Todos", ...documentStatuses] : STATUS;
   const statusCounts = group === "budget" || group === "financial" ? budgetStatusCounts() : {};
@@ -3408,7 +3414,7 @@ function renderStatusFilters(container, activeStatus, group) {
   statuses.forEach((status) => {
     const button = document.createElement("button");
     const multiSelect = group === "financial" || (group === "budget" && state.view === "budget");
-    const active = group === "financial" ? state.financialStatuses.includes(status) : group === "budget" && state.view === "budget" ? state.budgetSelectedStatuses.includes(status) : status === activeStatus;
+    const active = group === "financial" ? state.financialStatuses.includes("Todos") || state.financialStatuses.includes(status) : group === "budget" && state.view === "budget" ? state.budgetSelectedStatuses.includes(status) : status === activeStatus;
     button.className = `pill ${active ? "active" : ""}`;
     button.type = "button";
     if (multiSelect) {
@@ -3493,7 +3499,7 @@ function renderChart(budgets) {
   const width = displayWidth;
   const height = displayHeight;
   const padding = state.view === "budget" ? { top: 12, right: 18, bottom: 52, left: 64 } : { top: 22, right: 24, bottom: 70, left: 72 };
-  const statuses = BUDGET_STATUS;
+  const statuses = state.view === "financial" ? BUDGET_STATUS.filter(financialResultStatusAllowed) : BUDGET_STATUS;
   const values = statuses.map((status) => {
     const statusBudgets = budgets.filter(({ budget }) => budget.status === status);
     return statusBudgets.reduce(
@@ -5667,9 +5673,7 @@ function filteredBudgets() {
       const searchableValues = orderMode ? [client.name, budgetContact] : [budget.code, budget.status, client.name, budgetContact, client.status, responsibleSeller(client), client.id];
       const matchesSearch = searchableValues.some((value) => String(value || "").toLowerCase().includes(search));
       const matchesStatus = state.view === "financial"
-        ? state.financialStatuses.includes("Todos")
-          ? budget.status !== "Recusado" && budget.status !== "Finalizado"
-          : state.financialStatuses.includes(budget.status)
+        ? financialResultStatusAllowed(budget.status) && (state.financialStatuses.includes("Todos") || state.financialStatuses.includes(budget.status))
         : orderMode
         ? state.budgetStatus === "Todos"
           ? ORDER_STATUS.includes(budget.status)

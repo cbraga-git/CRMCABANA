@@ -70,6 +70,7 @@ test("demonstrativo soma apenas os orçamentos dos status combinados", () => {
     `${extract("function filteredBudgets() {", "\nfunction renderBudgetClientOptions(")}\nfilteredBudgets`,
     {
       state,
+      financialResultStatusAllowed: runInNewContext(`${extract("function financialResultStatusAllowed(", "\nfunction renderStatusFilters(")}\nfinancialResultStatusAllowed`),
       clientBudgetHistory: (client) => client.budgets,
       responsibleSeller: () => "",
       budgetDateValue: () => "2026-09-16",
@@ -78,9 +79,9 @@ test("demonstrativo soma apenas os orçamentos dos status combinados", () => {
       ORDER_STATUS: [],
     }
   );
-  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Aprovado", "Recusado"]);
+  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Aprovado"]);
   state.financialStatuses = ["Todos"];
-  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Novo", "Aprovado"]);
+  assert.deepEqual(Array.from(filteredBudgets(), ({ budget }) => budget.status), ["Aprovado", "Finalizado"]);
 
   state.view = "budget";
   state.budgetSelectedStatuses = ["Novo", "Recusado"];
