@@ -135,7 +135,7 @@ test("personal reports query only personal tables, without requesting CRM client
 });
 
 test("personal menu preserves the active financial features and has unique IDs", () => {
-  const menu = html.slice(html.indexOf('id="bragaFinancialNavGroup"'), html.indexOf('id="reportsNavItem"'));
+  const menu = html.slice(html.indexOf('id="bragaFinancialSubmenu"'), html.indexOf("</nav>", html.indexOf('id="bragaFinancialSubmenu"')));
   for (const view of ["financeOverview", "financeAccounts", "financeTransactions", "financeImport", "financeCategories", "reports"]) {
     assert.match(menu, new RegExp(`data-view="${view}" data-financial-scope="braga"`));
   }

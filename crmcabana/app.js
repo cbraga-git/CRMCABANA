@@ -1736,6 +1736,18 @@ async function showView(view, selectedId, requestedFinancialScope) {
   });
   elements.financialNavGroup?.classList.toggle("active", state.financialScope === "company" && (view === "financial" || isFinanceModuleView(view)));
   document.querySelector("#bragaFinancialNavGroup")?.classList.toggle("active", state.financialScope === "braga" && financialView);
+  const showingFinancialScreen = financialView || view === "financial";
+  for (const [id, scope] of [["financialSubmenu", "company"], ["bragaFinancialSubmenu", "braga"]]) {
+    const menu = document.querySelector(`#${id}`);
+    if (menu) menu.hidden = !showingFinancialScreen || state.financialScope !== scope;
+  }
+  for (const [id, scope] of [["financialNavToggle", "company"], ["bragaFinancialNavToggle", "braga"]]) {
+    document.querySelector(`#${id}`)?.classList.toggle("active", showingFinancialScreen && state.financialScope === scope);
+  }
+  document.querySelectorAll(".financial-menu-item").forEach((item) => {
+    if (item.classList.contains("active")) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  });
   const configActive = ["users", "environments", "budgetStatuses", "maintenance"].includes(view);
   document.querySelector("#configNavGroup")?.classList.toggle("active", configActive);
   if (configActive) {
@@ -1781,12 +1793,7 @@ function renderFinanceModuleView(view) {
   if (showingCategories) renderFinancialCategories();
   if (showingEntries) renderFinancialEntries(view);
   if (showingImport) renderFinancialImports();
-  const submenu = state.financialScope === "braga" ? document.querySelector("#bragaFinancialSubmenu") : elements.financialSubmenu;
-  const toggle = state.financialScope === "braga" ? document.querySelector("#bragaFinancialNavToggle") : elements.financialNavToggle;
-  if (submenu?.hidden && !startsInFinanceTransactions()) {
-    submenu.hidden = false;
-    toggle?.setAttribute("aria-expanded", "true");
-  }
+
 }
 
 const FINANCIAL_CHART_COLORS = ["#aa8e34", "#22a657", "#0e9b78", "#f59b05", "#f43f68", "#2563eb", "#8b5cf6", "#64748b", "#d97706", "#0891b2"];
@@ -8004,20 +8011,6 @@ document.querySelector("#configNavToggle")?.addEventListener("click", () => {
   document.querySelector("#configSubmenu").hidden = expanded;
 });
 
-elements.financialNavToggle?.addEventListener("click", () => {
-  const expanded = elements.financialNavToggle.getAttribute("aria-expanded") === "true";
-  elements.financialNavToggle.setAttribute("aria-expanded", String(!expanded));
-  elements.financialSubmenu.hidden = expanded;
-});
-
-document.querySelector("#bragaFinancialNavToggle")?.addEventListener("click", () => {
-  if (!canAccessBragaFinance()) return;
-  const toggle = document.querySelector("#bragaFinancialNavToggle");
-  const expanded = toggle.getAttribute("aria-expanded") === "true";
-  toggle.setAttribute("aria-expanded", String(!expanded));
-  document.querySelector("#bragaFinancialSubmenu").hidden = expanded;
-});
-
 elements.navItems.forEach((item) => {
   item.addEventListener("click", async () => {
     if (item.dataset.view === "financeTransactions") {
@@ -8851,12 +8844,6 @@ async function startApp() {
   refreshEnvironmentCatalog();
   state.selectedId = state.clients[0]?.id || null;
   const initialView = startsInFinanceTransactions() ? "financeTransactions" : isAdmin() ? "budget" : "clients";
-  if (startsInFinanceTransactions()) {
-    for (const [toggleId, submenuId] of [["financialNavToggle", "financialSubmenu"], ["bragaFinancialNavToggle", "bragaFinancialSubmenu"]]) {
-      document.querySelector(`#${toggleId}`).setAttribute("aria-expanded", "false");
-      document.querySelector(`#${submenuId}`).hidden = true;
-    }
-  }
   state.view = initialView;
   await showView(initialView, undefined, canAccessBragaFinance() && !isAdmin() ? "braga" : "company");
   render();

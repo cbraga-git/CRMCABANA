@@ -3911,3 +3911,34 @@ body[data-financial-scope="braga"] .financial-scope-message { background: #29171
 .financial-evolution-controls { flex-wrap: wrap; }
 .financial-evolution-controls .financial-multi-filter { flex: 1; min-width: 160px; max-width: 240px; }
 .financial-evolution-controls .financial-multi-options { width: 100%; max-width: 100%; }
+
+/* Menu horizontal de cada financeiro. */
+.financial-horizontal-menu {
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 24px;
+  padding: 6px;
+  border: 1px solid var(--sidebar-line);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.financial-horizontal-menu[hidden] { display: none; }
+.financial-horizontal-menu .financial-menu-item {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 42px;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: var(--text, #222);
+  white-space: nowrap;
+}
+.financial-horizontal-menu .financial-menu-item.active {
+  background: #d9c779;
+  color: #050505;
+}
+.financial-horizontal-menu .nav-icon { display: none; }
+body[data-sidebar-collapsed="true"] .financial-horizontal-menu .nav-label { display: inline; }
+.financial-horizontal-menu .financial-menu-item:focus-visible { outline: 2px solid #aa8e34; outline-offset: -2px; }
