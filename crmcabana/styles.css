@@ -3912,3 +3912,49 @@ body[data-financial-scope="braga"] .financial-scope-message { background: #29171
 .financial-horizontal-menu .nav-icon { display: none; }
 body[data-sidebar-collapsed="true"] .financial-horizontal-menu .nav-label { display: inline; }
 .financial-horizontal-menu .financial-menu-item:focus-visible { outline: 2px solid #aa8e34; outline-offset: -2px; }
+
+/* Contraste do acesso lateral e uso da area disponivel nos financeiros. */
+body[data-financial-scope="braga"] #bragaFinancialNavToggle:is(.active, :hover, :focus-visible) {
+  background: var(--accent);
+  color: #050505;
+}
+:is(#financialNavToggle, #bragaFinancialNavToggle):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:is(.financial-module-view, .financial-view, .reports-view) {
+  max-width: none;
+  min-width: 0;
+}
+.financial-horizontal-menu { margin-bottom: 12px; padding: 4px; gap: 4px; }
+.financial-horizontal-menu .financial-menu-item { min-height: 38px; padding: 8px 14px; }
+:is(.financial-module-view, .financial-view, .reports-view) > .page-header { margin-bottom: 12px; }
+.financial-dashboard-content, .financial-dashboard-charts { gap: 12px; }
+.financial-dashboard-content, .financial-register, .financial-transaction-summary { margin-top: 12px; }
+.financial-dashboard-card { padding: 16px; }
+.financial-register > header { padding: 12px 16px; gap: 12px; }
+.financial-account-cards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 12px; }
+.financial-entry-filters { padding: 10px 16px; gap: 8px; }
+.financial-entry-balance-controls, .financial-entry-pagination { padding: 8px 16px; }
+.financial-entry-pagination { min-height: 48px; }
+.financial-register :is(th, td) { padding-top: 10px; padding-bottom: 10px; }
+@media (min-width: 761px) {
+  body:is([data-view^="finance"], [data-view="financial"], [data-view="reports"]) .content {
+    padding: 12px 16px;
+  }
+  .financial-dashboard-card canvas { height: clamp(220px, 30dvh, 340px); }
+  .financial-dashboard-card .financial-balance-chart { height: clamp(240px, 34dvh, 380px); }
+}
+@media (min-width: 761px) and (min-height: 650px) {
+  body[data-view="financeTransactions"] .content { display: flex; flex-direction: column; }
+  body[data-view="financeTransactions"] .financial-horizontal-menu { flex-shrink: 0; }
+  body[data-view="financeTransactions"] #financialModuleView.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  body[data-view="financeTransactions"] #financialEntriesPanel { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-top: 0; }
+  body[data-view="financeTransactions"] #financialEntriesPanel > :not(.financial-entry-table-wrap) { flex-shrink: 0; }
+  body[data-view="financeTransactions"] .financial-entry-table-wrap { flex: 1; min-height: 160px; overflow: auto; }
+  body[data-view="financeTransactions"] .financial-entry-table thead { position: sticky; top: 0; z-index: 2; background: var(--card); }
+}
+@media (max-width: 760px) {
+  .financial-register > header { flex-wrap: wrap; }
+  .financial-dashboard-card { padding: 12px; }
+}
