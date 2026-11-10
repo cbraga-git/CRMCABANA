@@ -427,12 +427,12 @@ body[data-sidebar-collapsed="true"] .sidebar-toggle {
   margin-left: auto;
 }
 
-body[data-sidebar-collapsed="true"] .nav-list {
+body[data-sidebar-collapsed="true"] .sidebar .nav-list {
   padding-right: 6px;
   padding-left: 6px;
 }
 
-body[data-sidebar-collapsed="true"] .nav-item {
+body[data-sidebar-collapsed="true"] .sidebar .nav-item {
   justify-content: center;
   gap: 0;
   width: 100%;
@@ -440,7 +440,7 @@ body[data-sidebar-collapsed="true"] .nav-item {
   padding: 0;
 }
 
-body[data-sidebar-collapsed="true"] .nav-parent {
+body[data-sidebar-collapsed="true"] .sidebar .nav-parent {
   display: flex;
   justify-content: center;
   width: 100%;
@@ -448,21 +448,21 @@ body[data-sidebar-collapsed="true"] .nav-parent {
   padding: 0;
 }
 
-body[data-sidebar-collapsed="true"] .nav-parent .nav-label,
-body[data-sidebar-collapsed="true"] .nav-chevron {
+body[data-sidebar-collapsed="true"] .sidebar .nav-parent .nav-label,
+body[data-sidebar-collapsed="true"] .sidebar .nav-chevron {
   display: none;
 }
 
-body[data-sidebar-collapsed="true"] .nav-submenu {
+body[data-sidebar-collapsed="true"] .sidebar .nav-submenu {
   padding-left: 0;
 }
 
-body[data-sidebar-collapsed="true"] .nav-icon {
+body[data-sidebar-collapsed="true"] .sidebar .nav-icon {
   width: auto;
   min-width: 24px;
 }
 
-body[data-sidebar-collapsed="true"] .nav-label,
+body[data-sidebar-collapsed="true"] .sidebar .nav-label,
 body[data-sidebar-collapsed="true"] .user-chip > div,
 body[data-sidebar-collapsed="true"] .logout-label {
   display: none;
@@ -3384,12 +3384,12 @@ dialog::backdrop {
     height: 78px;
   }
 
-  body[data-sidebar-collapsed="true"] .nav-label,
+  body[data-sidebar-collapsed="true"] .sidebar .nav-label,
   body[data-sidebar-collapsed="true"] .logout-label {
     display: inline;
   }
 
-  body[data-sidebar-collapsed="true"] .nav-item {
+  body[data-sidebar-collapsed="true"] .sidebar .nav-item {
     justify-content: flex-start;
     gap: 12px;
     width: calc(100% - 12px);
@@ -3397,7 +3397,7 @@ dialog::backdrop {
     padding: 0 14px;
   }
 
-  body[data-sidebar-collapsed="true"] .nav-parent {
+  body[data-sidebar-collapsed="true"] .sidebar .nav-parent {
     display: grid;
     width: calc(100% - 12px);
     margin: 0 6px;
@@ -3406,12 +3406,12 @@ dialog::backdrop {
     padding: 0 14px;
   }
 
-  body[data-sidebar-collapsed="true"] .nav-parent .nav-label,
-  body[data-sidebar-collapsed="true"] .nav-chevron {
+  body[data-sidebar-collapsed="true"] .sidebar .nav-parent .nav-label,
+  body[data-sidebar-collapsed="true"] .sidebar .nav-chevron {
     display: initial;
   }
 
-  body[data-sidebar-collapsed="true"] .nav-submenu {
+  body[data-sidebar-collapsed="true"] .sidebar .nav-submenu {
     padding-left: 24px;
   }
 
@@ -3525,7 +3525,7 @@ dialog::backdrop {
   }
 
   .nav-submenu,
-  body[data-sidebar-collapsed="true"] .nav-submenu {
+  body[data-sidebar-collapsed="true"] .sidebar .nav-submenu {
     padding-left: 18px;
   }
 
@@ -3685,7 +3685,7 @@ dialog::backdrop {
   }
 
   .nav-submenu,
-  body[data-sidebar-collapsed="true"] .nav-submenu {
+  body[data-sidebar-collapsed="true"] .sidebar .nav-submenu {
     padding-left: 0;
   }
 
@@ -3910,7 +3910,6 @@ body[data-financial-scope="braga"] .financial-scope-message { background: #29171
   color: #050505;
 }
 .financial-horizontal-menu .nav-icon { display: none; }
-body[data-sidebar-collapsed="true"] .financial-horizontal-menu .nav-label { display: inline; }
 .financial-horizontal-menu .financial-menu-item:focus-visible { outline: 2px solid #aa8e34; outline-offset: -2px; }
 
 /* Contraste do acesso lateral e uso da area disponivel nos financeiros. */
