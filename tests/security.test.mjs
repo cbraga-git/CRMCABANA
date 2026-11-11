@@ -42,10 +42,10 @@ test("pagina define politica de seguranca de conteudo", () => {
 
 test("financeiro usa navegacao propria e preserva o painel de orcamentos", () => {
   assert.match(html, /<span class="nav-label">Financeiro<\/span>/);
-  assert.match(html, /id="financialNavToggle"[^>]*data-view="financeOverview"/);
+  assert.match(html, /id="financialNavToggle"[^>]*data-view="financeTransactions"/);
   assert.match(html, /class="financial-horizontal-menu" id="financialSubmenu"[^>]*hidden/);
   const sidebar = html.slice(html.indexOf("<aside"), html.indexOf("</aside>"));
-  assert.doesNotMatch(sidebar, /data-view="financeAccounts"|data-view="financeTransactions"|id="financialSubmenu"/);
+  assert.doesNotMatch(sidebar, /data-view="financeAccounts"|financial-menu-item|id="financialSubmenu"/);
   for (const view of ["financeOverview", "financeAccounts", "financeTransactions", "financePayable", "financeReceivable", "financeImport", "financeCategories", "financePlanning"]) {
     assert.match(html, new RegExp(`data-view="${view}"`));
   }
