@@ -50,7 +50,7 @@ for (const app of ["crmcabana", "gestaocabana"]) {
     ] };
     const nodes = new Map();
     const context = { state, document: { querySelector: (id) => { if (!nodes.has(id)) nodes.set(id, { querySelector: () => ({}) }); return nodes.get(id); } }, BRL: { format: String }, financialEntryDate: (entry) => entry.date,
-      financialAccountBalance: () => 0, financialEntryViewType: () => "", financialMonthBounds: () => ({ start: "2026-10-01", end: "2026-10-31" }), financialAccountFilterMatches: () => true, FINANCIAL_BANK_ACCOUNTS_FILTER: "__bank_accounts__" };
+      financialFilterValues: (value) => String(value || "").split("|").filter(Boolean), financialAccountBalance: () => 0, financialEntryViewType: () => "", financialMonthBounds: () => ({ start: "2026-10-01", end: "2026-10-31" }), financialAccountFilterMatches: () => true, FINANCIAL_BANK_ACCOUNTS_FILTER: "__bank_accounts__" };
     const start = source.indexOf("function renderFinancialTransactionSummary(");
     const end = source.indexOf("const financialTableSorts", start);
     const summary = source.slice(start, end);

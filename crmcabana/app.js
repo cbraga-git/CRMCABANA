@@ -2576,8 +2576,10 @@ function renderFinancialEntries(view = state.view) {
   const filterType = financialEntryViewType(view);
   const { start, end } = financialMonthBounds(state.financialEntryMonthFilter || state.financialDashboardMonth);
   const filters = state.financialEntryFilters;
-  const hasGlobalFilter = Boolean(filters.search || (view === "financeTransactions" && filters.type) || (filters.accountId && filters.accountId !== FINANCIAL_BANK_ACCOUNTS_FILTER) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
   const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
+  const selectedAccounts = financialFilterValues(filters.accountId);
+  const onlyBankAccounts = filters.accountId === FINANCIAL_BANK_ACCOUNTS_FILTER || (bankAccountIds.size > 0 && selectedAccounts.length === bankAccountIds.size && selectedAccounts.every((id) => bankAccountIds.has(id)));
+  const hasGlobalFilter = Boolean(filters.search || (view === "financeTransactions" && filters.type) || (filters.accountId && !onlyBankAccounts) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
   if (view === "financeTransactions") renderFinancialTransactionSummary(start, end);
   const budgetFilter = view === "financeTransactions" && state.financialScope === "company" ? state.financialBudgetFilter : null;
   const entries = state.financialEntries.filter((entry) => {
@@ -2625,8 +2627,8 @@ function renderFinancialEntries(view = state.view) {
   document.querySelectorAll("[data-financial-balance]").forEach((input) => { input.checked = Boolean(balanceVisibility[input.dataset.financialBalance]); });
   document.querySelector("#financialEntryFilterStart").value = state.financialEntryMonthFilter && !hasGlobalFilter ? start : filters.startDate;
   document.querySelector("#financialEntryFilterEnd").value = state.financialEntryMonthFilter && !hasGlobalFilter ? end : filters.endDate;
-  document.querySelector("#financialEntryFilterStart").disabled = Boolean(state.financialEntryMonthFilter && !hasGlobalFilter);
-  document.querySelector("#financialEntryFilterEnd").disabled = Boolean(state.financialEntryMonthFilter && !hasGlobalFilter);
+  document.querySelector("#financialEntryFilterStart").disabled = false;
+  document.querySelector("#financialEntryFilterEnd").disabled = false;
   const title = document.querySelector("#financialEntriesTitle");
   if (title) title.textContent = filterType === "expense" ? "Contas a pagar" : filterType === "income" ? "Contas a receber" : "Transações";
   const context = document.querySelector("#financialEntriesContext");
@@ -8188,6 +8190,10 @@ document.querySelector("#financialEntryFilters")?.addEventListener("input", (eve
   const keys = { financialEntryFilterSearch: "search", financialEntryFilterType: "type", financialEntryFilterAccount: "accountId", financialEntryFilterCategory: "categoryId", financialEntryFilterStatus: "status", financialEntryFilterStart: "startDate", financialEntryFilterEnd: "endDate" };
   const key = keys[event.target.id];
   if (!key || event.target.disabled) return;
+  if (key === "startDate" || key === "endDate") {
+    state.financialEntryFilters.startDate = document.querySelector("#financialEntryFilterStart").value;
+    state.financialEntryFilters.endDate = document.querySelector("#financialEntryFilterEnd").value;
+  }
   state.financialEntryFilters[key] = event.target.value;
   state.financialEntryPage = 1;
   renderFinancialEntries();

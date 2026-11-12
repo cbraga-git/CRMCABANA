@@ -60,3 +60,24 @@ test('account checkboxes expand groups so individual exceptions can be unchecked
   choose('cash', true);
   assert.equal(state.financialEntryFilters.accountId, 'cash');
 });
+
+for (const name of ['crmcabana', 'gestaocabana']) {
+  const source = await readFile(new URL(`../${name}/app.js`, import.meta.url), 'utf8');
+  test(`${name}: bank account group retains monthly range and custom dates override it`, () => {
+    const start = source.indexOf('  const filters = state.financialEntryFilters;', source.indexOf('function renderFinancialEntries('));
+    const end = source.indexOf('  if (view === "financeTransactions") renderFinancialTransactionSummary', start);
+    const filters = {accountId: 'bank-a|bank-b'};
+    const state = {financialEntryFilters: filters, financialAccounts: [
+      {id: 'bank-a', active: true, account_type: 'bank'},
+      {id: 'bank-b', active: true, account_type: 'bank'},
+      {id: 'cash', active: true, account_type: 'cash'},
+    ]};
+    const evaluate = () => runInNewContext(`${helpers}\n${source.slice(start, end)}\nhasGlobalFilter`, {...context, state, view: 'financeTransactions'});
+    assert.equal(evaluate(), false);
+    filters.startDate = '2026-09-01';
+    assert.equal(evaluate(), true);
+    filters.startDate = '';
+    filters.accountId = 'bank-a|cash';
+    assert.equal(evaluate(), true);
+  });
+}
