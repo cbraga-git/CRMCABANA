@@ -63,7 +63,7 @@ test('account checkboxes expand groups so individual exceptions can be unchecked
 
 for (const name of ['crmcabana', 'gestaocabana']) {
   const source = await readFile(new URL(`../${name}/app.js`, import.meta.url), 'utf8');
-  test(`${name}: bank account group retains monthly range and custom dates override it`, () => {
+  test(`${name}: any account selection retains monthly range and custom dates override it`, () => {
     const start = source.indexOf('  const filters = state.financialEntryFilters;', source.indexOf('function renderFinancialEntries('));
     const end = source.indexOf('  if (view === "financeTransactions") renderFinancialTransactionSummary', start);
     const filters = {accountId: 'bank-a|bank-b'};
@@ -77,7 +77,11 @@ for (const name of ['crmcabana', 'gestaocabana']) {
     filters.startDate = '2026-09-01';
     assert.equal(evaluate(), true);
     filters.startDate = '';
-    filters.accountId = 'bank-a|cash';
+    for (const selection of ['', '__bank_accounts__', 'bank-a', 'cash', 'bank-a|cash', 'bank-a|bank-b', '__bank_accounts__|cash', '__none__']) {
+      filters.accountId = selection;
+      assert.equal(evaluate(), false, selection);
+    }
+    filters.endDate = '2026-12-31';
     assert.equal(evaluate(), true);
   });
 }

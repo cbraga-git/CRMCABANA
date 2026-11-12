@@ -2668,9 +2668,7 @@ function renderFinancialEntries(view = state.view) {
   const { start, end } = financialMonthBounds(state.financialEntryMonthFilter || state.financialDashboardMonth);
   const filters = state.financialEntryFilters;
   const bankAccountIds = new Set(state.financialAccounts.filter((account) => account.active && account.account_type === "bank").map((account) => account.id));
-  const selectedAccounts = financialFilterValues(filters.accountId);
-  const onlyBankAccounts = filters.accountId === FINANCIAL_BANK_ACCOUNTS_FILTER || (bankAccountIds.size > 0 && selectedAccounts.length === bankAccountIds.size && selectedAccounts.every((id) => bankAccountIds.has(id)));
-  const hasGlobalFilter = Boolean(filters.search || (view === "financeTransactions" && filters.type) || (filters.accountId && !onlyBankAccounts) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
+  const hasGlobalFilter = Boolean(filters.search || (view === "financeTransactions" && filters.type) || filters.categoryId || filters.status || filters.startDate || filters.endDate);
   if (view === "financeTransactions") renderFinancialTransactionSummary(start, end);
   const budgetFilter = view === "financeTransactions" && state.financialScope === "company" ? state.financialBudgetFilter : null;
   const entries = state.financialEntries.filter((entry) => {
