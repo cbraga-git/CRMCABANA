@@ -1862,14 +1862,67 @@ function renderFinancialBalanceChart(year) {
   context.font = "11px Arial"; context.strokeStyle = state.financialScope === "braga" ? "#404040" : "#e0d3aa"; context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.textAlign = "right";
   for (let tick = 0; tick <= 4; tick += 1) { const value = min + range * tick / 4; const y = height - padding.bottom - chartHeight * tick / 4; context.beginPath(); context.moveTo(padding.left, y); context.lineTo(width - padding.right, y); context.stroke(); context.fillText(BRL.format(value), padding.left - 8, y + 4); }
   const points = values.map((value, index) => ({ x: padding.left + chartWidth * index / 11, y: padding.top + (max - value) / range * chartHeight })); context.strokeStyle = "#aa8e34"; context.lineWidth = 3; context.beginPath(); points.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.stroke();
+  canvas.style.cursor = "pointer";
+  canvas.title = "Clique em um mês para conferir as transações do saldo previsto";
+  canvas.onclick = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * width / rect.width;
+    if (x < padding.left - 15 || x > width - padding.right + 15) return;
+    const index = Math.max(0, Math.min(11, Math.round((x - padding.left) / chartWidth * 11)));
+    openFinancialEvolutionDetails(`${year}-${String(index + 1).padStart(2, "0")}`, "balance");
+  };
   points.forEach((point, index) => { context.fillStyle = "#aa8e34"; context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.fillStyle = state.financialScope === "braga" ? "#bcbcbc" : "#6e6135"; context.textAlign = "center"; context.fillText(["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][index], point.x, height - 18); });
 }
 
+
+function financialEvolutionDetails(month, kind) {
+  const accounts = financialEvolutionAccounts();
+  const ids = new Set(accounts.map((account) => account.id));
+  const { start, end } = financialMonthBounds(month);
+  const entries = state.financialEntries.filter((entry) => {
+    const date = financialEntryDate(entry);
+    if (entry.status === "cancelled" || date > end || (kind !== "balance" && date < start)) return false;
+    if (kind === "incoming") return entry.entry_type === "transfer" && ids.has(entry.transfer_account_id);
+    if (kind === "outgoing") return entry.entry_type === "transfer" && ids.has(entry.account_id);
+    if (kind === "income" || kind === "expense") return entry.entry_type === kind && ids.has(entry.account_id);
+    return ids.has(entry.account_id) || (entry.entry_type === "transfer" && ids.has(entry.transfer_account_id));
+  }).sort((a, b) => financialEntryDate(a).localeCompare(financialEntryDate(b)));
+  const initial = kind === "balance" ? accounts.reduce((sum, account) => sum + (Number(account.initial_balance) || 0), 0) : 0;
+  const impact = (entry) => {
+    const amount = Number(entry.amount) || 0;
+    if (kind !== "balance") return amount;
+    if (entry.entry_type === "transfer") return (ids.has(entry.transfer_account_id) ? amount : 0) - (ids.has(entry.account_id) ? amount : 0);
+    return entry.entry_type === "income" ? amount : -amount;
+  };
+  return { entries, initial, impact, total: initial + entries.reduce((sum, entry) => sum + impact(entry), 0) };
+}
+
+function openFinancialEvolutionDetails(month, kind) {
+  const details = financialEvolutionDetails(month, kind);
+  const labels = { incoming: "Transferências de entrada", outgoing: "Transferências de saída", income: "Receitas", expense: "Despesas", balance: "Saldo previsto" };
+  let dialog = document.querySelector("#financialEvolutionDetailsDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "financialEvolutionDetailsDialog";
+    dialog.className = "wide-dialog";
+    dialog.setAttribute("aria-labelledby", "financialEvolutionDetailsTitle");
+    document.body.append(dialog);
+  }
+  const names = new Map(state.financialAccounts.map((account) => [account.id, account.name]));
+  dialog.innerHTML = `<div class="dialog-card"><header><h2 id="financialEvolutionDetailsTitle">${labels[kind]} · ${formatFinancialMonth(month)}</h2><button type="button" aria-label="Fechar">×</button></header>
+    ${kind === "balance" ? `<p>Histórico até ${formatFinancialDate(financialMonthBounds(month).end)} · Saldo inicial: ${BRL.format(details.initial)}</p>` : ""}
+    <div class="table-wrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Conta</th><th>Destino</th><th>Status</th><th>Valor</th></tr></thead><tbody>
+    ${details.entries.map((entry) => `<tr><td>${escapeHtml(formatFinancialDate(financialEntryDate(entry)))}</td><td>${escapeHtml(entry.description || "—")}</td><td>${escapeHtml(names.get(entry.account_id) || "—")}</td><td>${escapeHtml(entry.entry_type === "transfer" ? names.get(entry.transfer_account_id) || "—" : "—")}</td><td>${escapeHtml(({ paid: "Pago", pending: "Pendente", overdue: "Atrasado" })[entry.status] || entry.status || "—")}</td><td>${BRL.format(details.impact(entry))}</td></tr>`).join("") || '<tr><td colspan="6">Nenhuma transação neste período.</td></tr>'}
+    </tbody></table></div><p><strong>Total: ${BRL.format(details.total)}</strong></p></div>`;
+  dialog.querySelector("button").onclick = () => dialog.close();
+  dialog.showModal();
+}
 function renderFinancialEvolutionTable(year) {
   const rows = document.querySelector("#financialEvolutionRows"); if (!rows) return; const accounts = financialEvolutionAccounts(); const accountIds = new Set(accounts.map((account) => account.id)); const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   rows.innerHTML = Array.from({ length: 12 }, (_, index) => {
     const month = `${year}-${String(index + 1).padStart(2, "0")}`; const { start, end } = financialMonthBounds(month); const entries = state.financialEntries.filter((entry) => entry.status !== "cancelled" && financialEntryDate(entry) >= start && financialEntryDate(entry) <= end); const incomingTransfers = entries.filter((entry) => entry.entry_type === "transfer" && accountIds.has(entry.transfer_account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const outgoingTransfers = entries.filter((entry) => entry.entry_type === "transfer" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const income = entries.filter((entry) => entry.entry_type === "income" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const expense = entries.filter((entry) => entry.entry_type === "expense" && accountIds.has(entry.account_id)).reduce((sum, entry) => sum + Number(entry.amount), 0); const projected = accounts.reduce((sum, account) => sum + financialAccountBalance(account, end, true), 0);
-    return `<tr><td data-sort-value="${month}"><strong>${monthNames[index]} ${year}</strong></td><td>${BRL.format(incomingTransfers)}</td><td>${BRL.format(outgoingTransfers)}</td><td class="financial-positive">${BRL.format(income)}</td><td class="financial-negative">${BRL.format(expense)}</td><td><strong>${BRL.format(projected)}</strong></td></tr>`;
+    const valueButton = (kind, value) => `<button type="button" class="financial-evolution-value" data-evolution-month="${month}" data-evolution-kind="${kind}" aria-label="Ver transações: ${monthNames[index]} ${year}, ${BRL.format(value)}">${BRL.format(value)}</button>`;
+    return `<tr><td data-sort-value="${month}"><strong>${monthNames[index]} ${year}</strong></td><td>${valueButton("incoming", incomingTransfers)}</td><td>${valueButton("outgoing", outgoingTransfers)}</td><td class="financial-positive">${valueButton("income", income)}</td><td class="financial-negative">${valueButton("expense", expense)}</td><td><strong>${valueButton("balance", projected)}</strong></td></tr>`;
   }).join("");
   applyFinancialTableSort(rows.closest("table"));
 }
@@ -8302,6 +8355,10 @@ document.querySelector("#financialDashboardContent")?.addEventListener("input", 
 document.querySelector("#financialEvolutionYear")?.addEventListener("change", (event) => { state.financialEvolutionYear = Number(event.target.value); renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionChartBtn")?.addEventListener("click", () => { state.financialEvolutionView = "chart"; renderFinancialEvolution(); });
 document.querySelector("#financialEvolutionTableBtn")?.addEventListener("click", () => { state.financialEvolutionView = "table"; renderFinancialEvolution(); });
+document.querySelector("#financialEvolutionRows")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-evolution-month]");
+  if (button) openFinancialEvolutionDetails(button.dataset.evolutionMonth, button.dataset.evolutionKind);
+});
 document.querySelector("#clearFinancialEntryFilter")?.addEventListener("click", () => {
   state.financialEntryAccountFilter = "";
   state.financialEntryMonthFilter = "";
