@@ -816,8 +816,8 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 .financial-account-card { display: flex; flex-direction: column; padding: 18px 18px 0; }
 .financial-account-card.inactive { opacity: .68; }
 .financial-account-card > header { display: flex; align-items: center; gap: 11px; }
-.financial-account-card > header > div:nth-child(2) { min-width: 0; }
-.financial-account-card h3 { margin: 0; overflow: hidden; color: var(--text); font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.financial-account-card > header > div:nth-child(2) { flex: 1; min-width: 0; }
+.financial-account-card h3 { margin: 0; color: var(--text); font-size: 17px; line-height: 1.3; white-space: normal; overflow-wrap: anywhere; }
 .financial-account-card small { color: var(--muted); font-size: 11px; }
 .financial-account-card dl { display: grid; gap: 15px; margin: 24px 0; }
 .financial-account-card dl div { display: flex; justify-content: space-between; gap: 12px; }
@@ -830,7 +830,7 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 .financial-new-account-card:hover, .financial-new-account-card:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
 .financial-accounts-summary { display: grid; gap: 12px; }
 .financial-accounts-summary .stat-card { min-width: 0; }
-.financial-account-actions { position: relative; margin-left: auto; }
+.financial-account-actions { position: relative; flex-shrink: 0; margin-left: auto; }
 .financial-account-menu-button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--text); font-size: 24px; cursor: pointer; }
 .financial-account-menu-button:hover, .financial-account-menu-button[aria-expanded="true"] { background: rgba(170, 142, 52, .14); }
 .financial-account-actions-menu { position: absolute; top: 34px; right: 0; z-index: 20; display: grid; min-width: 160px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: 0 12px 30px rgba(0, 0, 0, .2); }
