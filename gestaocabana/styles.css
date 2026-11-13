@@ -862,7 +862,7 @@ body[data-view="financeTransactions"] .financial-module-view > .page-header {
 .financial-evolution-table th, .financial-evolution-table td { padding: 15px 20px; text-align: right; white-space: nowrap; }
 .financial-evolution-table th:first-child, .financial-evolution-table td:first-child { text-align: left; }
 .financial-evolution-table tbody tr:last-child td { border-bottom: 0; }
-.financial-evolution-value { padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.financial-evolution-value { padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: none; cursor: pointer; }
 .financial-evolution-value:hover, .financial-evolution-value:focus-visible { color: var(--accent-dark); }
 #financialEvolutionDetailsDialog { background: var(--card); color: var(--text); }
 #financialEvolutionDetailsDialog .dialog-card,
