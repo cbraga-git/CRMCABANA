@@ -1915,6 +1915,7 @@ function openFinancialEvolutionDetails(month, kind) {
     ${details.entries.map((entry) => `<tr><td>${escapeHtml(formatFinancialDate(financialEntryDate(entry)))}</td><td>${escapeHtml(entry.description || "—")}</td><td>${escapeHtml(names.get(entry.account_id) || "—")}</td><td>${escapeHtml(entry.entry_type === "transfer" ? names.get(entry.transfer_account_id) || "—" : "—")}</td><td>${escapeHtml(({ paid: "Pago", pending: "Pendente", overdue: "Atrasado" })[entry.status] || entry.status || "—")}</td><td>${BRL.format(details.impact(entry))}</td></tr>`).join("") || '<tr><td colspan="6">Nenhuma transação neste período.</td></tr>'}
     </tbody></table></div><p><strong>Total: ${BRL.format(details.total)}</strong></p></div>`;
   dialog.querySelector("button").onclick = () => dialog.close();
+  dialog.onclick = (event) => { if (event.target === dialog) dialog.close(); };
   dialog.showModal();
 }
 function renderFinancialEvolutionTable(year) {
